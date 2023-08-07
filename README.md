@@ -6,6 +6,12 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 
 ## How to Use
 
+### Prerequisits
+
+- [D3](https://d3js.org/) v7.8.4
+- [Arquero](https://uwdata.github.io/arquero/) v5.2.0
+- [Moment](https://momentjs.com/) 2.29.4
+
 ### On browser (Vanilla JS)
 
 ```{html}
@@ -14,6 +20,8 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
 <script src="{path}/erie-web.js"></script>
 ```
+
+(Working on CDN)
 
 ### On Node
 
