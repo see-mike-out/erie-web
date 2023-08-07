@@ -1,0 +1,29 @@
+{
+  "name": "erie-web",
+  "version": "0.1.0",
+  "description": "A declarative grammar for data sonification for web",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "rollup --config",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/see-mike-out/erie-web.git"
+  },
+  "keywords": [
+    "data",
+    "sonification"
+  ],
+  "author": "Hyeok Kim (hyeok.me)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/see-mike-out/erie-web/issues"
+  },
+  "homepage": "https://github.com/see-mike-out/erie-web#readme",
+  "devDependencies": {
+    "@rollup/plugin-json": "^6.0.0",
+    "@rollup/plugin-terser": "^0.4.3",
+    "rollup": "^3.27.2"
+  }
+}

@@ -1,0 +1,48 @@
+<html lang="{$language}">
+<head>
+
+<style>
+	h4 {
+		padding: 0;
+		margin: 0 0 0.25rem;
+		font-size: 0.9rem;
+	}
+
+	.buttons {
+		width: fit-content;
+		border: 1px solid #dddddd;
+		background-color: white;
+		box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+		padding: 0.5rem;
+		border-radius: 0.5rem;
+    font-family: sans-serif;
+	}
+
+  button {
+    appearance: none;
+    border: 0;
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: inherit;
+    line-height: 100%;
+  }
+
+  button:focus {
+    outline: 2px soild #2196f3;
+    outline-offset: 2px;
+  }
+</style>
+</head>
+
+<body>
+<div class="buttons">
+  <h4>Player</h4>
+  <button erie-label="erie-player-play-button">Play</button>
+  <button erie-label="erie-player-stop-button">Stop</button>
+</div>
+<script>
+// player codes
+// player events
+</script>
+</body>
+</html>
