@@ -18,6 +18,7 @@ import { Tick } from './classes/erie-tick';
 import { Config } from './classes/eire-config';
 import { registerFilter } from './classes/erie-audio-filter';
 import { compileAuidoGraph } from './audio-graph';
+import { setSampleBaseUrl } from './player/audio-graph-instrument-sample';
 
 export let Erie = {
   Data,
@@ -55,7 +56,8 @@ export let Erie = {
   Stream,
   Config,
   registerFilter,
-  compileAuidoGraph
+  compileAuidoGraph,
+  setSampleBaseUrl
 };
 
 module.exports = Erie;

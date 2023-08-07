@@ -243,8 +243,19 @@ export function determineNoteRange(freq, config) {
   }
 }
 
-window.baseUrl = 'audio_sample/'
-export async function loadSamples(ctx, instrument_name, smaplingDef) {
+if (window) window.erieSampleBaseUrl = 'audio_sample/';
+else var erieSampleBaseUrl = 'audio_sample/';
+
+export function setSampleBaseUrl(url) {
+  if (window) window.erieSampleBaseUrl = url;
+  erieSampleBaseUrl = url;
+}
+
+export async function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
+  if (!baseUrl) {
+    if (window) baseUrl = window.erieSampleBaseUrl;
+    else baseUrl = erieSampleBaseUrl;
+  }
   let samples = {};
   if (MultiNoteInstruments.includes(instrument_name)) {
     for (const octave of noteFreqRange) {
