@@ -243,18 +243,19 @@ export function determineNoteRange(freq, config) {
   }
 }
 
+window.baseUrl = 'audio_sample/'
 export async function loadSamples(ctx, instrument_name, smaplingDef) {
   let samples = {};
   if (MultiNoteInstruments.includes(instrument_name)) {
     for (const octave of noteFreqRange) {
-      let sampleRes = await fetch(`audio_sample/${instrument_name}_c${octave.octave}.mp3`);
+      let sampleRes = await fetch(`${baseUrl}${instrument_name}_c${octave.octave}.mp3`);
       let sampleBuffer = await sampleRes.arrayBuffer();
       let source = await ctx.decodeAudioData(sampleBuffer)
       samples[`C${octave.octave}`] = source;
     }
     samples.multiNote = true;
   } else if (SingleNoteInstruments.includes(instrument_name)) {
-    samples = await makeSingleScaleSamplingNode(ctx, `audio_sample/${instrument_name}.mp3`);
+    samples = await makeSingleScaleSamplingNode(ctx, `${baseUrl}${instrument_name}.mp3`);
     samples.multiNote = false;
   } else if (smaplingDef[instrument_name]) {
     if (jType(smaplingDef) === 'String') {
