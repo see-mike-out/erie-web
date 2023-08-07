@@ -59,7 +59,7 @@ npm run build
 ### And
 
 - Open for pull/merge requests!
-- Leave an issue
-- Get on the board (let's work together)
+- Leave an issue for suggestions or bugs!
+- Get on the board (let's work together)!
 
 ## Cite
