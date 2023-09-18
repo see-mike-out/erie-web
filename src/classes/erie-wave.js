@@ -8,6 +8,7 @@ export class WaveTone {
       throw new Error('A sampled tone must have a name.')
     }
     this.setName(name);
+    this._disableNormalization = false;
     this._real = [];
     this._imag = [];
     if (defs) {
@@ -56,11 +57,22 @@ export class WaveTone {
     return this;
   }
 
+  disableNormalization(v) {
+    if (isInstanceOf(v, Boolean)) {
+      this._disableNormalization = v;
+    } else {
+      throw new TypeError(`The 'disableNormalization' value should be a Boolean.`);
+    }
+
+    return this;
+  }
+
   get() {
     return {
       name: this._name,
       real: [...this._real],
-      imag: [...this._imag]
+      imag: [...this._imag],
+      disableNormalization: this._disableNormalization
     }
   }
 
@@ -68,7 +80,7 @@ export class WaveTone {
     let _c = new SynthTone(this._name);
     _c._real = [...this._real];
     _c._imag = [...this._imag];
-
+    _c._disableNormalization = this._disableNormalization;
     return _c;
   }
 }
