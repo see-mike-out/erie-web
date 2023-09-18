@@ -12,7 +12,7 @@ export class SynthTone {
     if (!name) {
       throw new Error('A sampled tone must have a name.')
     }
-    this.setName(name);
+    this.name(name);
     this._type = 'FM';
     this._carrierType = 'sine';
     this._carrierPitch = 220;
@@ -26,7 +26,7 @@ export class SynthTone {
     this._releaseTime = 0;
   }
 
-  setName(n) {
+  name(n) {
     if (isInstanceOf(n, String)) {
       this._name = n;
     } else {
@@ -36,7 +36,7 @@ export class SynthTone {
     return this;
   }
 
-  setType(t) {
+  type(t) {
     if (SynthTypes.includes(t)) {
       this._type = t;
     } else {
@@ -171,7 +171,7 @@ export class SynthTone {
 
   clone() {
     let _c = new SynthTone(this._name);
-    _c.type = this._type;
+    _c._type = this._type;
     _c._carrierType = this._carrierType;
     _c._carrierPitch = this._carrierPitch;
     _c._carrierDetune = this._carrierDetune;
