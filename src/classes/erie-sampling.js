@@ -31,7 +31,9 @@ export class SampledTone {
 
   setSample(s) {
     Object.keys(s).forEach((k) => {
-      if (!scaleKeyCheck(k)) {
+      if (k === "mono") {
+        this._sample.mono = s[k];
+      } else if (!scaleKeyCheck(k)) {
         throw new TypeError('The key of a sampling object should be "C" + "0-7".');
       } else {
         this._sample[k] = s[k];
@@ -50,7 +52,7 @@ export class SampledTone {
 
   clone() {
     let _c = new SampledTone(this._name, deepcopy(this._sample || {}));
-    
+
     return _c;
   }
 }

@@ -6,12 +6,20 @@ import { getDataWrap } from "./data/audio-graph-data-import";
 import { toHashedObject } from './util/audio-graph-format-util';
 import { tidyUpScaleDefinitions, getChannelType, makeScales } from './compile/audio-graph-update-scale';
 
+// global event
+let isRecorded = false;
+export function readyRecording() {
+  document?.body?.addEventListener("erieOnRecorderReady", (e) => {
+    isRecorded = true;
+  });
+}
 
-export async function compileAuidoGraph(audio_spec) {
+export async function compileAuidoGraph(audio_spec, options) {
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec);
-
+  // console.log(normalized)
   // 1. load datasets first! && filling missing data type
   let loaded_datasets = {};
+  let scalesToRemove = [];
   for (const stream of normalized) {
     if (stream.stream) {
       await getDataWrap(stream.stream.data, loaded_datasets, datasets);
@@ -23,29 +31,33 @@ export async function compileAuidoGraph(audio_spec) {
       if (untyped_channels.length > 0) {
         await getChannelType(loaded_datasets, stream.stream, untyped_channels)
       }
+      scalesToRemove.push(...tidyUpScaleDefinitions(scaleDefinitions, normalized, sequenceConfig));
     } else if (stream.overlay) {
       for (const overlay of stream.overlay) {
-        await getDataWrap(datasets[overlay.data.name], loaded_datasets, datasets);
+        await getDataWrap(overlay.data, loaded_datasets, datasets);
         let untyped_channels = [];
         Object.keys(overlay.encoding).forEach((channel) => {
           if (!overlay.encoding[channel].type) untyped_channels.push(channel);
         });
         if (untyped_channels.length > 0) {
-          await getChannelType(loaded_datasets, stream.stream, untyped_channels)
+          await getChannelType(loaded_datasets, overlay, untyped_channels)
         }
       }
+      let c = {};
+      Object.assign(c, sequenceConfig);
+      Object.assign(c, stream.config || {});
+      scalesToRemove.push(...tidyUpScaleDefinitions(scaleDefinitions, normalized, c));
     }
   }
 
   // 2. tidy up scales
   let scaleHash = toHashedObject(scaleDefinitions, 'id');
-  let scalesToRemove = tidyUpScaleDefinitions(scaleDefinitions, normalized, sequenceConfig);
   for (const sid of scalesToRemove) {
     delete scaleHash[sid];
   }
 
   // 3. make scales
-  let scales = await makeScales(scaleHash, normalized, loaded_datasets);
+  let scales = await makeScales(scaleHash, normalized, loaded_datasets, sequenceConfig);
 
   // 4. make streams
   let sequence = new SequenceStream();
@@ -76,12 +88,6 @@ export async function compileAuidoGraph(audio_spec) {
       let is_repeated = isRepeatedStream(stream.stream);
       let data = deepcopy(loaded_datasets[stream.stream.data.name]);
       let slag = await compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales)
-      if (isSeq) {
-        if (sequenceScaleConsistency && si > 0) slag.stream.setConfig('skipScaleSpeech', true);
-        else if (!sequenceScaleConsistency) slag.stream.setConfig('skipScaleSpeech', false);
-        if (si > 0) slag.stream.setConfig('skipStartSpeech', true);
-        slag.stream.setConfig('skipFinishSpeech', true);
-      }
       if (!is_repeated) {
         sequence.addStream(slag.stream);
       } else {
@@ -92,9 +98,13 @@ export async function compileAuidoGraph(audio_spec) {
           sequence.setConfig(key, audio_spec.config[key]);
         });
       }
+      if (stream.stream.config) {
+        Object.keys(stream.stream.config).forEach((key) => {
+          sequence.setConfig(key, stream.stream.config[key]);
+        });
+      }
       if (stream.stream.title) sequence.setTitle(stream.stream.title);
       if (stream.stream.description) sequence.setDescription(stream.stream.description);
-      si++;
     } else if (stream.overlay) {
       let overlays = new OverlayStream();
       let i = 0;
@@ -106,39 +116,40 @@ export async function compileAuidoGraph(audio_spec) {
 
         let overlayStrm = await compileSingleLayerAuidoGraph(overlay, data, config, tick, scales)
 
-        let overlayScaleConsistency = config.overlayScaleConsistency !== undefined ? config.overlayScaleConsistency : true;
-
         if (overlay.name) overlayStrm.stream.setName(overlay.name);
         if (overlay.title) overlayStrm.stream.setTitle(overlay.title);
         if (overlay.description) overlayStrm.stream.setDescription(overlay.description);
 
-        if (overlayScaleConsistency && i > 0) overlayStrm.stream.setConfig('skipScaleSpeech', true);
-        else if (i == 0) overlayStrm.stream.setConfig('skipScaleSpeech', false);
-        else if (!overlayScaleConsistency) overlayStrm.stream.setConfig('skipScaleSpeech', false);
         overlays.addStream(overlayStrm.stream);
         i++;
       }
       overlays.setName(stream.name);
       overlays.setTitle(stream.title);
       overlays.setDescription(stream.description);
-      overlays.setConfig('skipStartSpeech', true)
-      overlays.setConfig('skipScaleSpeech', true)
       if (audio_spec.config) {
         Object.keys(audio_spec.config).forEach((key) => {
           overlays.setConfig(key, audio_spec.config[key]);
         });
       }
+      if (stream.overlay.config) {
+        Object.keys(stream.overlay.config).forEach((key) => {
+          overlays.setConfig(key, stream.overlay.config[key]);
+        });
+      }
       sequence.addStream(overlays);
     }
-  }
-  if (normalized.length > 0) {
-    sequence.setConfig("skipScaleSpeech", true)
+    si++;
   }
   if (audio_spec.config) {
     Object.keys(audio_spec.config).forEach((key) => {
       sequence.setConfig(key, audio_spec.config[key]);
     });
   }
+  if (window?.erieRecorderReady) {
+    isRecorded = true;
+  }
+  sequence.setConfig('isRecorded', isRecorded);
+  sequence.setConfig('options', options);
   return sequence;
 }
 

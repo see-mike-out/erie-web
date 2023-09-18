@@ -39,6 +39,8 @@ export class Transform {
   }
 
   clone() {
-    return this.transform.map((tf) => tf.clone());
+    let c = new Transform();
+    this.transform.forEach((tf) => c.add(tf.clone()));
+    return c;
   }
 }

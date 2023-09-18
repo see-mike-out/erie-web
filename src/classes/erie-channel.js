@@ -7,6 +7,8 @@ const QUANT = 'quantitative', ORD = 'ordinal', NOM = 'nominal', TMP = 'temporal'
 const SupportedEncodingTypes = [QUANT, ORD, NOM, TMP, STATIC];
 const POS = 'positive', NEG = 'negative';
 const SupportedPolarity = [POS, NEG];
+const RampMethods = [true, false, 'abrupt', 'linear', 'exponential'];
+const SingleTapPosOptions = ['start', 'middle', 'end'];
 
 import {
   TimeChannel,
@@ -45,21 +47,25 @@ export const TIME_chn = "time",
 
 const REL = 'relative', ABS = 'absolute', SIM = 'simultaneous';
 const TIMINGS = [REL, ABS, SIM];
+const FormatTypes = ['number', 'datetime'];
 
 export class Channel {
   constructor(f, t) {
     this.defined = false;
-    this.channel = undefined;
+    this._channel = undefined;
     this._field;
     this._type;
     if (f) {
       this.field(f, t);
     }
+    this._ramp = 'linear';
     this._aggregate;
     this._bin;
     this._scale = {};
     this._condition;
     this._value;
+    this._format;
+    this._formatType;
   }
 
   set(c) {
@@ -90,6 +96,8 @@ export class Channel {
       this._field = undefined;
     } else if (isInstanceOf(f, String)) {
       this._field = f;
+    } else if (this._channel === REPEAT_chn && isArrayOf(f, String)) {
+      this._field = f;
     } else {
       throw new TypeError('A field for an encoding channel must be a String.');
     }
@@ -106,6 +114,18 @@ export class Channel {
     }
 
     return this;
+  }
+
+  ramp(r) {
+    if (RampMethods.includes(r)) {
+      if (isInstanceOf(r, String)) {
+        this._ramp = r;
+      } else {
+        this._ramp = r ? 'linear' : 'abrupt';
+      }
+    } else {
+      throw new TypeError(`A ramping method for an encoding channel must be either one of ${RampMethods.join(', ')}.`);
+    }
   }
 
   aggregate(op) {
@@ -161,6 +181,7 @@ export class Channel {
     if (p === 'domain' && isInstanceOf(v, Array)) {
       this._scale.domain = [...v];
     } else if (p === 'range' && isInstanceOf(v, Array)) {
+      console.log(v, v.every(this.validator))
       if (v.every(this.validator)) {
         this._scale.range = [...v];
         if (this._scale.times !== undefined ||
@@ -172,7 +193,8 @@ export class Channel {
       } else {
         throw new TypeError('Unsupported value type');
       }
-
+    } else if (p === 'order' && isInstanceOf(v, Array)) {
+      this._scale.order = v;
     } else if (p === 'polarity' && SupportedPolarity.includes(v)) {
       this._scale.polarity = v;
     } else if (p === 'maxDistinct' && isInstanceOf(v, Boolean)) {
@@ -195,11 +217,15 @@ export class Channel {
       this._scale.zero = v;
     } else if (p === 'description' && (isInstanceOf(v, String) || v == null)) {
       this._scale.description = v;
-    } else if (this.channel === TIME_chn && p === 'length' && isInstanceOf(v, Number)) {
+    } else if (p === 'title' && (isInstanceOf(v, String) || v == null)) {
+      this._scale.title = v;
+    } else if (this._channel === TIME_chn && p === 'length' && isInstanceOf(v, Number)) {
       this._scale.length = v;
-    } else if ([TIME_chn, TAPCNT_chn, TAPSPD_chn].includes(this.channel) && p === 'band' && isInstanceOf(v, Number)) {
+    } else if ([TIME_chn, TAPCNT_chn, TAPSPD_chn].includes(this._channel) && p === 'band' && isInstanceOf(v, Number)) {
       this._scale.band = v;
-    } else if (this.channel === TIME_chn && p === 'timing' && TIMINGS.includes(v)) {
+    } else if (this._channel === TIME_chn && p === 'timing' && TIMINGS.includes(v)) {
+      this._scale.timing = v;
+    } else if (this._channel === TAPSPD_chn && p === 'singleTappingPosition' && SingleTapPosOptions.includes(v)) {
       this._scale.timing = v;
     } else {
       throw new Error('The provide key and value is not a supported scale option.')
@@ -272,7 +298,7 @@ export class Channel {
   }
 
   speech(v) {
-    if (this.channel === REPEAT_chn) {
+    if (this._channel === REPEAT_chn) {
       if (isInstanceOf(v, Boolean)) {
         this._speech = v;
       } else {
@@ -287,9 +313,9 @@ export class Channel {
   }
 
   tick(k, v) {
-    if (this.channel === TIME_chn) {
+    if (this._channel === TIME_chn) {
       if (isInstanceOf(k, String)) {
-        this._tick = {};
+        if (!this._tick) this._tick = {};
         if (k === 'name' && isInstanceOf(v, String)) {
           this._tick.name = v;
         } else if (k === 'interval' && isInstanceOf(v, Number)) {
@@ -316,6 +342,25 @@ export class Channel {
     return this;
   }
 
+  format(f, t) {
+    if (f && t && isInstanceOf(f, String) && FormatTypes.includes(t)) {
+      this._format = f;
+      this._formatType = t;
+    } else if (f && isInstanceOf(f, String)) {
+      this._format = f;
+    } else {
+      throw new TypeError(`The "format" should be a String and "formatType" should be either ${FormatTypes.join(", ")}.`)
+    }
+  }
+
+  formatType(t) {
+    if (FormatTypes.includes(t)) {
+      this._formatType = t;
+    } else {
+      throw new TypeError(`The "formatType" should be either ${FormatTypes.join(", ")}.`)
+    }
+  }
+
   get() {
     let o = {
       type: this._type,
@@ -326,6 +371,7 @@ export class Channel {
       scale: this._scale ? deepcopy(this._scale) : this._scale,
       value: this._value,
       condition: this._condition ? deepcopy(this._condition) : this._condition,
+      ramp: this._ramp
     };
     if (this._channel === TIME_chn) {
       o.tick = this._tick ? deepcopy(this._tick) : this._tick;

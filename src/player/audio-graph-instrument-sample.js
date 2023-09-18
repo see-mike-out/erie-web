@@ -1,3 +1,5 @@
+import { erieSampleBaseUrl } from "../base";
+
 export const SupportedInstruments = ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"];
 export const MultiNoteInstruments = ["piano", "pianoElec", "violin", "metal", "guitar"];
 export const SingleNoteInstruments = ["hithat", "snare", "highKick", "lowKick", "clap"];
@@ -243,36 +245,25 @@ export function determineNoteRange(freq, config) {
   }
 }
 
-if (window) window.erieSampleBaseUrl = 'audio_sample/';
-else var erieSampleBaseUrl = 'audio_sample/';
-
-export function setSampleBaseUrl(url) {
-  if (window) window.erieSampleBaseUrl = url;
-  erieSampleBaseUrl = url;
-}
-
 export async function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
-  if (!baseUrl) {
-    if (window) baseUrl = window.erieSampleBaseUrl;
-    else baseUrl = erieSampleBaseUrl;
-  }
   let samples = {};
+  if (!baseUrl) baseUrl = windo?.erieSampleBaseUrl || erieSampleBaseUrl;
   if (MultiNoteInstruments.includes(instrument_name)) {
     for (const octave of noteFreqRange) {
-      let sampleRes = await fetch(`${baseUrl}${instrument_name}_c${octave.octave}.mp3`);
+      let sampleRes = await fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
       let sampleBuffer = await sampleRes.arrayBuffer();
       let source = await ctx.decodeAudioData(sampleBuffer)
       samples[`C${octave.octave}`] = source;
     }
     samples.multiNote = true;
   } else if (SingleNoteInstruments.includes(instrument_name)) {
-    samples = await makeSingleScaleSamplingNode(ctx, `${baseUrl}${instrument_name}.mp3`);
+    samples = await makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
     samples.multiNote = false;
   } else if (smaplingDef[instrument_name]) {
-    if (jType(smaplingDef) === 'String') {
+    if (smaplingDef[instrument_name].sample?.mono) {
       // single
       try {
-        samples = await makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample);
+        samples = await makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono);
         samples.multiNote = false;
       } catch (e) {
         console.error(e);
@@ -311,7 +302,7 @@ export async function makeSingleScaleSamplingNode(ctx, def) {
   let sampleRes = await fetch(def);
   let sampleBuffer = await sampleRes.arrayBuffer();
   let source = await ctx.decodeAudioData(sampleBuffer)
-  samples.C3 = source;
+  samples.mono = source;
   return samples;
 }
 

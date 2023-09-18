@@ -4,7 +4,9 @@ import { deepcopy } from "../util/audio-graph-util";
 
 export async function getDataWrap(dataDef, loaded_datasets, datasets) {
   let data;
-  if (dataDef.name) {
+  if (dataDef.values) {
+    return deepcopy(dataDef.values);
+  } else if (dataDef.name) {
     if (!loaded_datasets[dataDef.name]) {
       loaded_datasets[dataDef.name] = await getData(datasets[dataDef.name]);
     }
@@ -16,13 +18,13 @@ export async function getDataWrap(dataDef, loaded_datasets, datasets) {
 }
 
 export async function getData(data_spec) {
-  if (data_spec.values) {
+  if (data_spec?.values) {
     return data_spec.values;
-  } else if (data_spec.csv) {
-    return csvParse(data_spec.csv);
-  } else if (data_spec.tsv) {
+  } else if (data_spec?.csv) {
+    return csvParse(data_spec?.csv);
+  } else if (data_spec?.tsv) {
     return tsvParse(data_spec.tsv);
-  } else if (data_spec.url) {
+  } else if (data_spec?.url) {
     let read = await (await fetch(data_spec.url)).text();
     if (isJSON(read)) {
       return JSON.parse(read);

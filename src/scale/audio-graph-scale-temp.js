@@ -50,7 +50,12 @@ export function makeTemporalScaleFunction(channel, encoding, _values, info) {
   scaleProperties.timeLevel = encoding?.timeLevel;
 
   // domain
-  let domain = deepcopy(scaleDef?.domain || null).map((d) => timeLevelFunction(d)), domainSpecified;
+  let domain, domainSpecified;
+  if (scaleDef?.domain) {
+    domain = deepcopy(scaleDef?.domain).map((d) => {
+      return timeLevelFunction(d);
+    });
+  }
   if (encoding?.domainMin !== undefined || encoding?.domainMax !== undefined || encoding?.domainMid !== undefined) {
     domain = [
       timeLevelFunction(encoding?.domainMin !== undefined ? encoding?.domainMin : domainMin),

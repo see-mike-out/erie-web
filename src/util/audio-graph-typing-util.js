@@ -1,4 +1,4 @@
-import { ORD, QUANT } from "../scale/audio-graph-scale-constant";
+import { ORD, QUANT, STATIC } from "../scale/audio-graph-scale-constant";
 
 export function isJSON(d) {
   try {

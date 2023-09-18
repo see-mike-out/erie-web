@@ -6,7 +6,7 @@ export function deepcopy(i) {
   return JSON.parse(JSON.stringify(i));
 }
 
-export function firstDefined(vs) {
+export function firstDefined(...vs) {
   for (let v of vs) {
     if (v !== undefined) return v;
   }
@@ -42,4 +42,11 @@ export function genRid(n) {
     rid.push(RidLetters[k]);
   }
   return rid.join('');
+}
+
+export function getFirstDefined(...args) {
+  for (const arg of args) {
+    if (arg !== undefined) return arg;
+  }
+  return args[args.length - 1];
 }

@@ -1,4 +1,5 @@
-import { deepcopy } from "./erie-util";
+import { Dataset } from "./erie-datasets";
+import { deepcopy, isInstanceOf } from "./erie-util";
 
 export const Values = 'values', Url = 'url', Name = 'name';
 export const AllowedDataTypes = [Values, Url, Name]
@@ -11,20 +12,23 @@ export class Data {
   }
 
   set(type, e) {
-    if (!AllowedDataTypes.includes(type)) {
-      throw new TypeError(`Unspported data type ${type}}. It must be either one of ${AllowedDataTypes.join(", ")}.`);
-    }
-    if (type === Values) {
-      this.type = Values;
-      this.values = e;
-    } else if (type === Url) {
-      this.type = Url;
-      this.url = e;
-    } else if (type === Name) {
+    if (isInstanceOf(type, Dataset)) {
       this.type = Name;
-      this.name = e;
+      this.name = type._name;
+    } else if (!AllowedDataTypes.includes(type)) {
+      throw new TypeError(`Unspported data type ${type}}. It must be either one of ${AllowedDataTypes.join(", ")}.`);
+    } else {
+      if (type === Values) {
+        this.type = Values;
+        this.values = e;
+      } else if (type === Url) {
+        this.type = Url;
+        this.url = e;
+      } else if (type === Name) {
+        this.type = Name;
+        this.name = e;
+      }
     }
-
     return this;
   }
 

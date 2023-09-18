@@ -123,7 +123,9 @@ export const
   DEF_TAP_PAUSE_RATE = 0.4,
   MAX_TAPPING_DUR = 0.3,
   DEF_TAPPING_DUR = 0.2,
+  DEF_TAPPING_DUR_BEAT = 1,
   DEF_TAP_DUR = 2,
+  DEF_TAP_DUR_BEAT = 4,
   SINGLE_TAP_MIDDLE = 'middle',
   SINGLE_TAP_START = 'start',
   SINGLE_TAP_END = 'end';
@@ -148,3 +150,6 @@ export const ScaleDescriptionOrder = [
 // composition
 
 export const SEQUENCE = 'sequence', OVERLAY = 'overlay';
+
+// ramping
+export const RampMethods = [true, false, 'abrupt', 'linear', 'exponential'];

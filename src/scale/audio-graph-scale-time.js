@@ -8,10 +8,8 @@ import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 
 // only for the time scale
-export function makeTimeChannelScale(channel, _encoding, values, info, scaleType) {
-  let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
+export function makeTimeChannelScale(channel, _encoding, values, info, scaleType, beat) {
   let encoding = deepcopy(_encoding);
-  let hasTime2 = jType(channel) === "Array" && channel.length == 2 && channel[0] === TIME_chn && channel[1] === TIME2_chn;
   let scaleDef = encoding?.scale;
   if (encoding.type === NOM && !scaleDef.timing) {
     scaleDef.timing = REL_TIMING
@@ -19,7 +17,9 @@ export function makeTimeChannelScale(channel, _encoding, values, info, scaleType
   let isRelative = scaleDef.timing === REL_TIMING,
     isSimultaneous = scaleDef.timing === SIM_TIMING,
     band = scaleDef?.band || DEF_DUR, length = scaleDef?.length || 5;
-  // if (!hasTime2) {
+  if (beat?.converter) {
+    band = beat.converter(scaleDef?.band || 1), length = beat.converter(length);
+  }
   if (encoding?.scale?.range === undefined && scaleDef?.band !== undefined) {
     encoding.scale.range = [0, length - band];
   } else if (encoding?.scale?.range === undefined) {
@@ -58,50 +58,19 @@ export function makeTimeChannelScale(channel, _encoding, values, info, scaleType
     console.error("Wrong scale definition for the time channel", scaleDef);
   }
   let scaleFunction = (t1, t2) => {
-    if (t2) {
-      return { start: scale1(t1), end: scale1(t2) };
+    if (t2 !== undefined) {
+      return {
+        start: (beat?.roundStart ? beat?.roundStart(scale1(t1)) : scale1(t1)),
+        end: (beat?.roundDuration ? beat?.roundDuration(scale1(t2)) : scale1(t2))
+      };
     } else {
-      return { start: scale1(t1), duration: band };
+      return {
+        start: (beat?.roundStart ? beat?.roundStart(scale1(t1)) : scale1(t1)),
+        duration: (beat?.roundDuration ? beat?.roundDuration(band) : band)
+      };
     }
   };
   scaleFunction.properties = scale1.properties;
-  return scaleFunction
-  // } 
-  // else {
-  //   if (encoding?.scale?.range === undefined) {
-  //     encoding.scale.range = [0, length];
-  //   }
-  //   let scale;
-  //   encoding.scale.domain = [domainMin, domainMax];
-  //   let mergedValues = [...(values[0] || []), ...(values[1] || [])].toSorted(ascending);
-  //   if (zero) encoding.scale.domain = [0, domainMax];
-  //   if (scaleType?.encodingType === TMP) {
-  //     info.domainMin = new Date(domainMin);
-  //     info.domainMax = new Date(domainMax);
-  //     scale = makeTemporalScaleFunction(TIME_chn, encoding, mergedValues, info);
-  //   } else if (scaleType?.encodingType === QUANT) {
-  //     scale = makeQuantitativeScaleFunction(TIME_chn, encoding, mergedValues, info);
-  //   } else if (scaleType?.encodingType === ORD) {
-  //     scale = makeOrdinalScaleFunction(TIME_chn, encoding, mergedValues, info);
-  //   } else if (scaleType?.encodingType === NOM) {
-  //     encoding.scale.domain = unique(mergedValues);
-  //     scale = makeNominalScaleFunction(TIME_chn, encoding, mergedValues, info);
-  //   } else if (scaleType?.encodingType === STATIC) {
-  //     scale = makeStaticScaleFunction(TIME_chn, encoding, mergedValues, info);
-  //   }
-  //   if (!scale) {
-  //     console.error("Wrong scale definition for the time channel", scaleDef);
-  //   }
-  //   let scaleFunction = (t1, t2) => {
-  //     let start = scale(t1), end = scale(t2);
-  //     if (start <= end) {
-  //       return { start, end };
-  //     } else {
-  //       return { start: end, end: start };
-  //     }
-  //   };
-  //   scaleFunction.properties = scale.properties;
-  //   scaleFunction.properties.hasTime2 = true;
-  //   return scaleFunction;
-  // }
+  scaleFunction.properties.length = length;
+  return scaleFunction;
 }

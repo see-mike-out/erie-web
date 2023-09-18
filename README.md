@@ -8,9 +8,13 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 
 ### Prerequisits
 
+#### Libraries
+
 - [D3](https://d3js.org/) v7.8.4
 - [Arquero](https://uwdata.github.io/arquero/) v5.2.0
 - [Moment](https://momentjs.com/) 2.29.4
+
+#### 
 
 ### On browser (Vanilla JS)
 
@@ -62,4 +66,16 @@ npm run build
 - Leave an issue for suggestions or bugs!
 - Get on the board (let's work together)!
 
+## License
+
+MIT
+
 ## Cite
+```
+@misc{erie
+  title = {Erie},
+  author = {Hyeok Kim},
+  year = {2023},
+  note = {\url{https://github.com/see-mike-out/erie-web}}
+}
+```

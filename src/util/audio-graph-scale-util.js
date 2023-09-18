@@ -1,4 +1,4 @@
-import { DEF_TAPPING_DUR, DEF_TAP_PAUSE_RATE, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, TAPCNT_chn, TAPSPD_chn } from "../scale/audio-graph-scale-constant";
+import { DEF_TAPPING_DUR, DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, TAPCNT_chn, TAPSPD_chn } from "../scale/audio-graph-scale-constant";
 import { jType } from "./audio-graph-typing-util";
 import { round } from "./audio-graph-util";
 
@@ -14,14 +14,17 @@ export function makeParamFilter(expr) {
 
 const tapEndBumper = 0.1
 
-export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, singleTappingPosition) {
+export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, singleTappingPosition, beat) {
   // tapValue: whatever value computed out of a scale function
   // tapType: 'tapCount' or 'tapSpeed'
   // duration: for 'tapSpeed' channel, it is the total length; for 'tapCount' channel it is each tap's length,
   // pause: pause between tappings (can be rate ({rate: ...}) or length ({length: ...}))
   // tappingDur: for a `tapSpeed` channel, the tapping sound length.
   if (tapValue !== undefined && tapType === TAPCNT_chn) {
-    if (!duration) duration = DEF_TAPPING_DUR;
+    if (!duration && !beat) duration = DEF_TAPPING_DUR;
+    else if (!duration && beat && beat.converter) {
+      duration = DEF_TAPPING_DUR_BEAT;
+    }
     let pauseLength;
     duration = round(duration, -2);
     if (pause?.length !== undefined) pauseLength = pause?.length;
@@ -40,8 +43,13 @@ export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, s
         pattern.push(tapEndBumper);
       }
     }
+    if (beat?.converter) pattern = pattern.map(beat?.converter);
     return { pattern, totalLength, patternString };
   } else if (tapValue !== undefined && tapType === TAPSPD_chn) {
+    if (!duration && !beat) duration = DEF_TAP_DUR;
+    else if (!duration && beat && beat.converter) {
+      duration = DEF_TAP_DUR_BEAT;
+    }
     let count = round(tapValue * duration, 0);
     let tapOnlyDur = count * tappingDur;
     let pauseLength;
@@ -83,10 +91,48 @@ export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, s
       }
     }
     let patternString = `[${tappingDur}, ${pauseLength}] x ${count}`;
+    if (beat?.converter) pattern = pattern.map(beat?.converter);
     return { pattern, totalLength, patternString };
+  } else if (tapValue !== undefined && tapType === 'both') {
+    let count = round(tapValue.count, 0), speed = tapValue.speed;
+    if (!duration && !beat) duration = DEF_TAPPING_DUR;
+    else if (!duration && beat && beat.converter) {
+      duration = DEF_TAPPING_DUR_BEAT;
+    }
+    let tapSection = round(1 / speed, -2);
+    if (!beat) {
+      if (tapSection < 0.12) tapSection = 0.12;
+      if (duration > tapSection) duration = round(tapSection * 0.85, -2);
+    }
+    let pauseLength = round(tapSection - duration, -2);
+    let pattern = [], totalLength = 0, patternString = `[${duration}, ${pauseLength}] x ${count} `;
+    for (let i = 0; i < count; i++) {
+      pattern.push(duration)
+      totalLength += duration;
+      if (i < count - 1) {
+        totalLength += pauseLength;
+        pattern.push(pauseLength);
+      } else {
+        totalLength += tapEndBumper;
+        pattern.push(tapEndBumper);
+      }
+    }
+    if (beat?.converter) pattern = pattern.map(beat?.converter);
+    return { pattern, totalLength, patternString }
   } else {
     return { pattern: [], totalLength: 0, patternString: `[0, 0] x 0` };
   }
+}
+
+export function mergeTapPattern(tapCount, tapSpeed) {
+  if (tapCount && tapSpeed) {
+    return makeTapPattern({ count: tapCount?.value, speed: tapSpeed?.value }, 'both', tapCount.tapLength, undefined, tapSpeed.tappingUnit, tapSpeed.singleTappingPosition, tapCount.beat);
+  } else if (tapCount) {
+    return makeTapPattern(tapCount?.value, TAPCNT_chn, tapCount.tapLength, tapCount.pause, undefined, undefined, tapCount.beat);
+  } else if (tapSpeed) {
+    return makeTapPattern(tapSpeed?.value, TAPSPD_chn, tapSpeed.tapDuration, undefined, tapSpeed.tappingUnit, tapSpeed.singleTappingPosition, tapSpeed.beat);
+  }
+  else { return undefined };
 }
 
 export const noteScale = [

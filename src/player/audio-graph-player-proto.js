@@ -2,10 +2,14 @@ import { browser } from '$app/environment';
 import { determineNoteRange, MultiNoteInstruments, SingleNoteInstruments } from './audio-graph-instrument-sample';
 import { notifyStop } from '../util/audio-graph-speech';
 import { makeTick } from '../tick/audio-graph-time-tick';
-import { deepcopy } from '../util/audio-graph-util';
+import { deepcopy, genRid } from '../util/audio-graph-util';
 import { AM, FM, makeSynth } from './audio-graph-synth';
 import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
 import { PresetFilters } from './audio-graph-audio-filter';
+import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
+import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
+
+let ErieGlobalSynth;
 
 export function makeContext() {
   return new AudioContext();
@@ -23,14 +27,14 @@ export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, so
     if (sound.detune > 0) dur += dur * (sound.detune / 600);
     return makeNoiseNode(ctx, detail, dur * 1.1);
   } else if (MultiNoteInstruments.includes(detail)) {
-    let note = determineNoteRange(sound.pitch, {});
+    let note = determineNoteRange(sound.pitch || DefaultFrequency, {});
     let sample = instSamples[detail]['C' + note.octave];
     let source = ctx.createBufferSource();
     source.buffer = sample;
     source.detune.value = note.detune;
     return source;
   } else if (SingleNoteInstruments.includes(detail)) {
-    let sample = instSamples[detail]['C3'];
+    let sample = instSamples[detail].mono;
     let source = ctx.createBufferSource();
     source.buffer = sample;
     return source;
@@ -48,9 +52,9 @@ export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, so
     let sample;
     if (instSamples[detail].multiNote) {
       let note = determineNoteRange(sound.pitch, {});
-      sample = instSamples[detail]['C' + note.octave];
+      sample = instSamples[detail]['C' + note?.octave];
     } else {
-      sample = instSamples[detail]['C3'];
+      sample = instSamples[detail].mono;
     }
     let source = ctx.createBufferSource();
     source.buffer = sample;
@@ -72,6 +76,12 @@ export const Stopped = 'stopped',
   Speech = 'speech';
 export let ErieGlobalControl, ErieGlobalState;
 
+const RamperNames = {
+  abrupt: 'setValueAtTime',
+  linear: 'linearRampToValueAtTime',
+  linear: 'exponentialRampToValueAtTime'
+}
+
 export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, synthDefs, waveDefs, filters) {
   // clear previous state
   ErieGlobalState = undefined;
@@ -91,11 +101,15 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   config.subpart = true;
   let endTime = q[q.length - 1].time + q[q.length - 1].duration;
   // play as async promise
+  let sid = genRid();
+  sendToneStartEvent({ sid });
+  if (config?.isRecorded) await playPause(300);
   return new Promise((resolve, reject) => {
     // get the current time
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
 
     const tick = makeTick(ctx, config.tick, endTime);
+
     // set and play sounds
     for (let sound of q) {
       if (ErieGlobalState === Stopped) {
@@ -113,14 +127,12 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
       // play the sound
       inst.onended = async () => {
         if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
-          ErieGlobalControl?.player?.disconnectf();
+          ErieGlobalControl?.player?.cancel();
         }
-        // let _sound = deepcopy(sound);
-        // _sound.time = 0;
-        // let nctx = makeContext()
         await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
-        // ctx.close();
         if (sound.isLast) {
+          if (config?.isRecorded) await playPause(300);
+          sendToneFinishEvent({ sid });
           resolve();
         }
       };
@@ -138,6 +150,27 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
 
   // set audio context controls
   ErieGlobalControl = { type: Tone, player: ctx };
+
+  // rampers 
+  let rampers = {};
+  if (config.ramp) {
+    Object.keys(config.ramp || {}).forEach((chn) => {
+      let name = RamperNames[config.ramp[chn]];
+      if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
+        rampers.tap = name;
+      } else {
+        rampers[chn] = name;
+      }
+    });
+  }
+
+  // sort queue to mark the last node for sequence end check
+  let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
+  q[0].isFirst = true;
+  q[q.length - 1].isLast = true;
+
+  // get the last tone's finish time
+  let endTime = q[q.length - 1].time + q[q.length - 1].duration;
 
   // filters
   let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
@@ -157,7 +190,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
     let filter = filterNodes[filterName];
     if (filter) {
       filter.connect(destination);
-      filter.initialize(ct);
+      filter.initialize(ctx.currentTime, endTime);
       destination = filter.destination;
     }
   }
@@ -169,14 +202,9 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
   const panner = ctx.createStereoPanner();
   panner.connect(gain);
 
-  // sort queue to mark the last node for sequence end check
-  let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
-  q[0].isFirst = true;
-  q[q.length - 1].isLast = true;
-
-  // get the last tone's finish time
-  let endTime = q[q.length - 1].time + q[q.length - 1].duration;
-
+  let sid = genRid()
+  sendToneStartEvent({ sid });
+  if (config?.isRecorded) await playPause(300);
   // play as async promise
   return new Promise((resolve, reject) => {
     // get instrument
@@ -193,9 +221,12 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
         } else if (inst?.constructor.name === "ErieSynth") {
           inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
           if (inst.type === FM && sound.modulation !== undefined) {
-            inst.modulator.frequency.setValueAtTime((sound.modulation * inst.modulatorVolume), ct + sound.time);
-          } else if (inst.type === AM && sound.harmonicity !== undefined) {
-            inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * inst.harmonicity, ct + sound.time);
+            inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
+          } else if (inst.type === AM && sound.modulation !== undefined) {
+            inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
+          }
+          if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+            inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
           }
           inst.envelope.gain.cancelScheduledValues(ct + sound.time);
           inst.envelope.gain.setValueAtTime(0, ct + sound.time);
@@ -205,7 +236,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
           }
         }
 
-        if (sound.detune && NoiseTypes.includes(iType)) {
+        if (sound.detune && inst.detune) {
           inst.detune.setValueAtTime(sound.detune || 0, ct + sound.time);
         }
 
@@ -219,21 +250,51 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
         startTime = ct + sound.time;
       } else {
         if (inst?.constructor.name === "OscillatorNode") {
-          inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          if (rampers.pitch) {
+            inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
+          } else {
+            inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          }
         } else if (inst?.constructor.name === "ErieSynth") {
-          inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          if (rampers.pitch) {
+            inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
+          } else {
+            inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          }
           if (inst.type === FM && sound.modulation !== undefined) {
-            inst.modulator.frequency.linearRampToValueAtTime((sound.modulation * inst.modulatorVolume), ct + sound.time);
-          } else if (inst.type === AM && sound.harmonicity !== undefined) {
-            inst.modulator.frequency.linearRampToValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * inst.harmonicity, ct + sound.time);
+            if (rampers.modulation) {
+              inst.modulator.frequency[rampers.modulation]((inst.modulatorVolume / sound.modulation), ct + sound.time);
+            } else {
+              inst.modulator.frequency.linearRampToValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
+            }
+          } else if (inst.type === AM && sound.modulation !== undefined) {
+            if (rampers.modulation) {
+              inst.modulatorGain.gain[rampers.modulation]((sound.loudness || 1) * sound.modulation, ct + sound.time);
+            } else {
+              inst.modulatorGain.gain.linearRampToValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
+            }
+          }
+          if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+            if (rampers.harmonicity) {
+              inst.modulator.frequency[rampers.harmonicity]((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
+            } else {
+              inst.modulator.frequency.linearRampToValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
+            }
           }
         }
 
         if (sound.loudness !== undefined) {
-          gain.gain.linearRampToValueAtTime(
-            sound.loudness <= 0 ? 0.0000000001 : sound.loudness,
-            ct + sound.time
-          );
+          if (rampers.loudness) {
+            gain.gain[rampers.loudness](
+              sound.loudness <= 0 ? 0.0000000001 : sound.loudness,
+              ct + sound.time
+            );
+          } else {
+            gain.gain.linearRampToValueAtTime(
+              sound.loudness,
+              ct + sound.time
+            );
+          }
         }
         if (sound.pan !== undefined) {
           panner.pan.linearRampToValueAtTime(sound.pan, ct + sound.time);
@@ -250,8 +311,12 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
           }
         }
 
-        if (sound.detune && NoiseTypes.includes(iType)) {
-          inst.detune.linearRampToValueAtTime(sound.detune || 0, ct + sound.time);
+        if (sound.detune && inst.detune) {
+          if (rampers.detune) {
+            inst.detune[rampers.detune](sound.detune || 0, ct + sound.time);
+          } else {
+            inst.detune.linearRampToValueAtTime(sound.detune || 0, ct + sound.time);
+          }
         }
       }
 
@@ -259,10 +324,10 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
         let encoder = filterEncoders[filterName];
         let finisher = filterFinishers[filterName];
         if (encoder) {
-          encoder(filterNodes[filterName], sound, ct + sound.time);
+          encoder(filterNodes[filterName], sound, ct + sound.time, rampers);
         }
         if (finisher) {
-          finisher(filterNodes[filterName], sound, ct + sound.time, (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)));
+          finisher(filterNodes[filterName], sound, ct + sound.time, (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)), rampers);
         }
       }
     }
@@ -273,26 +338,46 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
       tick.stop(ct + endTime);
     }
     inst.start(startTime);
-    inst.stop(ct + endTime + 0.15);
+    if (config?.isRecorded) {
+      gain.gain.setValueAtTime(0, ct + endTime + 0.3);
+      inst.stop(ct + endTime + 0.3);
+    } else {
+      inst.stop(ct + endTime);
+    }
     inst.onended = (e) => {
       ErieGlobalControl = undefined;
       ErieGlobalState = undefined;
+      sendToneFinishEvent({ sid });
       resolve();
     };
   });
 }
 
 export async function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters) {
+  if (config?.subpart && ErieGlobalState === Stopped) return;
+  if (!config?.subpart) ErieGlobalState = undefined;
+
   // clear previous state
   ErieGlobalState = undefined;
 
   // set audio context controls
   ErieGlobalControl = { type: Tone, player: ctx };
 
+  let sid;
+  if (!config.subpart) {
+    sid = genRid()
+    sendToneStartEvent({ sid });
+    if (config?.isRecorded) await playPause(300);
+  }
   if (sound.tap !== undefined && sound.tap?.pattern?.constructor.name === "Array") {
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
     let tapSound = deepcopy(sound);
     let t = 1, acc = 0, i = 0; // d
+    if (sound.tap.pattern.length == 0) {
+      await playPause((sound.duration || 0.2) * 1000);
+      if (config?.isRecorded) await playPause(300);
+      sendToneFinishEvent({ sid });
+    }
     for (const s of sound.tap.pattern) {
       if (t === 1) {
         tapSound.duration = s;
@@ -306,18 +391,24 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
       }
       acc += s;
       i++;
-      if (i == sound.tap.pattern) {
-        console.log("...?")
-        ErieGlobalControl = undefined;
-        ErieGlobalState = undefined;
+      if (i == sound.tap.pattern.length) {
+        // ErieGlobalControl = undefined;
+        // ErieGlobalState = undefined;
+        if (!config.subpart) {
+          if (config?.isRecorded) await playPause(300);
+          sendToneFinishEvent({ sid });
+        }
         return;
       }
     }
   } else {
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
     await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
-    ErieGlobalControl = undefined;
-    ErieGlobalState = undefined;
+    // ErieGlobalControl = undefined;
+    // ErieGlobalState = undefined;
+    if (!config.subpart) {
+      sendToneFinishEvent({ sid });
+    }
     return;
   }
 }
@@ -341,7 +432,7 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
     let filter = filterNodes[filterName];
     if (filter) {
       filter.connect(destination);
-      filter.initialize(ct);
+      filter.initialize(ct, sound.duration);
       destination = filter.destination;
     }
   }
@@ -366,11 +457,16 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
       inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
     } else if (inst?.constructor.name === "ErieSynth") {
       inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
-      if (inst.type === FM && sound.modulation !== undefined) {
-        inst.modulator.frequency.setValueAtTime((sound.modulation * inst.modulatorVolume), ct);
-      } else if (inst.type === AM && sound.harmonicity !== undefined) {
-        inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * inst.harmonicity, ct);
+      if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
+        inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct);
+      } else if (inst.type === AM && sound.modulation !== undefined && sound.modulation > 0) {
+        inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct);
       }
+      if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+        inst.modulator.frequency.cancelScheduledValues(ct);
+        inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct);
+      }
+
       inst.envelope.gain.cancelScheduledValues(ct);
       inst.envelope.gain.setValueAtTime(0, ct);
       inst.envelope.gain.linearRampToValueAtTime(1, ct + (inst.attackTime || 0));
@@ -384,7 +480,7 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
       );
     }
 
-    if (sound.detune && NoiseTypes.includes(iType)) {
+    if (sound.detune && inst.detune) {
       inst.detune.setValueAtTime(sound.detune || 0, ct);
     }
 
@@ -433,8 +529,12 @@ export async function playSingleSpeech(sound, config) {
   if (config?.subpart && ErieGlobalState === Stopped) return;
   if (!config?.subpart) ErieGlobalState = undefined;
 
+  let sid = genRid();
+  if (!config.subpart) {
+    sendSpeechStartEvent({ sound, sid });
+  }
   return new Promise((resolve, reject) => {
-    var synth = window.speechSynthesis;
+    if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
     var utterance = new SpeechSynthesisUtterance(sound.speech);
     if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
     else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
@@ -442,35 +542,39 @@ export async function playSingleSpeech(sound, config) {
     if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
     if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
     else utterance.lang = document.documentElement.lang;
-    // let speechObject = {
-    //   type: Speech,
-    //   pitch: utterance.pitch,
-    //   rate: utterance.rate,
-    //   volume: utterance.volume,
-    //   lang: utterance.lang,
-    //   text: sound.speech
-    // }
-    synth.speak(utterance);
-    ErieGlobalControl = { type: Speech, player: synth };
+    ErieGlobalSynth.speak(utterance);
+    ErieGlobalControl = { type: Speech, player: ErieGlobalSynth };
     utterance.onend = () => {
       window.removeEventListener('keypress', stop);
       ErieGlobalControl = undefined;
       ErieGlobalState = undefined;
+      if (!config.subpart) {
+        sendSpeechFinishEvent({ sid });
+      }
       resolve();
     };
   });
 }
 
-export async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, config, instSamples, synthDefs, waveDefs, filters) {
+export async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters) {
   // clear previous state
   ErieGlobalState = undefined;
 
+  let config = deepcopy(_config);
+  config.subpart = true;
   for (const sound of queue) {
     if (ErieGlobalState === Stopped) break;
+    let sid = genRid();
     if (sound.speech) {
+      sendSpeechStartEvent({ sound, sid });
       await playSingleSpeech(sound, config);
+      sendSpeechFinishEvent({ sid });
     } else {
+      sendToneStartEvent({ sid });
+      if (config?.isRecorded) await playPause(300);
       await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
+      if (config?.isRecorded) await playPause(300);
+      sendToneFinishEvent({ sid });
     }
   }
   ErieGlobalState = undefined;
@@ -548,10 +652,11 @@ export function setPlayerEvents(queue, config) {
         notifyStop(config);
       }
     }
-    window.addEventListener('keypress', stop, { once: true });
+    window.addEventListener('keypress', stop);
     ErieGlobalPlayerEvents.set('stop-event', stop);
   }
 }
+
 export function clearPlayerEvents() {
   if (browser) {
     let stop = ErieGlobalPlayerEvents.get('stop-event');
@@ -621,21 +726,3 @@ const bcp47language = [
   "zh-HK",
   "zh-TW"
 ];
-
-// event-related
-function sendToneStartEvent() {
-  let playEvent = new Event("erieOnPlayTone");
-  document.body.dispatchEvent(playEvent);
-}
-function sendToneFinishEvent() {
-  let playEvent = new Event("erieOnFinishTone");
-  document.body.dispatchEvent(playEvent);
-}
-function sendSpeechStartEvent() {
-  let playEvent = new Event("erieOnPlaySpeech");
-  document.body.dispatchEvent(playEvent);
-}
-function sendSpeechFinishEvent() {
-  let playEvent = new Event("erieOnFinishSpeech");
-  document.body.dispatchEvent(playEvent);
-}

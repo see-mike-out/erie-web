@@ -9,7 +9,8 @@ import {
   NOM, ORD, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TMP,
   REPEAT_chn, ScaleDescriptionOrder, TIMBRE_chn, TIME2_chn, TIME_chn, TapChannels, SEQUENCE, REL_TIMING
 } from "../scale/audio-graph-scale-constant";
-import { makeScaleDescription } from "../scale/audio-graph-scale-desc";
+import { BeforeAll, PlayAt, makeScaleDescription } from "../scale/audio-graph-scale-desc";
+import { Def_Tick_Duration, Def_Tick_Duration_Beat, Def_Tick_Interval, Def_Tick_Interval_Beat } from '../tick/audio-graph-time-tick';
 
 export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, tickDef, common_scales) {
   let layer_spec = {
@@ -102,6 +103,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
 
   // treat repeat
   let audio_graph = [], repeated_graph = [], repeat_values, repeat_level = 0;
+
   if (is_repeated) {
     repeat_level = repeat_field.length;
     repeat_values = unique(data.map((d) => repeat_field.map((k) => d[k]).join("_$_"))).map((d) => d.split("_$_"));
@@ -124,7 +126,15 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     scales[channel] = common_scales[enc.scale.id];
   }
 
-  let relative_stream = encoding[TIME_chn].scale.timing === REL_TIMING;
+  // relativity
+  let relative_stream = encoding[TIME_chn].scale.timing === REL_TIMING || scales.time?.properties?.timing === REL_TIMING;
+
+  // ramping
+  let ramp = {};
+  for (const channel in encoding) {
+    ramp[channel] = encoding[channel].ramp;
+  }
+
   // tick
   let hasTick = encoding[TIME_chn].tick !== undefined, tick;
   if (hasTick) {
@@ -135,6 +145,15 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       tick = tickItem;
     }
     tick = deepcopy(tick);
+
+    // time unit conversion
+    if (common_scales.__beat) {
+      tick.interval = tick.interval ? common_scales.__beat.converter(tick.interval) : Def_Tick_Interval_Beat;
+      tick.band = tick.band ? common_scales.__beat.converter(tick.band) : Def_Tick_Duration_Beat;
+    } else {
+      if (!tick.interval) tick.interval = Def_Tick_Interval;
+      if (!tick.band) tick.band = Def_Tick_Duration;
+    }
   }
 
   if (common_scales) {
@@ -147,10 +166,11 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       if (scales[chn]) {
         __config.aggregated = encoding[chn].aggregate ? true : false;
         __config.binned = encoding[chn].binned;
-        scales[chn].description = makeScaleDescription(scales[chn], encoding[chn], dataInfo, tick, tone_spec, __config);
+        scales[chn].description = makeScaleDescription(scales[chn], encoding[chn], dataInfo, tick, tone_spec, __config, common_scales.__beat);
       }
     }
   }
+
   // generate audio graphs
   let repeat_count = -1;
   for (const i in data) {
@@ -211,6 +231,8 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
   }
   let is_continued = tone_spec.continued === undefined ? false : tone_spec.continued;
   let instrument_type = tone_spec.type || 'default'
+
+  // repetition control
   let stream;
   if (is_repeated) {
     let repeat_streams = makeRepeatStreamTree(0, repeat_values, repeat_direction);
@@ -231,6 +253,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       if (hasTick) {
         r_stream.setConfig("tick", tick);
       }
+      r_stream.setRamp(ramp);
 
       let rs_accessor = repeat_streams;
       for (let i = 0; i < repeat_level; i++) {
@@ -253,6 +276,8 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       if (i > 0) {
         s.setConfig("skipScaleSpeech", true);
         s.setConfig("skipStartSpeech", true);
+      } else {
+        s.setConfig(PlayAt, BeforeAll);
       }
       if (i < processed_repeat_stremas.length - 1) {
         s.setConfig("skipFinishSpeech", true);
@@ -278,11 +303,12 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
         s.setConfig("skipStartSpeech", true);
         s.setConfig("playRepeatSequenceName", true);
         s.setName(listString(s.overlays.map((d) => d.name), ", ", true))
-        if (audioFilters) s.setFilters(audioFilters);
       }
+      if (audioFilters) s.setFilters(audioFilters);
     });
     stream = processed_repeat_stremas;
   }
+  // if not repeated
   else {
     stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream });
     Object.keys(config || {}).forEach(key => {
@@ -293,6 +319,8 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     }
     if (layer_spec.name) stream.setName(layer_spec.name);
     if (audioFilters) stream.setFilters(audioFilters);
+    stream.setRamp(ramp);
+    if (audio_spec.description) stream.setDescription(audio_spec.description);
   }
   return { stream, scales };
 }

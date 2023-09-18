@@ -25,13 +25,23 @@ export class Density {
     return this;
   }
 
+  extent(a) {
+    if (isInstanceOf(a, Array) &&
+      a.length == 2 &&
+      a.every((d) => isInstanceOf(d, Number))) {
+      this._extent = [...a];
+    } else {
+      throw new TypeError("Density 'extent' should be an Array of two Numbers.");
+    }
+
+    return this;
+  }
   groupby(g) {
     if (isInstanceOf(g, Array) && g.every((d) => isInstanceOf(d, String))) {
       this._groupby = [...g];
     } else {
       throw new TypeError("Density 'groupby' should be an Array of Strings.");
     }
-
     return this;
   }
 
@@ -41,7 +51,6 @@ export class Density {
     } else {
       throw new TypeError("Density 'cumulative' must be Boolean.");
     }
-
     return this;
   }
 
@@ -110,6 +119,7 @@ export class Density {
   get() {
     return {
       density: this._density,
+      extent: [...this._extent],
       groupby: [...this._groupby],
       cumulative: this._cumulative,
       counts: this._counts,
@@ -122,8 +132,9 @@ export class Density {
   }
 
   clone() {
-    let _c = new Density(this._bin);
+    let _c = new Density(this._density);
     _c._density = this._density;
+    _c._extent = [...this._extent];
     if (this._groupby) _c._groupby = [...this._groupby];
     _c._cumulative = this._cumulative;
     _c._counts = this._counts;

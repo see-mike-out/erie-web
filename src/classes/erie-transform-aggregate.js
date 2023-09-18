@@ -28,17 +28,17 @@ export class Aggregate {
 
   add(op, field, as, p) {
     if (ZeroOPs.includes(op)) {
-      if (field?.constructor.type !== 'String') {
+      if (field?.constructor.name !== 'String') {
         throw new Error('"as" is not provided.')
       }
       this.aggregate.push({
         op, as: field
       });
     } else if (SingleOps.includes(op)) {
-      if (field === undefined || field?.constructor.type !== 'String') {
+      if (field === undefined || field?.constructor.name !== 'String') {
         throw new Error('"field" is not properly provided.')
       }
-      if (as === undefined || as?.constructor.type !== 'String') {
+      if (as === undefined || as?.constructor.name !== 'String') {
         throw new Error('"as" is not properly provided.')
       }
       if (op === QUANTILE) {
@@ -56,12 +56,12 @@ export class Aggregate {
       }
     } else if (DoubleOps.includes(op)) {
       if (field === undefined ||
-        field?.constructor.type !== 'Array' ||
+        field?.constructor.name !== 'Array' ||
         field?.length != 2 ||
-        !field.every(f => f?.constructor.type !== 'String')) {
+        !field.every(f => f?.constructor.name !== 'String')) {
         throw new Error('"field" is not properly provided.')
       }
-      if (as === undefined || as?.constructor.type !== 'String') {
+      if (as === undefined || as?.constructor.name !== 'String') {
         throw new Error('"as" is not properly provided.')
       }
       this.aggregate.push({

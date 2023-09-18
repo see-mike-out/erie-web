@@ -1,7 +1,7 @@
-import { OVERLAY, QUANT, REPEAT_chn, SEQUENCE, SIM_TIMING, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TAPCNT_chn, TAPSPD_chn, TIME2_chn, TIME_chn } from "../scale/audio-graph-scale-constant";
+import { OVERLAY, QUANT, REPEAT_chn, SEQUENCE, SIM_TIMING, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TAPCNT_chn, TAPSPD_chn, TIME2_chn, TIME_chn, RampMethods } from "../scale/audio-graph-scale-constant";
 import { toHashedObject } from "../util/audio-graph-format-util";
 import { jType } from "../util/audio-graph-typing-util";
-import { deepcopy, genRid } from "../util/audio-graph-util";
+import { deepcopy, genRid, unique } from "../util/audio-graph-util";
 
 export async function normalizeSpecification(_spec) {
   let spec = deepcopy(_spec);
@@ -13,6 +13,7 @@ export async function normalizeSpecification(_spec) {
     waves = deepcopy(spec.wave || []),
     scales = [],
     config;
+  let used_encodings = [];
   if (isSingleStream(spec)) {
     if (spec.data) {
       let new_data_name = "data__" + (datasets.length + 1)
@@ -25,9 +26,10 @@ export async function normalizeSpecification(_spec) {
     let { normalized, scaleDefinitions } = normalizeSingleSpec(spec, null);
     streams.push({ stream: normalized });
     scales.push(...scaleDefinitions);
+    used_encodings.push(...Object.keys(normalized.encoding));
   } else {
     let new_data_name;
-    if (spec.data) {
+    if (spec.data && !spec.data.name) {
       new_data_name = "data__" + (datasets.length + 1)
       datasets.push({
         name: new_data_name,
@@ -37,8 +39,29 @@ export async function normalizeSpecification(_spec) {
     if (isOverlayStream(spec)) {
       // (needs verification)
       let overlay = [];
+      let h_data, h_data_name;
+      if (spec.data && !spec.data.name) {
+        h_data = deepcopy(spec.data);
+        h_data_name = `data__${(datasets.length + 1)}`;
+        datasets.push({ name: h_data_name, ...h_data });
+      } else if (spec.data?.name) {
+        h_data = deepcopy(spec.data);
+      }
       for (const _o of spec.overlay) {
         let o = deepcopy(_o);
+        if (h_data && !o.data) {
+          if (h_data_name) {
+            o.data = { name: h_data_name };
+          } else if (!o.data) {
+            o.data = h_data;
+          }
+        } else if (o.data) {
+          if (!o.data.name) {
+            let dname = `data__${(datasets.length + 1)}`;
+            datasets.push({ name: dname, ...o.data });
+            o.data = { name: dname };
+          }
+        }
         if (o.encoding?.time.tick) {
           if (!o.encoding?.time.tick.name || !tickDefs.filter((d) => d.name === o.encoding?.time.tick.name)) {
             let new_tick_name = o.encoding?.time.tick.name || ("tick_" + (tickDefs.length + 1));
@@ -53,12 +76,16 @@ export async function normalizeSpecification(_spec) {
         o.common_transform = deepcopy(spec.transform || []);
         o.transform = deepcopy(_o.transform || []);
         if (!isSingleStream(_o)) console.error("An overlay of multi-stream sequences is not supported!");
-        let n = normalizeSingleSpec(o, OVERLAY)
+        let n = normalizeSingleSpec(o, OVERLAY);
+        used_encodings.push(...Object.keys(n.normalized.encoding));
         overlay.push(n.normalized);
         scales.push(...n.scaleDefinitions);
       }
-      let config = {};
-      Object.assign(config, spec.config)
+      let config = {}
+      Object.assign(config, spec.config);
+      normalizeScaleConsistency(config, unique(used_encodings));
+      delete config.sequenceScaleConsistency;
+      delete config.forceSequenceScaleConsistency;
       streams.push({ overlay, name: spec.name, title: spec.title, description: spec.description, config });
     } else if (isSequenceStream(spec)) {
       let output = [];
@@ -89,11 +116,20 @@ export async function normalizeSpecification(_spec) {
             }
           }
           if (!o.data) o.data = { name: new_data_name };
+          else if (o.data?.values) {
+            let new_data_name_2 = "data__" + (datasets.length + 1);
+            datasets.push({
+              name: new_data_name_2,
+              values: deepcopy(o.data.values)
+            });
+            o.data = { name: new_data_name_2 };
+          }
           o.common_transform = deepcopy(spec.transform || []);
           o.transform = deepcopy(_o.transform || []);
           let n = normalizeSingleSpec(o, SEQUENCE);
           scales.push(...n.scaleDefinitions);
           output.push(n.normalized);
+          used_encodings.push(...Object.keys(n.normalized.encoding));
         } else if (isOverlayStream(o)) {
           o.id = 'overlay-' + genRid();
           let n = await normalizeSpecification(o);
@@ -103,11 +139,17 @@ export async function normalizeSpecification(_spec) {
           n.scaleDefinitions.forEach((d) => {
             d.parentId = over.id
           });
+          n.normalized[0].overlay.forEach((ov) => {
+            used_encodings.push(...Object.keys(ov.encoding));
+          });
           scales.push(...n.scaleDefinitions);
           Object.assign(datasets, n.datasets);
           Object.assign(tickDefs, n.tick);
         }
       }
+      normalizeScaleConsistency(config, unique(used_encodings));
+      delete config.overlayScaleConsistency;
+      delete config.forceOverlayScaleConsistency;
       streams.push(...output.map((d) => {
         if (d.intro) {
           return { intro: d.intro }
@@ -118,7 +160,7 @@ export async function normalizeSpecification(_spec) {
             name: d.overlay.name || d.name,
             title: d.overlay.title || d.title,
             description: d.overlay.description || d.description,
-            config: d.overlay.config || d.config
+            config: d.config
           }
         } else {
           return { stream: d }
@@ -128,6 +170,13 @@ export async function normalizeSpecification(_spec) {
   }
   let dataset_hash = toHashedObject(datasets, 'name', true);
   let tick_hash = toHashedObject(tickDefs, 'name', true);
+  if (!config) {
+    config = {};
+    Object.assign(config, spec.config);
+    normalizeScaleConsistency(config, unique(used_encodings));
+    delete config.overlayScaleConsistency;
+    delete config.forceOverlayScaleConsistency;
+  }
   return {
     normalized: streams,
     datasets: dataset_hash,
@@ -210,10 +259,10 @@ function normalizeSingleSpec(spec, parent) {
   let encoding_aggregates = [];
   if (spec.encoding) {
     normalized.encoding = {};
-    if (spec.encoding[TAPCNT_chn] && spec.encoding[TAPSPD_chn]) {
-      console.warn("tapCount and tapSpeed cannot be used together. tapSpeed is ignored.")
-      delete spec.encoding[TAPSPD_chn];
-    }
+    // if (spec.encoding[TAPCNT_chn] && spec.encoding[TAPSPD_chn]) {
+    //   console.warn("tapCount and tapSpeed cannot be used together. tapSpeed is ignored.")
+    //   delete spec.encoding[TAPSPD_chn];
+    // }
     if (spec.encoding[TIME_chn]?.scale?.timing === SIM_TIMING) {
       if (spec.encoding[SPEECH_BEFORE_chn] && spec.encoding[SPEECH_AFTER_chn]) {
         console.warn(`Speech channels cannot be used for simultaneous timing. ${SPEECH_BEFORE_chn} and ${SPEECH_AFTER_chn} are dropped.`);
@@ -242,14 +291,22 @@ function normalizeSingleSpec(spec, parent) {
           console.error("Overlay composition + overlay repet is not supported.")
         }
       };
+      if (o_enc.ramp && RampMethods.includes(o_enc.ramp)) {
+        if (o_enc.ramp.constructor.name === 'String') enc.ramp = o_enc.ramp;
+        else enc.ramp = o_enc.ramp ? 'linear' : 'exponential';
+      } else {
+        enc.ramp = 'linear'
+      }
       if (o_enc.speech) enc.speech = o_enc.speech;
-      if (o_enc.value) enc.value = o_enc.value;
+      if (o_enc.value !== undefined) enc.value = o_enc.value;
       if (channel === TIME_chn && o_enc.tick) enc.tick = deepcopy(o_enc.tick);
       if (o_enc.scale) {
         enc.scale = deepcopy(o_enc.scale);
       } else {
         enc.scale = {};
       }
+      if (o_enc.format) enc.format = o_enc.format;
+      if (o_enc.formatType) enc.formatType = o_enc.formatType;
       if (o_enc.bin) {
         if (jType(o_enc.bin) === "Object") {
           further_transforms.push({
@@ -308,6 +365,11 @@ function normalizeSingleSpec(spec, parent) {
       }
       if (o_enc.condition) {
         enc.condtion = deepcopy(o_enc.condition);
+      }
+      if (channel === TAPCNT_chn && spec.encoding[TAPSPD_chn]) {
+        enc.hasTapSpeed = true;
+      } else if (channel === TAPSPD_chn && spec.encoding[TAPCNT_chn]) {
+        enc.hasTapCount = true;
       }
       // add to a scale 
       let scaleId = 'scale-' + genRid();
@@ -368,6 +430,49 @@ function normalizeSingleSpec(spec, parent) {
     let config = {};
     Object.assign(config, spec.config);
     normalized.config = config;
+
   }
   return { normalized, scaleDefinitions };
+}
+
+function normalizeScaleConsistency(config, used_channels) {
+  let overlayScaleConsistency = {}, forceOverlayScaleConsistency = {}, sequenceScaleConsistency = {}, forceSequenceScaleConsistency = {};
+  for (const chn of used_channels) {
+    // overlayScaleConsistency
+    if (config.overlayScaleConsistency?.[chn] !== undefined) {
+      overlayScaleConsistency[chn] = config.overlayScaleConsistency[chn];
+    } else if (jType(config.overlayScaleConsistency) === 'Boolean') {
+      overlayScaleConsistency[chn] = config.overlayScaleConsistency;
+    } else {
+      overlayScaleConsistency[chn] = true;
+    }
+    // forceOverlayScaleConsistency
+    if (config.forceOverlayScaleConsistency?.[chn] !== undefined) {
+      forceOverlayScaleConsistency[chn] = config.forceOverlayScaleConsistency[chn];
+    } else if (jType(config.overlayScaleConsistency) === 'Boolean') {
+      forceOverlayScaleConsistency[chn] = config.forceOverlayScaleConsistency;
+    } else {
+      forceOverlayScaleConsistency[chn] = false;
+    }
+    // sequenceScaleConsistency
+    if (config.sequenceScaleConsistency?.[chn] !== undefined) {
+      sequenceScaleConsistency[chn] = config.sequenceScaleConsistency[chn];
+    } else if (jType(config.sequenceScaleConsistency) === 'Boolean') {
+      sequenceScaleConsistency[chn] = config.sequenceScaleConsistency;
+    } else {
+      sequenceScaleConsistency[chn] = true;
+    }
+    // forceOverlayScaleConsistency
+    if (config.forceSequenceScaleConsistency?.[chn] !== undefined) {
+      forceSequenceScaleConsistency[chn] = config.forceSequenceScaleConsistency[chn];
+    } else if (jType(config.overlayScaleConsistency) === 'Boolean') {
+      forceSequenceScaleConsistency[chn] = config.forceSequenceScaleConsistency;
+    } else {
+      forceSequenceScaleConsistency[chn] = false;
+    }
+  }
+  config.overlayScaleConsistency = overlayScaleConsistency;
+  config.forceOverlayScaleConsistency = forceOverlayScaleConsistency;
+  config.sequenceScaleConsistency = sequenceScaleConsistency;
+  config.forceSequenceScaleConsistency = forceSequenceScaleConsistency;
 }

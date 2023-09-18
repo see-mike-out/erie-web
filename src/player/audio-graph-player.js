@@ -8,15 +8,17 @@ import {
   playSingleSpeech,
   playRelativeDiscreteTonesAndSpeeches,
   playPause,
-  playAbsoluteSpeeches,
+  // playAbsoluteSpeeches,
   makeContext,
   Tone, Speech, DefaultFrequency,
   ErieGlobalControl
 } from "./audio-graph-player-proto";
 
 import { SupportedInstruments, loadSamples } from "./audio-graph-instrument-sample";
-import { deepcopy } from "../util/audio-graph-util";
+import { deepcopy, genRid, getFirstDefined } from "../util/audio-graph-util";
 import { DefaultChannels } from "../scale/audio-graph-scale-constant";
+import { sendQueueFinishEvent, sendQueueStartEvent, sendToneStartEvent } from "./audio-graph-player-event";
+import { makeTapPattern, mergeTapPattern } from "../util/audio-graph-scale-util";
 
 export const TextType = 'text',
   ToneType = 'tone',
@@ -42,18 +44,16 @@ export class AudioGraphQueue {
     this.sampledInstruments = [];
     this.sampledInstrumentSources = {};
     this.chunks;
-    this.mediaRecorder;
-    this.mediaStream;
     this.export = [];
     this.samplings = {};
     this.synths = {};
     this.waves = {};
+    this.playId;
   }
 
   setConfig(key, value) {
     this.config[key] = value;
   }
-
 
   setSampling(samplings) {
     this.samplings = deepcopy(samplings);
@@ -80,7 +80,7 @@ export class AudioGraphQueue {
     return this.waves?.[k] !== undefined;
   }
 
-  add(type, info, lineConfig) {
+  add(type, info, lineConfig, at) {
     let checkInstrumentSampling = new Set(), userSampledInstruments = new Set();
     if (Types.includes(type)) {
       let item = {
@@ -94,18 +94,23 @@ export class AudioGraphQueue {
         item.instrument_type = info.instrument_type;
         if (this.isSupportedInst(item.instrument_type)) checkInstrumentSampling.add(item.instrument_type);
         else if (this.isSampling(item.instrument_type)) userSampledInstruments.add(item.instrument_type);
-        item.start = info.sound?.start || info.start || 0;
-        item.end = info.sound?.end || (item.start + (item.sound?.duration || 0.2));
-        item.duration = info.sound?.duration || (item.end - item.start) || 0.2; // in seconds
+        item.time = info.sound?.start || info.start || 0;
+        item.end = info.sound?.end || (item.time + (item.sound?.duration || 0.2));
+        item.duration = info.sound?.duration || (item.end - item.time) || 0.2; // in seconds
         item.pitch = info.sound?.pitch || info.pitch || DefaultFrequency;
-        item.detune = info.sound?.detune || info.detune || DefaultFrequency;
-        item.loudness = info.sound?.loudness || info.loudness
+        item.detune = info.sound?.detune || info.detune;
+        item.loudness = getFirstDefined(info.sound?.loudness, info.loudness, 1);
         item.pan = info.sound?.pan || info.pan;
         item.postReverb = info.sound?.postReverb || info.postReverb || 0;
         item.timbre = info.sound?.timbre || info.timbre || info.instrument_type;
-        item.tap = info.sound?.tap || info.tap;
-        item.modulation = info.sound?.modulation || info.modulation || 1;
-        item.harmonicity = info.sound?.harmonicity || info.harmonicity || 1;
+        let tapCount = info.sound?.tapCount || info.tapCount,
+          tapSpeed = info.sound?.tapSpeed || info.tapSpeed;
+        if (tapCount || tapSpeed) {
+          item.tap = mergeTapPattern(tapCount, tapSpeed);
+          item.duration = item.tap.totalLength
+        }
+        item.modulation = info.sound?.modulation || info.modulation || 0;
+        item.harmonicity = info.sound?.harmonicity || info.harmonicity || 0;
         item.others = {};
         // custom channels;
         Object.keys(info.sound || info || {}).forEach((chn) => {
@@ -161,6 +166,9 @@ export class AudioGraphQueue {
       } else if (type === LegendType) {
         Object.assign(item, info);
       }
+      if (info.ramp) {
+        item.ramp = deepcopy(info.ramp);
+      }
       Array.from(checkInstrumentSampling).forEach((inst) => {
         if (!this.sampledInstruments.includes(inst)) {
           this.sampledInstruments.push(inst);
@@ -171,29 +179,39 @@ export class AudioGraphQueue {
           this.sampledInstruments.push(inst);
         }
       });
-      this.queue.push(item);
-    }
-  }
-
-  addMulti(multiples, lineConfig) {
-    for (const mul of multiples) {
-      if (mul?.type) {
-        this.add(mul.type, mul, lineConfig);
+      if (at !== undefined) {
+        this.queue.splice(at, 0, item);
+      } else {
+        this.queue.push(item);
       }
     }
   }
 
-  addQueue(queue) {
-    this.queue.push(...queue.queue);
+  addMulti(multiples, lineConfig, pos) {
+    let at = pos;
+    for (const mul of multiples) {
+      if (mul?.type) {
+        this.add(mul.type, mul, lineConfig, at);
+        if (at !== undefined) {
+          at += 1;
+        }
+      }
+    }
+  }
+
+  addQueue(queue, pos) {
+    if (pos !== undefined) {
+      this.queue.splice(pos, 0, ...queue.queue);
+    } else {
+      this.queue.push(...queue.queue);
+    }
   }
 
   async play(i, j) {
     if (this.state !== Playing) {
-      // await this.stopOtherTracks();
-      await this.stopOtherTracks();
       setPlayerEvents(this, this.config);
       let queue = this.queue;
-      this.playAt = 0;
+      this.playAt = i || 0;
       // for pause & resume
       if (i !== undefined && j !== undefined) {
         queue = this.queue.slice(i, j);
@@ -207,25 +225,27 @@ export class AudioGraphQueue {
       for (const item of queue) {
         console.log(item, this.state);
         if (this.state === Stopped || this.state === Paused) break;
+        await this.playLine(item);
         this.playAt += 1;
-        await this.playLine(item, this.playAt);
       }
       this.fireStopEvent();
       clearPlayerEvents();
       this.state = Stopped;
+      this.playAt = undefined;
     }
   }
 
-  async playLine(item, lineId) {
+  async playLine(item) {
     let config = deepcopy(this.config);
     Object.assign(config, item.config);
+    config.ramp = item.ramp;
     if (item?.type === TextType) {
       await playSingleSpeech(item.text, config);
     } else if (item?.type === ToneType) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
         if (inst && !this.sampledInstrumentSources[inst]) {
-          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings)
+          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
       await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
@@ -236,7 +256,7 @@ export class AudioGraphQueue {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
         if (inst && !this.sampledInstrumentSources[inst]) {
-          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings)
+          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
       if (item.continued) {
@@ -251,27 +271,31 @@ export class AudioGraphQueue {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
         if (inst && !this.sampledInstrumentSources[inst]) {
-          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings)
+          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
       await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
       ctx.close();
     } else if (item?.type === ToneOverlaySeries) {
-      // todo
-      let promises = [], contexts = [];
+      let promises = [];
+      let ctx = makeContext();
+      for (const inst of this.sampledInstruments) {
+        if (inst && !this.sampledInstrumentSources[inst]) {
+          this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
+        }
+      }
       for (let stream of item.overlays) {
-        let ctx = makeContext();
-        contexts.push(ctx);
         if (stream.continued) {
           promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters));
         } else if (!stream.relative) {
+          console.log(this.sampledInstrumentSources)
           promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
         } else {
           promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
         }
       }
       await Promise.all(promises);
-      contexts.forEach((ctx) => ctx.close());
+      ctx.close();
     }
     return;
   }
@@ -279,18 +303,22 @@ export class AudioGraphQueue {
   stop() {
     // button-based stop
     // for event stop ==> audio-graph-player-proto.js
-    // todo: unify these pipelines
-    if (ErieGlobalControl?.type === Tone) {
-      ErieGlobalControl.player.close();
-    } else if (ErieGlobalControl?.type === Speech) {
-      ErieGlobalControl.player.cancel();
+    if (this.state === Playing) {
+      if (ErieGlobalControl?.type === Tone || ErieGlobalControl?.player?.close) {
+        ErieGlobalControl.player.close();
+      } else if (ErieGlobalControl?.type === Speech || ErieGlobalControl?.player?.cancel) {
+        ErieGlobalControl.player.cancel();
+      }
+      if (this.state !== Stopped) {
+        this.state = Stopped;
+        notifyStop(this.config);
+        this.fireStopEvent();
+        clearPlayerEvents();
+        this.playAt = undefined;
+      }
     }
-    this.state = Stopped;
-    notifyStop(this.config);
-    this.fireStopEvent();
-    clearPlayerEvents();
-    this.mediaRecorder?.stop();
   }
+
 
   pause() {
     self.state = Paused;
@@ -304,80 +332,18 @@ export class AudioGraphQueue {
   }
 
   fireStartEvent() {
-    let playEvent = new Event("erieOnPlay");
-    document.body.dispatchEvent(playEvent);
+    this.playId = genRid();
+    sendQueueStartEvent({ pid: this.playId });
   }
 
   fireStopEvent() {
-    let stopEvent = new Event("erieOnStopped");
-    document.body.dispatchEvent(stopEvent);
+    sendQueueFinishEvent({ pid: this.playId });
   }
 
-  // recorder (not working)
-  async stopOtherTracks() {
-    let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(track => track.stop());
-  }
-  async prepareRecorder() {
-    let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(track => track.stop());
-
-    let devices = await navigator.mediaDevices.enumerateDevices();
-    let audioOutput = devices.find(devices => devices.kind === "audiooutput");
-    if (audioOutput) {
-      const constraints = {
-        deviceId: {
-          exact: audioOutput.deviceId
-        }
-      };
-
-      navigator.webkitGetUserMedia({
-        audio: constraints
-      },
-        (_stream) => {
-          stream = _stream
-        },
-        (e) => {
-          console.warn(e)
-        });
-    }
-
-    let track = stream.getAudioTracks()[0];
-    this.mediaStream = new MediaStream();
-    this.mediaStream.addTrack(track);
-
-    this.mediaRecorder = new MediaRecorder(this.mediaStream, {
-      mimeType: MediaRecorder.isTypeSupported('audio/webm; codecs=opus') ? 'audio/webm; codecs=opus' : 'audio/ogg; codecs=opus',
-      bitsPerSecond: 256 * 8 * 1024
-    });
-
-    this.chunks = [];
-    this.mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        this.chunks.push(event.data);
-      };
-    }
-    this.mediaRecorder.onstart = () => {
-      console.log("Start sonification recording. All other tracks stoped.");
-    }
-    this.mediaRecorder.onstop = () => {
-      track.stop();
-      console.log("Finished sonification recording.");
-      this.mediaStream.getAudioTracks()[0].stop();
-      this.mediaStream.removeTrack(track);
-      this.wrapRecording();
-      this.hasRecording = true;
-    }
-  }
-
-  async wrapRecording() {
-    this.recordingBlob = new Blob(this.chunks, { type: "audio/mp3" });
-    this.recordingBlobURL = URL.createObjectURL(this.recordingBlob);
-    console.log(this.recordingBlobURL);
-  }
-
-  getRecording() {
-    return this.recordingBlobURL;
+  destroy() {
+    this.state = Finished;
+    this.queue = [];
+    clearPlayerEvents();
   }
 }
 
@@ -386,7 +352,11 @@ function makeSingleStreamQueueValues(sounds) {
   let queue_values = [];
   for (const sound of sounds) {
     let time = sound.start !== undefined ? sound.start : sound.time;
-    let dur = sound.duration !== undefined ? sound.duration : (sound.end - time)
+    let dur = sound.duration !== undefined ? sound.duration : (sound.end - time);
+    let tap = mergeTapPattern(sound.tapCount, sound.tapSpeed);
+    if (sound.tapCount || sound.tapSpeed) {
+      dur = tap.totalLength;
+    }
     let ith_q = {
       pitch: sound.pitch,
       detune: sound.detune,
@@ -398,9 +368,9 @@ function makeSingleStreamQueueValues(sounds) {
       language: sound.language,
       postReverb: (Math.round(sound.postReverb * 100) / 100) || 0,
       timbre: sound.timbre,
-      tap: sound.tapCount || sound.tapSpeed,
-      modulation: sound.modulation || 1,
-      harmonicity: sound.harmonicity || 1,
+      tap,
+      modulation: sound.modulation || 0,
+      harmonicity: sound.harmonicity || 0,
       others: {}
     };
     if (sound.speech) {

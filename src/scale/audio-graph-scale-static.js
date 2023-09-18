@@ -3,7 +3,7 @@ import { deepcopy } from "../util/audio-graph-util";
 
 export function makeStaticScaleFunction(channel, encoding, values, info) {
   let value = encoding.value;
-  let condition = deepcopy(encoding.condition);
+  let condition = deepcopy(encoding.condition || []);
   let scaleProperties = {
     channel,
   }

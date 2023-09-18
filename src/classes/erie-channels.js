@@ -14,7 +14,8 @@ import {
   MODULATION_chn,
   HARMONICITY_chn,
   TIMBRE_chn,
-  DETUNE_chn
+  DETUNE_chn,
+  Channel
 } from "./erie-channel";
 import { isInstanceOf } from "./erie-util";
 
@@ -88,7 +89,7 @@ export class PitchChannel extends Channel {
   }
 
   validator(v) {
-    return isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_PITCH;
+    return (isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_PITCH) || (isInstanceOf(v, String) && v.match(/^[A-F][0-9]$/gi));
   }
 }
 
@@ -186,6 +187,6 @@ export class TimbreChannel extends Channel {
   }
 
   validator(v) {
-    return isInstanceOf(v, Number) && v >= 0;
+    return isInstanceOf(v, String);
   }
 }

@@ -79,15 +79,13 @@ export function makeQuantitativeScaleFunction(channel, encoding, values, info) {
     }
   });
 
-  // polarity (only works when a range is not provided)
-  if (!rangeProvided) {
-    if (domain[0] < domain[1] && polarity === NEG) {
-      range = range.reverse();
-    } else if (domain[0] > domain[1] && polarity === POS) {
-      range = range.reverse();
-    }
+  // polarity
+  if (domain[0] < domain[1] && polarity === NEG) {
+    range = range.reverse();
+  } else if (domain[0] > domain[1] && polarity === POS) {
+    range = range.reverse();
   }
-
+  
   scaleProperties.range = range;
 
   // transform

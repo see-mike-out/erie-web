@@ -4,8 +4,8 @@ export class Calculate {
   constructor(c, a) {
     this._calculate = '';
     this._as;
-    this.calculate(c);
-    this.as(a);
+    if (c) this.calculate(c);
+    if (a) this.as(a);
   }
 
   calculate(c) {

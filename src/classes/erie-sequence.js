@@ -1,6 +1,15 @@
 import { Stream } from "./erie-stream";
 import { Overlay } from "./erie-overlay";
 import { isArrayOf, isInstanceOf } from "./erie-util";
+import { Config } from "./eire-config";
+import { Synth } from "./eire-synth";
+import { Data } from "./erie-data";
+import { Datasets } from "./erie-datasets";
+import { Sampling } from "./erie-sampling";
+import { TickList } from "./erie-tick";
+import { Transform } from "./erie-transform";
+import { Wave } from "./erie-wave";
+
 
 export class Sequence {
   constructor(...a) {
@@ -9,13 +18,20 @@ export class Sequence {
       this.setName(args[0]);
       args.splice(0, 1);
     }
+    this.sequence = [];
     if (isArrayOf(args[0], [Stream, Overlay])) {
       this.addStreams(args[0])
     } else if (isArrayOf(args, [Stream, Overlay])) {
       this.addStreams(args)
-    } else {
-      this.sequence = [];
     }
+    this.datasets = new Datasets();
+    this.transform = new Transform();
+    this.data = new Data();
+    this.sampling = new Sampling();
+    this.synth = new Synth();
+    this.wave = new Wave();
+    this.tick = new TickList();
+    this.config = new Config();
   }
 
   name(n) {
@@ -63,7 +79,7 @@ export class Sequence {
       let clone = s.clone();
       // datasets
       let cloned_datasets = clone.datasets;
-      if (cloned_datasets.length > 0) {
+      if (cloned_datasets && cloned_datasets.length > 0) {
         for (const ds of cloned_datasets) {
           this.datasets.add(ds);
         }
@@ -71,7 +87,7 @@ export class Sequence {
       clone.datasets = null;
       // tick
       let cloned_ticks = clone.tick;
-      if (cloned_ticks.length > 0) {
+      if (cloned_ticks && cloned_ticks.length > 0) {
         for (const ds of cloned_ticks) {
           this.tick.add(ds);
         }
@@ -79,7 +95,7 @@ export class Sequence {
       clone.tick = null;
       // sampling
       let cloned_samples = clone.sampling;
-      if (cloned_samples.length > 0) {
+      if (cloned_samples && cloned_samples.length > 0) {
         for (const ds of cloned_samples) {
           this.sampling.add(ds);
         }
@@ -87,7 +103,7 @@ export class Sequence {
       clone.sampling = null;
       // synth
       let cloned_synths = clone.synth;
-      if (cloned_synths.length > 0) {
+      if (cloned_synths && cloned_synths.length > 0) {
         for (const ds of cloned_synths) {
           this.synth.add(ds);
         }
@@ -95,7 +111,7 @@ export class Sequence {
       clone.synth = null;
       // wave
       let cloned_waves = clone.wave;
-      if (cloned_waves.length > 0) {
+      if (cloned_waves && cloned_waves.length > 0) {
         for (const ds of cloned_waves) {
           this.wave.add(ds);
         }
@@ -128,7 +144,6 @@ export class Sequence {
       synth: this.synth.get(),
       sampling: this.sampling.get(),
       wave: this.wave.get(),
-      tone: this.tone.get(),
       sequence: this.sequence.map((d) => d.get()),
       config: this.config.get()
     };
@@ -147,7 +162,6 @@ export class Sequence {
     _c.synth = this.synth.clone();
     _c.sampling = this.sampling.clone();
     _c.wave = this.wave.clone();
-    _c.tone = this.tone.clone();
     _c.sequence = this.sequence.map((d) => d.clone());
     _c.config = this.config.clone();
   }

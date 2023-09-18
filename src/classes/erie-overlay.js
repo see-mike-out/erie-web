@@ -4,7 +4,8 @@ import { Data } from "./erie-data";
 import { Datasets } from "./erie-datasets";
 import { Sampling } from "./erie-sampling";
 import { Stream } from "./erie-stream";
-import { Tick } from "./erie-tick";
+import { TickList } from "./erie-tick";
+import { Transform } from "./erie-transform";
 import { isArrayOf, isInstanceOf } from "./erie-util";
 import { Wave } from "./erie-wave";
 
@@ -15,19 +16,19 @@ export class Overlay {
       this.name(args[0]);
       args.splice(0, 1);
     }
+    this.overlay = [];
     if (isArrayOf(args[0], Stream)) {
       this.addStreams(args[0])
     } else if (isArrayOf(args, Stream)) {
       this.addStreams(args)
-    } else {
-      this.overlay = [];
     }
     this.datasets = new Datasets();
+    this.transform = new Transform();
     this.data = new Data();
     this.sampling = new Sampling();
     this.synth = new Synth();
     this.wave = new Wave();
-    this.tick = new Tick();
+    this.tick = new TickList();
     this.config = new Config();
   }
 
@@ -76,7 +77,7 @@ export class Overlay {
       let clone = s.clone();
       // datasets
       let cloned_datasets = clone.datasets;
-      if (cloned_datasets.length > 0) {
+      if (cloned_datasets && cloned_datasets.length > 0) {
         for (const ds of cloned_datasets) {
           this.datasets.add(ds);
         }
@@ -84,7 +85,7 @@ export class Overlay {
       clone.datasets = null;
       // tick
       let cloned_ticks = clone.tick;
-      if (cloned_ticks.length > 0) {
+      if (cloned_ticks && cloned_ticks.length > 0) {
         for (const ds of cloned_ticks) {
           this.tick.add(ds);
         }
@@ -92,7 +93,7 @@ export class Overlay {
       clone.tick = null;
       // sampling
       let cloned_samples = clone.sampling;
-      if (cloned_samples.length > 0) {
+      if (cloned_samples && cloned_samples.length > 0) {
         for (const ds of cloned_samples) {
           this.sampling.add(ds);
         }
@@ -100,7 +101,7 @@ export class Overlay {
       clone.sampling = null;
       // synth
       let cloned_synths = clone.synth;
-      if (cloned_synths.length > 0) {
+      if (cloned_synths && cloned_synths.length > 0) {
         for (const ds of cloned_synths) {
           this.synth.add(ds);
         }
@@ -108,7 +109,7 @@ export class Overlay {
       clone.synth = null;
       // wave
       let cloned_waves = clone.wave;
-      if (cloned_waves.length > 0) {
+      if (cloned_waves && cloned_waves.length > 0) {
         for (const ds of cloned_waves) {
           this.wave.add(ds);
         }
@@ -140,7 +141,6 @@ export class Overlay {
       synth: this.synth.get(),
       sampling: this.sampling.get(),
       wave: this.wave.get(),
-      tone: this.tone.get(),
       overlay: this.overlay.map((d) => d.get()),
       config: this.config.get()
     };
@@ -159,7 +159,6 @@ export class Overlay {
     _c.synth = this.synth.clone();
     _c.sampling = this.sampling.clone();
     _c.wave = this.wave.clone();
-    _c.tone = this.tone.clone();
     _c.overlay = this.overlay.map((d) => d.clone());
     _c.config = this.config.clone();
   }

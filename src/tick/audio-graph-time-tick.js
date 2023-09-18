@@ -1,16 +1,14 @@
-import { TextType } from "../player/audio-graph-player";
 import { makeInstrument } from "../player/audio-graph-player-proto";
 import { round } from "../util/audio-graph-util";
 
-const Def_Tick_Interval = 0.5, Def_Tick_Duration = 0.1, Def_Tick_Loudness = 0.4;
+export const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
 export function makeTick(ctx, def, duration) {
   // ticker definition;
-  // sampling
   if (!def) return;
   else if (duration) {
     let tickPattern = [];
-    let interval = round(def.interval, -2) || Def_Tick_Interval;
-    let tickDur = def.band || Def_Tick_Duration;
+    let interval = round(def.interval, -2);
+    let tickDur = def.band;
     tickDur = round(tickDur, -2);
     let pause = interval - tickDur;
     let count = Math.floor(duration / interval)
@@ -48,10 +46,4 @@ export function makeTick(ctx, def, duration) {
     }
     return tickInst;
   }
-}
-
-export function makeTickDescription(def) {
-  let desc = [];
-  desc.push({ type: TextType, speech: `There is a tick sound every ${def.interval} seconds`, speechRate });
-  return desc;
 }

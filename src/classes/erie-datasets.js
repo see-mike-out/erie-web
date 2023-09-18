@@ -16,20 +16,20 @@ export class Datasets {
 
   get(name) {
     if (name) {
-      return this.datasets.filter(d => d.name === name)?.[0];
+      return this.datasets?.filter(d => d.name === name)?.[0];
     } else {
-      return this.datasets.map((d) => d.get());
+      return this.datasets?.map((d) => d.get());
     }
   }
 
   clone() {
-    return this.datasets.map((d) => d.clone());
+    return this.datasets?.map((d) => d.clone());
   }
 }
 
 export class Dataset {
   constructor(name) {
-    this.name;
+    this.name(name);
     this.data = new Data();
     if (!name) {
       throw new Error('A Dataset must be created with a name.')

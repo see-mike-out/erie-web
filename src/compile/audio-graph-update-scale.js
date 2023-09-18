@@ -1,58 +1,61 @@
 import { applyTransforms } from "../data/audio-graph-apply-transform";
-import { TIME_chn } from "../scale/audio-graph-scale-constant";
+import { STATIC, TIME_chn, TMP } from "../scale/audio-graph-scale-constant";
 import { getAudioScales } from "../scale/audio-graph-scale-wrap";
+import { makeBeatFunction, makeBeatRounder } from "../scale/audio-graph-time-convert";
 import { detectType, jType } from "../util/audio-graph-typing-util";
 import { deepcopy } from "../util/audio-graph-util";
 
 export function tidyUpScaleDefinitions(scaleDefinitions, normalizedSpecs, sequenceConfig) {
-  let sequenceScaleConsistency = sequenceConfig?.sequenceScaleConsistency || true;
-  let forceSequenceScaleConsistency = sequenceConfig?.forceSequenceScaleConsistency || false;
+  // directly updates the scale definitions, and returns the ids of scales to be removed, which can be later handled.
+  let sequenceScaleConsistency = sequenceConfig?.sequenceScaleConsistency || {};
+  let forceSequenceScaleConsistency = sequenceConfig?.forceSequenceScaleConsistency || {};
   let removals = [];
   for (const stream of normalizedSpecs) {
-    if (stream.stream && sequenceScaleConsistency) {
+    if (stream.stream) {
       Object.keys(stream.stream.encoding).forEach((channel) => {
-        let match = findScaleMatch(scaleDefinitions, stream.stream.encoding[channel], false, !forceSequenceScaleConsistency);
-        if (match.id !== stream.stream.encoding[channel].scale.id) {
-          match.field.push(stream.stream.encoding[channel].field);
-          removals.push(stream.stream.encoding[channel].scale.id);
-          Object.keys(stream.stream.encoding[channel].scale).forEach(prop => {
-            if (!match.scale[prop]) match.scale[prop] = stream.stream.encoding[channel].scale[prop]
-          });
-          stream.stream.encoding[channel].scale.id = match.id;
+        let match;
+        if (sequenceScaleConsistency[channel] && !forceSequenceScaleConsistency[channel]) {
+          match = findScaleMatch(scaleDefinitions, stream.stream.encoding[channel], false, !forceSequenceScaleConsistency[channel]);
+        } else if (forceSequenceScaleConsistency[channel]) {
+          match = findScaleMatch(scaleDefinitions, stream.stream.encoding[channel], false, forceSequenceScaleConsistency[channel]);
         }
-
-      })
-    } else if (stream.overlay && sequenceScaleConsistency) {
-      for (const overlayStream of stream.overlay) {
-        Object.keys(overlayStream.encoding).forEach((channel) => {
-          let match = findScaleMatch(scaleDefinitions, overlayStream.encoding[channel], false, !forceSequenceScaleConsistency);
-          if (match.id !== overlayStream.encoding[channel].scale.id) {
-            match.field.push(overlayStream.encoding[channel].field);
-            removals.push(overlayStream.encoding[channel].scale.id);
-            Object.keys(overlayStream.encoding[channel].scale).forEach(prop => {
-              if (!match.scale[prop]) match.scale[prop] = overlayStream.encoding[channel].scale[prop]
+        if (match) {
+          if (match.id !== stream.stream.encoding[channel].scale.id) {
+            match.field.push(stream.stream.encoding[channel].field);
+            removals.push(stream.stream.encoding[channel].scale.id);
+            Object.keys(stream.stream.encoding[channel].scale).forEach(prop => {
+              if (!match.scale[prop]) match.scale[prop] = stream.stream.encoding[channel].scale[prop]
             });
-            overlayStream.encoding[channel].scale.id = match.id;
+            stream.stream.encoding[channel].scale.id = match.id;
           }
-        })
-      }
-    } else if (stream.overlay && !sequenceScaleConsistency) {
-      let overlayScaleConsistency = stream.config?.overlayScaleConsistency || true;
-      let forceOverlayScaleConsistency = stream.config?.forceOverlayScaleConsistency || false;
-      if (overlayScaleConsistency) {
-        for (const overlayStream of stream.overlay) {
-          Object.keys(overlayStream.encoding).forEach((channel) => {
-            let match = findScaleMatch(scaleDefinitions, overlayStream.encoding[channel], true, !forceOverlayScaleConsistency);
+        }
+      })
+    } else if (stream.overlay) {
+      for (const overlayStream of stream.overlay) {
+        let overlayScaleConsistency = stream?.config?.overlayScaleConsistency || sequenceConfig?.overlayScaleConsistency || {};
+        let forceOverlayScaleConsistency = stream?.config?.forceOverlayScaleConsistency || sequenceConfig?.forceOverlayScaleConsistency || {};
+        Object.keys(overlayStream.encoding).forEach((channel) => {
+          let match;
+          if (sequenceScaleConsistency[channel] && !forceSequenceScaleConsistency[channel]) {
+            match = findScaleMatch(scaleDefinitions, overlayStream.encoding[channel], true, !forceSequenceScaleConsistency[channel]);
+          } else if (forceSequenceScaleConsistency[channel]) {
+            match = findScaleMatch(scaleDefinitions, overlayStream.encoding[channel], true, forceSequenceScaleConsistency[channel]);
+          } else if (overlayScaleConsistency[channel] && !forceOverlayScaleConsistency[channel]) {
+            match = findScaleMatch(scaleDefinitions, overlayStream.encoding[channel], false, !forceOverlayScaleConsistency[channel]);
+          } else if (forceOverlayScaleConsistency[channel]) {
+            match = findScaleMatch(scaleDefinitions, overlayStream.encoding[channel], false, forceOverlayScaleConsistency[channel]);
+          }
+          if (match) {
             if (match.id !== overlayStream.encoding[channel].scale.id) {
               match.field.push(overlayStream.encoding[channel].field);
-              removals.push(stream.stream.encoding[channel].scale.id);
+              removals.push(overlayStream.encoding[channel].scale.id);
               Object.keys(overlayStream.encoding[channel].scale).forEach(prop => {
                 if (!match.scale[prop]) match.scale[prop] = overlayStream.encoding[channel].scale[prop]
               });
               overlayStream.encoding[channel].scale.id = match.id;
             }
-          })
-        }
+          }
+        })
       }
     }
   }
@@ -60,6 +63,8 @@ export function tidyUpScaleDefinitions(scaleDefinitions, normalizedSpecs, sequen
 }
 
 function findScaleMatch(scaleDefinitions, encoding, matchParent, matchData) {
+  // matchParent (whether overlay's scales are consistent to those of parent sequence)
+  // matchData (whether to force scale consistency even if data is different)
   let thisDef;
   for (const def of scaleDefinitions) {
     if (def.id === encoding.scale.id) thisDef = def;
@@ -93,7 +98,9 @@ export async function getChannelType(loaded_datasets, spec, untyped_channels) {
 
   // before transforms
   for (const channel of Object.keys(spec.encoding)) {
-    if (!spec.encoding[channel].type) {
+    if (!spec.encoding[channel].type && spec.encoding[channel].value !== undefined) {
+      spec.encoding[channel].type = STATIC;
+    } else if (!spec.encoding[channel].type) {
       spec.encoding[channel].type = detectType(data.map((d) => d[spec.encoding[channel].field]));
     }
   }
@@ -102,17 +109,38 @@ export async function getChannelType(loaded_datasets, spec, untyped_channels) {
 
   // after transforms
   for (const channel of Object.keys(spec.encoding)) {
-    if (!spec.encoding[channel].type) {
+    if (!spec.encoding[channel].type && spec.encoding[channel].value !== undefined) {
+      spec.encoding[channel].type = STATIC;
+    } else if (!spec.encoding[channel].type) {
       spec.encoding[channel].type = detectType(data.map((d) => d[spec.encoding[channel].field]));
     }
   }
 }
 
-export async function makeScales(scaleHash, normalized, loaded_datasets) {
-  let scaleInfo = deepcopy(scaleHash)
+export async function makeScales(scaleHash, normalized, loaded_datasets, config) {
+  let scaleInfo = deepcopy(scaleHash);
   Object.keys(scaleInfo).forEach((scaleId) => {
     scaleInfo[scaleId].collected = [];
   });
+  let beat;
+  if (config?.timeUnit) {
+    if (config.timeUnit.unit === 'beat') {
+      beat = {
+        converter: makeBeatFunction(config.timeUnit.tempo || 100)
+      };
+      let roundStart = true, roundDuration = false;
+      if (config.timeUnit.rounding) {
+        roundStart = (config.timeUnit.rounding !== 'never');
+        roundDuration = (config.timeUnit.rounding === 'always');
+      }
+      if (roundStart) {
+        beat.roundStart = makeBeatRounder(config.timeUnit.tempo || 100, config.timeUnit.roundingBy || 1);
+      }
+      if (roundDuration) {
+        beat.roundDuration = makeBeatRounder(config.timeUnit.tempo || 100, config.timeUnit.roundingBy || 1)
+      }
+    }
+  }
   // 1. update scale information
   for (const stream of normalized) {
     if (stream.stream) {
@@ -120,11 +148,22 @@ export async function makeScales(scaleHash, normalized, loaded_datasets) {
       data = applyTransforms(data, stream.stream);
       let encoding = stream.stream.encoding;
       for (const cname of Object.keys(encoding)) {
-        let collectionKey = stream.stream.data.name + "_" + encoding[cname].field;
         let scaleId = encoding[cname].scale.id;
-        if (!scaleInfo[scaleId].collected.includes(collectionKey)) {
-          scaleInfoUpdater(encoding[cname], scaleInfo, data);
-          scaleInfo[scaleId].collected.push(collectionKey);
+        if (encoding[cname].field) {
+          let collectionKey = stream.stream.data.name + "_" + encoding[cname].field;
+          if (!scaleInfo[scaleId].collected.includes(collectionKey)) {
+            scaleInfoUpdater(encoding[cname], scaleInfo, data);
+            scaleInfo[scaleId].collected.push(collectionKey);
+          }
+        } else if (encoding[cname].value !== undefined) {
+          scaleInfo[scaleId].type = STATIC;
+          scaleInfo[scaleId].value = encoding[cname].value;
+        }
+        if (encoding[cname].format) {
+          scaleInfo[scaleId].format = encoding[cname].format
+        }
+        if (encoding[cname].formatType) {
+          scaleInfo[scaleId].formatType = encoding[cname].formatType
         }
       }
     } else if (stream.overlay) {
@@ -133,11 +172,22 @@ export async function makeScales(scaleHash, normalized, loaded_datasets) {
         data = applyTransforms(data, overlay);
         let encoding = overlay.encoding;
         for (const cname of Object.keys(encoding)) {
-          let collectionKey = overlay.data.name + "_" + encoding[cname].field;
           let scaleId = encoding[cname].scale.id;
-          if (!scaleInfo[scaleId].collected.includes(collectionKey)) {
-            scaleInfoUpdater(encoding[cname], scaleInfo, data);
-            scaleInfo[scaleId].collected.push(collectionKey);
+          if (encoding[cname].field) {
+            let collectionKey = overlay.data.name + "_" + encoding[cname].field;
+            if (!scaleInfo[scaleId].collected.includes(collectionKey)) {
+              scaleInfoUpdater(encoding[cname], scaleInfo, data);
+              scaleInfo[scaleId].collected.push(collectionKey);
+            }
+          } else if (encoding[cname].value !== undefined) {
+            scaleInfo[scaleId].type = STATIC;
+            scaleInfo[scaleId].value = encoding[cname].value;
+          }
+          if (encoding[cname].format) {
+            scaleInfo[scaleId].format = encoding[cname].format
+          }
+          if (encoding[cname].formatType) {
+            scaleInfo[scaleId].formatType = encoding[cname].formatType
           }
         }
       }
@@ -151,8 +201,9 @@ export async function makeScales(scaleHash, normalized, loaded_datasets) {
 
     let o = {};
     Object.assign(o, scaleDef);
-    scaleFunctions[scaleId] = getAudioScales(channel, o, scaleDef.values);
+    scaleFunctions[scaleId] = getAudioScales(channel, o, scaleDef.values, beat);
   }
+  if (beat) scaleFunctions.__beat = beat;
   return scaleFunctions;
 }
 
@@ -162,12 +213,17 @@ function scaleInfoUpdater(channel, scaleInfo, data) {
   let scaleId = channel.scale.id;
   if (scaleInfo[scaleId]) {
     if (!scaleInfo[scaleId].values) scaleInfo[scaleId].values = [];
+    let datums = [];
     if (jType(field) === 'Array') {
       field.forEach((f) => {
-        scaleInfo[scaleId].values.push(...data.map((d, i) => d[f] || i))
+        datums.push(...data.map((d, i) => d[f] || i))
       });
     } else {
-      scaleInfo[scaleId].values.push(...data.map((d, i) => d[field] || i))
+      datums.push(...data.map((d, i) => d[field] || i))
     }
+    if (scaleInfo[scaleId].type === TMP) {
+      datums = datums.map((d) => new Date(d));
+    }
+    scaleInfo[scaleId].values.push(...datums)
   }
 }

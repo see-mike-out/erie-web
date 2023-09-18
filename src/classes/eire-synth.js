@@ -186,6 +186,7 @@ export class SynthTone {
     return _c;
   }
 }
+
 export class Synth {
   constructor() {
     this.synth = [];

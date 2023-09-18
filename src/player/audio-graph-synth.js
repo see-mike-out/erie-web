@@ -1,4 +1,4 @@
-export const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGain = 300;
+export const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 1, DefaultModGainFM = 100;
 
 export function makeSynth(ctx, definition) {
   let synth = new ErieSynth(ctx, definition.type || FM);
@@ -45,36 +45,35 @@ export class ErieSynth {
 
     // modulator gain
     this.modulatorGain = this.ctx.createGain();
-    this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGain;
+    this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainFM;
     this.modulatorGain.gain.value = this.modulatorVolume;
 
-    // modulator pitch
+    // modulator pitch > modulation index > harmonicity > carrier's pitch > default pitch
     if (definition.modulatorPitch !== undefined) {
       this.modulatorPitch = definition.modulatorPitch;
+    } else if (definition.modulation !== undefined) {
+      this.modulation = definition.modulation
+      this.modulatorPitch = this.modulatorVolume / this.modulation;
+    } else if (definition.harmonicity !== undefined) {
+      this.modulatorPitch = definition.harmonicity * this.carrierPitch;
+    } else if (this.carrierPitch !== undefined) {
+      this.modulatorPitch = this.carrierPitch;
     } else {
       this.modulatorPitch = DefModPitch;
     }
-    if (definition.modulation !== undefined) {
-      this.modulation = definition.modulation
-      this.modulatorPitch = this.modulation * this.modulatorVolume;
-    }
-
     this.modulator.frequency.value = this.modulatorPitch;
-    console.log(this.modulator.frequency)
-
-
 
     // envelope
     this.envelope = this.ctx.createGain();
-    this.attackTime = definition.attackTime || 0;
-    this.releaseTime = definition.releaseTime || 0;
+    this.attackTime = definition.attackTime || 0.1;
+    this.releaseTime = definition.releaseTime || 0.1;
     this.sustain = definition.sustain || 0.8;
-    this.decayTime = definition.decayTime || 0;
+    this.decayTime = definition.decayTime || 0.2;
 
     // Connect the nodes
     this.modulator.connect(this.modulatorGain);
     this.modulatorGain.connect(this.carrier.frequency);
-    this.carrier.connect(this.envelope);
+    this.carrier.connect(this.envelope)
   }
 
   generateAM(definition) {
@@ -90,6 +89,7 @@ export class ErieSynth {
       this.carrierDetune = definition.carrierDetune;
       this.carrier.detune.value = definition.carrierDetune;
     }
+    this.carrierVolume = definition.carrierVolume || 1;
 
     // modulator
     this.modulator = this.ctx.createOscillator();
@@ -98,31 +98,36 @@ export class ErieSynth {
 
     // modulator gain
     this.modulatorGain = this.ctx.createGain();
-    this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGain;
+    if (definition.modulation !== undefined) {
+      this.modulation = definition.modulation
+      this.modulatorVolume = (this.carrierVolume || 1) * this.modulation;
+    } else {
+      this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainAM;
+    }
     this.modulatorGain.gain.value = this.modulatorVolume;
 
     // modulator pitch 
-    if (definition.harmonicity !== undefined) {
+    if (definition.modulatorPitch !== undefined) {
+      this.modulatorPitch = definition.modulatorPitch;
+    } else if (definition.harmonicity !== undefined) {
       this.modulatorPitch = definition.harmonicity * this.carrierPitch;
-    } else {
+    } else if (this.carrierPitch !== undefined) {
       this.modulatorPitch = this.carrierPitch;
+    } else {
+      this.modulatorPitch = DefModPitch;
     }
     this.modulator.frequency.value = this.modulatorPitch;
 
-
-    // modulator amplitude
-    this.amplifier = this.ctx.createWaveShaper();
-    this.amplifier.curve = makeWSCurve(1024);
-
     // envelope
     this.envelope = this.ctx.createGain();
-    this.attackTime = definition.attackTime || 0;
-    this.releaseTime = definition.releaseTime || 0;
+    this.attackTime = definition.attackTime || 0.1;
+    this.releaseTime = definition.releaseTime || 0.05;
+    this.sustain = definition.sustain || 0.8;
+    this.decayTime = definition.decayTime || 0.1;
 
     // Connect the nodes
-    this.modulator.connect(this.amplifier);
-    this.amplifier.connect(this.modulatorGain);
-    this.modulatorGain.connect(this.carrier.detune);
+    this.modulator.connect(this.modulatorGain);
+    this.modulatorGain.connect(this.carrier);
     this.carrier.connect(this.envelope);
   }
 

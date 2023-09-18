@@ -45,6 +45,7 @@ import {
   DETUNE_chn
 } from "./erie-channel";
 import { TickList } from "./erie-tick";
+import { isInstanceOf } from "./erie-util";
 
 export class Stream {
   constructor() {
@@ -112,16 +113,16 @@ export class Stream {
       name: this._name,
       title: this._title,
       description: this._description,
-      data: this.data.get(),
-      datasets: this.datasets.get(),
+      data: this.data?.get(),
+      datasets: this.datasets?.get(),
       transform: this.transform.get(),
-      tick: this.tick.get(),
-      synth: this.synth.get(),
-      sampling: this.sampling.get(),
-      wave: this.wave.get(),
-      tone: this.tone.get(),
+      tick: this.tick?.get(),
+      synth: this.synth?.get(),
+      sampling: this.sampling?.get(),
+      wave: this.wave?.get(),
+      tone: this.tone?.get(),
       encoding: {},
-      config: this.config.get()
+      config: this.config?.get()
     }
     Object.keys(this.encoding).forEach((chn) => {
       if (this.encoding[chn].defined) {
