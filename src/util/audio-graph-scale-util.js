@@ -275,15 +275,15 @@ const sharpToFlat = {
 export function noteToFreq(note) {
   if (jType(note) === "Number") return note;
   if (jType(note) !== "String") return null;
-  let n = note[0].toLowerCase(), o = note[1], a = note[2];
+  let n = note[0].toLowerCase(), o = note[1], a = note[2].toLowerCase();
+  if (a === "#") a = "s";
+  else if (a === "♭") a = "b";
   if (o > 8) return null;
-  if (a === "b" || a === "♭") {
+  if (a === "b") {
     let na = sharpToFlat[n + a];
     n = na[0];
     a = na[1];
     if (na == 'b') o = o - 1;
-  } else if (a === "#" || a === "S" || a === "s") {
-    a = "s"
   }
   if (n + a === 'bs') {
     n = 'c';
