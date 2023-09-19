@@ -32,8 +32,10 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     let enc = layer_spec.encoding[d];
     if ([NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
+    } else if (d === REPEAT_chn) {
+      return enc.field
     }
-  }).filter((d) => d);
+  }).filter((d) => d).flat();
 
   let data;
   if (audio_spec.common_transform) {
