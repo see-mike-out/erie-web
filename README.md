@@ -41,10 +41,6 @@ import { default as Erie } from "erie-web";
 Erie.setSampleBaseUrl(...);
 ```
 
-## Example website
-
-[Link](https://see-mike-out.github.io/erie-gallery)
-
 ## Documentation
 
 [Link](https://see-mike-out.github.io/erie-documentation)
