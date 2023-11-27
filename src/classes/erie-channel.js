@@ -181,7 +181,6 @@ export class Channel {
     if (p === 'domain' && isInstanceOf(v, Array)) {
       this._scale.domain = [...v];
     } else if (p === 'range' && isInstanceOf(v, Array)) {
-      console.log(v, v.every(this.validator))
       if (v.every(this.validator)) {
         this._scale.range = [...v];
         if (this._scale.times !== undefined ||
@@ -371,7 +370,8 @@ export class Channel {
       scale: this._scale ? deepcopy(this._scale) : this._scale,
       value: this._value,
       condition: this._condition ? deepcopy(this._condition) : this._condition,
-      ramp: this._ramp
+      ramp: this._ramp,
+      defined: this.defined
     };
     if (this._channel === TIME_chn) {
       o.tick = this._tick ? deepcopy(this._tick) : this._tick;
@@ -391,7 +391,11 @@ export class Channel {
     let _c = new this.constructor();
     let _g = this.get();
     Object.keys(_g).forEach(k => {
-      this['_' + k] = _g[k];
+      if (k !== 'defined') {
+        _c['_' + k] = _g[k];
+      } else {
+        _c.defined = _g[k]
+      }
     });
 
     return _c;

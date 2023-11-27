@@ -175,7 +175,7 @@ function makeSingleDiscAudioLegend(channel, value, scale, duration) {
 }
 
 export const ForceRepeatScale = 'forceRepeatScale',
-  PlayAt = 'playAt',
+  PlayAt = 'playScaleAt',
   BeforeAll = 'beforeAll',
   BeforeThis = 'beforeThis',
   AfterAll = 'afterAll',

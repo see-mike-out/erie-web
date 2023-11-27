@@ -23,8 +23,7 @@ export class Filter {
   }
 
   clone() {
-    let _c = new Filter();
-    if (this._filter) _c._filter = this._filter;
+    let _c = new Filter(this._filter);
     return _c;
   }
 }

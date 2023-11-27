@@ -288,7 +288,6 @@ export class AudioGraphQueue {
         if (stream.continued) {
           promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters));
         } else if (!stream.relative) {
-          console.log(this.sampledInstrumentSources)
           promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
         } else {
           promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));

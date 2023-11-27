@@ -275,7 +275,7 @@ const sharpToFlat = {
 export function noteToFreq(note) {
   if (jType(note) === "Number") return note;
   if (jType(note) !== "String") return null;
-  let n = note[0].toLowerCase(), o = note[1], a = note[2].toLowerCase();
+  let n = note[0]?.toLowerCase(), o = note[1], a = note[2]?.toLowerCase();
   if (a === "#") a = "s";
   else if (a === "♭") a = "b";
   if (o > 8) return null;

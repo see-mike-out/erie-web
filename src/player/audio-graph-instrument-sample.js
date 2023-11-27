@@ -1,4 +1,4 @@
-import { erieSampleBaseUrl } from "../base";
+import { jType } from "../util/audio-graph-typing-util";
 
 export const SupportedInstruments = ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"];
 export const MultiNoteInstruments = ["piano", "pianoElec", "violin", "metal", "guitar"];
@@ -247,7 +247,6 @@ export function determineNoteRange(freq, config) {
 
 export async function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
   let samples = {};
-  if (!baseUrl) baseUrl = windo?.erieSampleBaseUrl || erieSampleBaseUrl;
   if (MultiNoteInstruments.includes(instrument_name)) {
     for (const octave of noteFreqRange) {
       let sampleRes = await fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
