@@ -1,8 +1,8 @@
 import { Stream } from "./erie-stream";
 import { Overlay } from "./erie-overlay";
 import { isArrayOf, isInstanceOf } from "./erie-util";
-import { Config } from "./eire-config";
-import { Synth } from "./eire-synth";
+import { Config } from "./erie-config";
+import { Synth } from "./erie-synth";
 import { Data } from "./erie-data";
 import { Datasets } from "./erie-datasets";
 import { Sampling } from "./erie-sampling";

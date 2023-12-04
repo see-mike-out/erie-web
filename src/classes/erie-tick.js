@@ -1,5 +1,5 @@
 import { isInstanceOf } from "./erie-util";
-import { OscTypes } from "./eire-synth";
+import { OscTypes } from "./erie-synth";
 
 export class Tick {
   constructor(name) {

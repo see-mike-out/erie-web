@@ -9,13 +9,13 @@ import { Fold } from './erie-transform-fold';
 import { Density } from './erie-transform-density';
 import { Tone } from "./erie-tone";
 import { WaveTone, Wave } from "./erie-wave";
-import { SynthTone, Synth } from "./eire-synth";
+import { SynthTone, Synth } from "./erie-synth";
 import { SampledTone, Sampling } from "./erie-sampling";
 import { Channel } from "./erie-channel";
 import { Stream } from './erie-stream';
 import { DurationChannel, LoudnessChannel, ModulationChannel, PanChannel, PitchChannel, PostReverbChannel, RepeatChannel, SpeechAfterChannel, SpeechBeforeChannel, TapCountChannel, TapSpeedChannel, Time2Channel, TimeChannel } from './erie-channels';
 import { Tick } from './erie-tick';
-import { Config } from './eire-config';
+import { Config } from './erie-config';
 import { registerFilter } from './erie-audio-filter';
 
 export let Erie = {

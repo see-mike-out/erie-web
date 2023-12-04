@@ -1,4 +1,4 @@
-import { SynthTone } from "./eire-synth";
+import { SynthTone } from "./erie-synth";
 import { SampledTone } from "./erie-sampling";
 import { isArrayOf, isInstanceOf } from "./erie-util";
 import { WaveTone } from "./erie-wave";

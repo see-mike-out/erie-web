@@ -1,4 +1,4 @@
-import { OscTypes } from "./eire-synth";
+import { OscTypes } from "./erie-synth";
 import { Tick } from "./erie-tick";
 import { DoubleOps, SingleOps, ZeroOPs } from "./erie-transform-aggregate";
 import { deepcopy, isArrayOf, isInstanceOf } from "./erie-util";
@@ -180,6 +180,8 @@ export class Channel {
   scale(p, v) {
     if (p === 'domain' && isInstanceOf(v, Array)) {
       this._scale.domain = [...v];
+    } else if (p === 'range' && isInstanceOf(v, Object) && v.field) {
+      this._scale.range = deepcopy(v);
     } else if (p === 'range' && isInstanceOf(v, Array)) {
       if (v.every(this.validator)) {
         this._scale.range = [...v];

@@ -3,7 +3,7 @@ import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
 import { listString } from "../util/audio-graph-format-util";
 import { jType, detectType } from "../util/audio-graph-typing-util";
 import { round } from "../util/audio-graph-util";
-import { DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, MAX_TAPPING_DUR, NOM, ORD, PITCH_chn, POS, QUANT, SINGLE_TAP_MIDDLE, STATIC, SpeechChannels, TAPCNT_chn, TAPSPD_chn, TMP, TapChannels, TimeChannels } from "./audio-graph-scale-constant";
+import { DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, DUR_chn, MAX_TAPPING_DUR, NOM, ORD, PITCH_chn, POS, QUANT, SINGLE_TAP_MIDDLE, STATIC, SpeechChannels, TAPCNT_chn, TAPSPD_chn, TMP, TapChannels, TimeChannels } from "./audio-graph-scale-constant";
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
@@ -11,8 +11,9 @@ import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
 import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 import { makeTimeChannelScale } from "./audio-graph-scale-time";
+import { makeFieldedScaleFunction } from "./audio-graph-scale-field";
 
-export function getAudioScales(channel, encoding, values, beat) {
+export function getAudioScales(channel, encoding, values, beat, data) {
   // extract default information
   let polarity = encoding.scale?.polarity || POS;
   let maxDistinct = encoding.scale?.maxDistinct;
@@ -36,7 +37,9 @@ export function getAudioScales(channel, encoding, values, beat) {
   let scaleType = getScaleType(channel, encoding, values);
 
   // get scale functions
-  if (scaleType.isTime) {
+  if (scaleType.fieldRange) {
+    _scale = makeFieldedScaleFunction(channel, encoding, values, info, data);
+  } else if (scaleType.isTime) {
     // time scales
     _scale = makeTimeChannelScale(channel, encoding, values, info, scaleType, beat);
   } else if (scaleType.isSpeech) {
@@ -84,6 +87,8 @@ export function getAudioScales(channel, encoding, values, beat) {
           beat
         });
       }
+    } else if (channel === DUR_chn && beat) {
+      scale = (d) => beat.converter(_scale(d));
     } else {
       scale = _scale;
     }
@@ -136,5 +141,6 @@ function getScaleType(channel, encoding, values) {
   let field = encoding.original_field || encoding.field;
   let binned = encoding.binned;
   let aggregate = encoding.aggregate;
-  return { isTime, isSpeech, encodingType, field, binned, aggregate };
+  let fieldRange = encoding.scale?.range?.field || null;
+  return { isTime, isSpeech, encodingType, field, binned, aggregate, fieldRange };
 }

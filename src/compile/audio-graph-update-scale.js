@@ -149,6 +149,7 @@ export async function makeScales(scaleHash, normalized, loaded_datasets, config)
       let encoding = stream.stream.encoding;
       for (const cname of Object.keys(encoding)) {
         let scaleId = encoding[cname].scale.id;
+        scaleInfo[scaleId].data = data;
         if (encoding[cname].field) {
           let collectionKey = stream.stream.data.name + "_" + encoding[cname].field;
           if (!scaleInfo[scaleId].collected.includes(collectionKey)) {
@@ -173,6 +174,7 @@ export async function makeScales(scaleHash, normalized, loaded_datasets, config)
         let encoding = overlay.encoding;
         for (const cname of Object.keys(encoding)) {
           let scaleId = encoding[cname].scale.id;
+          scaleInfo[scaleId].data = data;
           if (encoding[cname].field) {
             let collectionKey = overlay.data.name + "_" + encoding[cname].field;
             if (!scaleInfo[scaleId].collected.includes(collectionKey)) {
@@ -201,7 +203,7 @@ export async function makeScales(scaleHash, normalized, loaded_datasets, config)
 
     let o = {};
     Object.assign(o, scaleDef);
-    scaleFunctions[scaleId] = getAudioScales(channel, o, scaleDef.values, beat);
+    scaleFunctions[scaleId] = getAudioScales(channel, o, scaleDef.values, beat, scaleDef.data);
   }
   if (beat) scaleFunctions.__beat = beat;
   return scaleFunctions;
