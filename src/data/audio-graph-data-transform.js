@@ -243,7 +243,6 @@ function makeDescSortFn(keys) {
 }
 // Manipulation of Vega to work with AQ;
 function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth, _extent, _minsteps, _maxsteps, steps, _as) {
-  let { groups, names } = aqPartition(table, groupby);
   let method = cumulative ? 'cdf' : 'pdf';
   _as = _as || ['value', 'density'];
   let bandwidth = _bandwidth;
@@ -251,8 +250,31 @@ function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth,
   let domain = _extent;
   let minsteps = steps || _minsteps || 25;
   let maxsteps = steps || _maxsteps || 200;
-  groups.forEach((group, i) => {
-    let g = group.array(field);
+
+  if (groupby || groupby?.length > 0) {
+    let { groups, names } = aqPartition(table, groupby);
+    groups.forEach((group, i) => {
+      let g = group.array(field);
+      const density = randomKDE(g, bandwidth)[method];
+      const scale = counts ? g.length : 1;
+      const local = domain || extent(g);
+      let curve = sampleCurve(density, local, minsteps, maxsteps);
+      curve.forEach(v => {
+        const t = {
+          [_as[0]]: v[0],
+          [_as[1]]: v[1] * scale,
+        };
+        if (groupby) {
+          for (let j = 0; j < groupby.length; ++j) {
+            t[groupby[j]] = names[i][j];
+          }
+        }
+        values.push(t);
+      });
+    });
+    return fromTidy(values).groupby(groupby);
+  } else {
+    let g = table.array(field);
     const density = randomKDE(g, bandwidth)[method];
     const scale = counts ? g.length : 1;
     const local = domain || extent(g);
@@ -269,8 +291,8 @@ function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth,
       }
       values.push(t);
     });
-  });
-  return fromTidy(values).groupby(groupby);
+    return fromTidy(values);
+  }
 }
 
 function aqPartition(table, groupby) {
