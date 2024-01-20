@@ -67,11 +67,23 @@ npm run build
 MIT
 
 ## Cite
+Software
 ```
 @misc{erie
   title = {Erie},
-  author = {Hyeok Kim},
+  author = {Kim, Hyeok},
   year = {2023},
   note = {\url{https://github.com/see-mike-out/erie-web}}
+}
+```
+
+Paper (will be updated)
+```
+@inproceedings{kim:2024erie
+  title = {Erie: a Declarative Grammar for Data Sonification},
+  author = {Kim, Hyeok and Kim, Yea-Seul and Hullman, Jessica},
+  year = {2024},
+  booktitle = {To apper in ACM CHI 2024},
+  note = {\url{}}
 }
 ```
