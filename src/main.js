@@ -18,7 +18,7 @@ import { Tick } from './classes/erie-tick';
 import { Config } from './classes/erie-config';
 import { registerFilter } from './classes/erie-audio-filter';
 import { compileAuidoGraph } from './audio-graph';
-import { setSampleBaseUrl, ErieSampleBaseUrl } from './base.js';
+import { setSampleBaseUrl, erieSampleBaseUrl } from './base.js';
 
 export {
   Data,
@@ -58,5 +58,5 @@ export {
   registerFilter,
   compileAuidoGraph,
   setSampleBaseUrl,
-  ErieSampleBaseUrl
+  erieSampleBaseUrl
 }

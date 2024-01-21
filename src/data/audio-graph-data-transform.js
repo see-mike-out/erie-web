@@ -1,13 +1,8 @@
-import { browser } from "$app/environment";
 import { Auto } from "../compile/audio-graph-normalize";
 import { from as fromTidy, op, escape, table as aqTable } from "arquero";
 import { bin, extent } from "d3";
 import { randomKDE } from 'vega-statistics';
 import { sampleCurve } from 'vega-statistics';
-
-if (browser) {
-  window.aq = { from: fromTidy, op, table: aqTable };
-}
 
 export function transformData(data, transforms, dimensions) {
   let table = fromTidy(data);

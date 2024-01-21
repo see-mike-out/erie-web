@@ -1,7 +1,7 @@
 import { OscTypes } from "./erie-synth";
 import { Tick } from "./erie-tick";
 import { DoubleOps, SingleOps, ZeroOPs } from "./erie-transform-aggregate";
-import { deepcopy, isArrayOf, isInstanceOf } from "./erie-util";
+import { deepcopy, isArrayOf, isInstanceOf, isInstanceOfByName } from "./erie-util";
 
 const QUANT = 'quantitative', ORD = 'ordinal', NOM = 'nominal', TMP = 'temporal', STATIC = 'static';
 const SupportedEncodingTypes = [QUANT, ORD, NOM, TMP, STATIC];
@@ -11,39 +11,11 @@ const RampMethods = [true, false, 'abrupt', 'linear', 'exponential'];
 const SingleTapPosOptions = ['start', 'middle', 'end'];
 
 import {
-  TimeChannel,
-  Time2Channel,
-  DurationChannel,
-  TapSpeedChannel,
-  TapCountChannel,
-  PitchChannel,
-  LoudnessChannel,
-  PanChannel,
-  PostReverbChannel,
-  SpeechBeforeChannel,
-  SpeechAfterChannel,
-  RepeatChannel,
-  ModulationChannel,
-  DetuneChannel
-} from "./erie-channels";
-
-export const TIME_chn = "time",
-  TIME2_chn = "time2",
-  DUR_chn = "duration",
-  TAPCNT_chn = "tapCount",
-  TAPSPD_chn = "tapSpeed",
-  POST_REVERB_chn = "postReverb",
-  PITCH_chn = "pitch",
-  LOUDNESS_chn = "loudness",
-  PAN_chn = "pan",
-  SPEECH_chn = "speech",
-  SPEECH_BEFORE_chn = "speechBefore",
-  SPEECH_AFTER_chn = "speechAfter",
-  TIMBRE_chn = "timbre",
-  MODULATION_chn = "modulation",
-  HARMONICITY_chn = "harmonicity",
-  DETUNE_chn = "detune",
-  REPEAT_chn = "repeat";
+  REPEAT_chn,
+  TAPCNT_chn,
+  TAPSPD_chn,
+  TIME_chn
+} from "./erie-channel-constants.js";
 
 const REL = 'relative', ABS = 'absolute', SIM = 'simultaneous';
 const TIMINGS = [REL, ABS, SIM];
@@ -69,22 +41,22 @@ export class Channel {
   }
 
   set(c) {
-    if (isInstanceOf(c, TimeChannel) ||
-      isInstanceOf(c, Time2Channel) ||
-      isInstanceOf(c, DurationChannel) ||
-      isInstanceOf(c, TapSpeedChannel) ||
-      isInstanceOf(c, TapCountChannel) ||
-      isInstanceOf(c, PitchChannel) ||
-      isInstanceOf(c, DetuneChannel) ||
-      isInstanceOf(c, LoudnessChannel) ||
-      isInstanceOf(c, PanChannel) ||
-      isInstanceOf(c, PostReverbChannel) ||
-      isInstanceOf(c, SpeechBeforeChannel) ||
-      isInstanceOf(c, SpeechAfterChannel) ||
-      isInstanceOf(c, RepeatChannel) ||
-      isInstanceOf(c, ModulationChannel) ||
-      isInstanceOf(c, HARMONICITY_chn) ||
-      isInstanceOf(c, Channel)
+    if (isInstanceOfByName(c, `TimeChannel`) ||
+      isInstanceOfByName(c, `Time2Channel`) ||
+      isInstanceOfByName(c, `DurationChannel`) ||
+      isInstanceOfByName(c, `TapSpeedChannel`) ||
+      isInstanceOfByName(c, `TapCountChannel`) ||
+      isInstanceOfByName(c, `PitchChannel`) ||
+      isInstanceOfByName(c, `DetuneChannel`) ||
+      isInstanceOfByName(c, `LoudnessChannel`) ||
+      isInstanceOfByName(c, `PanChannel`) ||
+      isInstanceOfByName(c, `PostReverbChannel`) ||
+      isInstanceOfByName(c, `SpeechBeforeChannel`) ||
+      isInstanceOfByName(c, `SpeechAfterChannel`) ||
+      isInstanceOfByName(c, `RepeatChannel`) ||
+      isInstanceOfByName(c, `ModulationChannel`) ||
+      isInstanceOfByName(c, `HarmonicityChannel`) ||
+      isInstanceOfByName(c, `Channel`)
     ) {
       let g = c.get();
       Object.assign(this, g);

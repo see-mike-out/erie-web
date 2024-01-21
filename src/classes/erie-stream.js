@@ -43,7 +43,7 @@ import {
   MODULATION_chn,
   HARMONICITY_chn,
   DETUNE_chn
-} from "./erie-channel";
+} from "./erie-channel-constants";
 import { TickList } from "./erie-tick";
 import { isInstanceOf } from "./erie-util";
 

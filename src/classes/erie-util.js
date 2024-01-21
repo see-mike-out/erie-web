@@ -6,6 +6,10 @@ export function isInstanceOf(o, c) {
   return o?.constructor == c;
 }
 
+export function isInstanceOfByName(o, c) {
+  return o?.constructor?.name === c;
+}
+
 export function isArrayOf(o, c) {
   if (isInstanceOf(o, Array)) {
     if (isInstanceOf(c, Array)) {

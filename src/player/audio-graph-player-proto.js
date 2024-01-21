@@ -8,6 +8,7 @@ import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
 import { PresetFilters } from './audio-graph-audio-filter';
 import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
 import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
+import { ErieFilters } from '../classes/erie-audio-filter';
 
 let ErieGlobalSynth;
 
@@ -179,10 +180,10 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
       filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
       filterEncoders[filterName] = PresetFilters[filterName].encoder;
       filterFinishers[filterName] = PresetFilters[filterName].finisher
-    } else if (registeredFilters[filterName]) {
-      filterNodes[filterName] = new registeredFilters[filterName].filter(ctx);
-      filterEncoders[filterName] = registeredFilters[filterName].encoder;
-      filterFinishers[filterName] = registeredFilters[filterName].finisher
+    } else if (ErieFilters[filterName]) {
+      filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
+      filterEncoders[filterName] = ErieFilters[filterName].encoder;
+      filterFinishers[filterName] = ErieFilters[filterName].finisher
     }
   }
   let destination = ctx.destination;
@@ -421,10 +422,10 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
       filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
       filterEncoders[filterName] = PresetFilters[filterName].encoder;
       filterFinishers[filterName] = PresetFilters[filterName].finisher
-    } else if (registeredFilters[filterName]) {
-      filterNodes[filterName] = new registeredFilters[filterName].filter(ctx);
-      filterEncoders[filterName] = registeredFilters[filterName].encoder;
-      filterFinishers[filterName] = registeredFilters[filterName].finisher
+    } else if (ErieFilters[filterName]) {
+      filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
+      filterEncoders[filterName] = ErieFilters[filterName].encoder;
+      filterFinishers[filterName] = ErieFilters[filterName].finisher
     }
   }
   let destination = ctx.destination;

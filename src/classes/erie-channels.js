@@ -1,3 +1,4 @@
+import { Channel } from "./erie-channel.js";
 import {
   DUR_chn,
   LOUDNESS_chn,
@@ -14,10 +15,10 @@ import {
   MODULATION_chn,
   HARMONICITY_chn,
   TIMBRE_chn,
-  DETUNE_chn,
-  Channel
-} from "./erie-channel";
-import { isInstanceOf } from "./erie-util";
+  DETUNE_chn
+} from "./erie-channel-constants.js";
+import { isInstanceOf } from "./erie-util.js";
+
 
 export class TimeChannel extends Channel {
   constructor(f, t) {

@@ -1,4 +1,4 @@
-window.registeredFilters = {};
+export let ErieFilters = {};
 export function registerFilter(name, filter, encoder, finisher) {
-  window.registeredFilters[name] = { filter, encoder, finisher};
+  ErieFilters[name] = { filter, encoder, finisher };
 }

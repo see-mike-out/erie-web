@@ -1,0 +1,18 @@
+
+export const TIME_chn = "time",
+  TIME2_chn = "time2",
+  DUR_chn = "duration",
+  TAPCNT_chn = "tapCount",
+  TAPSPD_chn = "tapSpeed",
+  POST_REVERB_chn = "postReverb",
+  PITCH_chn = "pitch",
+  LOUDNESS_chn = "loudness",
+  PAN_chn = "pan",
+  SPEECH_chn = "speech",
+  SPEECH_BEFORE_chn = "speechBefore",
+  SPEECH_AFTER_chn = "speechAfter",
+  TIMBRE_chn = "timbre",
+  MODULATION_chn = "modulation",
+  HARMONICITY_chn = "harmonicity",
+  DETUNE_chn = "detune",
+  REPEAT_chn = "repeat";
