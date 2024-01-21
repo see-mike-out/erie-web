@@ -1,4 +1,3 @@
-import { browser } from '$app/environment';
 import { determineNoteRange, MultiNoteInstruments, SingleNoteInstruments } from './audio-graph-instrument-sample';
 import { notifyStop } from '../util/audio-graph-speech';
 import { makeTick } from '../tick/audio-graph-time-tick';
@@ -640,7 +639,7 @@ export async function playAbsoluteSpeeches(ctx, queue, config) {
 
 export let ErieGlobalPlayerEvents = new Map();
 export function setPlayerEvents(queue, config) {
-  if (browser) {
+  if (window) {
     function stop(event) {
       if (event.key == 'x') {
         ErieGlobalState = Stopped;
@@ -659,7 +658,7 @@ export function setPlayerEvents(queue, config) {
 }
 
 export function clearPlayerEvents() {
-  if (browser) {
+  if (window) {
     let stop = ErieGlobalPlayerEvents.get('stop-event');
     window.removeEventListener('keypress', stop);
     ErieGlobalPlayerEvents.delete('stop-event');

@@ -30,7 +30,7 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 ### On Node
 
 ```{js}
-import { default as Erie } from "erie-web";
+import * as Erie from "erie-web";
 ```
 or 
 

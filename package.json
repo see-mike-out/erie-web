@@ -28,6 +28,11 @@
     "vega-statistics": "^1.9.0"
   },
   "dependencies": {
-    "esm": "^3.2.25"
+    "esm": "^3.2.25",
+    "esm-wallaby": "^3.2.29"
+  },
+  "esm": {
+    "cjs": true,
+    "await": true
   }
 }
