@@ -31,6 +31,7 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 
 ```{js}
 import * as Erie from "erie-web";
+// ex) Erie.compileAuidoGraph
 ```
 
 
