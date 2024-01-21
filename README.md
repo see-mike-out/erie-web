@@ -32,11 +32,6 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 ```{js}
 import * as Erie from "erie-web";
 ```
-or 
-
-```{js}
-import { compileAudioGraph } from "erie-web";
-```
 
 
 ### To use audio sample files for musical instruments
