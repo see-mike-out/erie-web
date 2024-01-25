@@ -13,6 +13,8 @@ import { SynthTone, Synth } from "./src/classes/erie-synth";
 import { SampledTone, Sampling } from "./src/classes/erie-sampling";
 import { Channel } from "./src/classes/erie-channel";
 import { Stream } from './src/classes/erie-stream';
+import { Sequence } from "./src/classes/erie-sequence";
+import { Overlay } from "./src/classes/erie-overlay";
 import { DurationChannel, LoudnessChannel, ModulationChannel, PanChannel, PitchChannel, PostReverbChannel, RepeatChannel, SpeechAfterChannel, SpeechBeforeChannel, TapCountChannel, TapSpeedChannel, Time2Channel, TimeChannel } from './src/classes/erie-channels';
 import { Tick } from './src/classes/erie-tick';
 import { Config } from './src/classes/erie-config';
@@ -54,6 +56,8 @@ export {
   RepeatChannel,
   ModulationChannel,
   Stream,
+  Sequence,
+  Overlay,
   Config,
   ErieFilters,
   registerFilter,
