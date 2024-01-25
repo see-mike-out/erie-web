@@ -86,6 +86,6 @@ Paper (will be updated)
   author = {Kim, Hyeok and Kim, Yea-Seul and Hullman, Jessica},
   year = {2024},
   booktitle = {To apper in ACM CHI 2024},
-  note = {\url{}}
+  note = {\url{https://doi.org/10.1145/3613904.3642442}}
 }
 ```
