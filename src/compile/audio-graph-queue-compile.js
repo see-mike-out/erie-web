@@ -274,7 +274,8 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     let processed_repeat_stremas = postprocessRepeatStreams(repeat_streams);
 
     processed_repeat_stremas.forEach((s, i) => {
-      if (has_repeat_speech) s.setConfig("playRepeatSequenceName", true);
+      if (!s) { console.warn("empty repeat stream", s); return; }
+      if (has_repeat_speech && s.setConfig) s.setConfig("playRepeatSequenceName", true);
       if (i > 0) {
         s.setConfig("skipScaleSpeech", true);
         s.setConfig("skipStartSpeech", true);
@@ -290,20 +291,24 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       if (jType(s) === 'OverlayStream') {
         Object.assign(s.config, s.overlays[0].config);
         s.overlays.forEach((o, i) => {
-          o.setConfig("playRepeatSequenceName", false);
-          if (i == 0) {
-            o.setConfig("skipScaleSpeech", false);
-            o.setConfig("skipStartSpeech", false);
-          } else {
-            o.setConfig("skipScaleSpeech", true);
-            o.setConfig("skipStartSpeech", true);
+          if (o.setConfig) {
+            o.setConfig("playRepeatSequenceName", false);
+            if (i == 0) {
+              o.setConfig("skipScaleSpeech", false);
+              o.setConfig("skipStartSpeech", false);
+            } else {
+              o.setConfig("skipScaleSpeech", true);
+              o.setConfig("skipStartSpeech", true);
+            }
+            o.setConfig("skipFinishSpeech", true);
           }
-          o.setConfig("skipFinishSpeech", true);
         });
-        s.setConfig("skipScaleSpeech", true);
-        s.setConfig("skipTitle", true);
-        s.setConfig("skipStartSpeech", true);
-        s.setConfig("playRepeatSequenceName", true);
+        if (s.setConfig) {
+          s.setConfig("skipScaleSpeech", true);
+          s.setConfig("skipTitle", true);
+          s.setConfig("skipStartSpeech", true);
+          s.setConfig("playRepeatSequenceName", true);
+        }
         s.setName(listString(s.overlays.map((d) => d.name), ", ", true))
       }
       if (audioFilters) s.setFilters(audioFilters);
