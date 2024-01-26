@@ -272,7 +272,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     });
     // post_processing
     let processed_repeat_stremas = postprocessRepeatStreams(repeat_streams);
-
+    console.log(processed_repeat_stremas);
     processed_repeat_stremas.forEach((s, i) => {
       if (!s) { console.warn("empty repeat stream", s); }
       if (has_repeat_speech && s.setConfig) s.setConfig("playRepeatSequenceName", true);
