@@ -1,6 +1,5 @@
-import { jType } from "../util/audio-graph-typing-util";
 import { deepcopy } from "../util/audio-graph-util";
-import { TIME2_chn, TIME_chn, REL_TIMING, DEF_DUR, TMP, ORD, NOM, STATIC, QUANT, SIM_TIMING } from "./audio-graph-scale-constant";
+import { TIME_chn, REL_TIMING, DEF_DUR, TMP, ORD, NOM, STATIC, QUANT, SIM_TIMING } from "./audio-graph-scale-constant";
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";

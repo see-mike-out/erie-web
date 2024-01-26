@@ -114,7 +114,7 @@ export class SequenceStream {
       let determiner = 'This';
       if (multiSeq) determiner = "The " + toOrdinalNumbers(oi + 1);
 
-      if (jType(stream) !== OverStrm && !_c.skipScaleSpeech) {
+      if (jType(stream) !== OverlayStream.name && !_c.skipScaleSpeech) {
         let scale_text = stream.make_scale_text().filter((d) => d);
         let scales_to_announce = [];
         let forceRepeat = _c[ForceRepeatScale];
@@ -139,7 +139,7 @@ export class SequenceStream {
         } else {
           scales_queues.push(null);
         }
-      } else if (jType(stream) === OverStrm) {
+      } else if (jType(stream) === OverlayStream.name) {
         // each overlay title
         if (!_c.skipTitle) titles_queues[oi].add(TextType, { speech: `${determiner} stream has ${stream.overlays.length} overlaid sounds. `, speechRate }, _c);
 
@@ -226,7 +226,7 @@ export class SequenceStream {
       if (!_c.skipStartPlaySpeech) {
         this.queue.add(TextType, { speech: `Start playing. `, speechRate }, _c);
       }
-      if (jType(prerender_series) === 'AudioGraphQueue') {
+      if (jType(prerender_series) === AudioGraphQueue.name) {
         this.queue.addMulti(prerender_series.queue, _c);
       } else {
         this.queue.add(ToneSeries, prerender_series, _c);

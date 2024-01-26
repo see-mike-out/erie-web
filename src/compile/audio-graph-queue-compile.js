@@ -1,4 +1,4 @@
-import { UnitStream } from './audio-graph-datatype';
+import { OverlayStream, UnitStream } from './audio-graph-datatype';
 import { makeRepeatStreamTree, postprocessRepeatStreams } from './audio-graph-repeat-stream';
 import { Def_tone } from "./audio-graph-normalize";
 import { jType } from "../util/audio-graph-typing-util";
@@ -290,7 +290,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       if (hasTick) {
         s.setConfig("tick", tick);
       }
-      if (jType(s) === 'OverlayStream') {
+      if (jType(s) === OverlayStream.name) {
         Object.assign(s.config, s.overlays[0].config);
         s.overlays.forEach((o, i) => {
           if (o.setConfig) {

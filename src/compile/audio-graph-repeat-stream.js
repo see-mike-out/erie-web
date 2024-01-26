@@ -2,7 +2,7 @@ import {
   SEQUENCE, OVERLAY
 } from "../scale/audio-graph-scale-constant";
 import { jType } from "../util/audio-graph-typing-util";
-import { OverlayStream, UnitStrm } from "./audio-graph-datatype";
+import { OverlayStream, UnitStream } from "./audio-graph-datatype";
 
 export function makeRepeatStreamTree(level, values, directions) {
   let tree = {};
@@ -30,7 +30,7 @@ export function postprocessRepeatStreams(tree) {
   console.log("a", flat_streams);
   flat_streams = flat_streams.nodes.map((s) => {
     console.log("b", s)
-    if (jType(s) === UnitStrm) return s;
+    if (jType(s) === UnitStream.name) return s;
     else if (s.length == 1) return s[0];
     else if (s.length > 1) {
       let overlay = new OverlayStream();

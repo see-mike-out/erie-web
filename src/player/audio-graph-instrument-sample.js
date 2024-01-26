@@ -1,5 +1,3 @@
-import { jType } from "../util/audio-graph-typing-util";
-
 export const SupportedInstruments = ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"];
 export const MultiNoteInstruments = ["piano", "pianoElec", "violin", "metal", "guitar"];
 export const SingleNoteInstruments = ["hithat", "snare", "highKick", "lowKick", "clap"];
