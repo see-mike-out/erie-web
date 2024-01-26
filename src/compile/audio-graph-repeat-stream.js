@@ -25,7 +25,7 @@ export function makeRepeatStreamTree(level, values, directions) {
   return tree;
 }
 
-export function postprocessRepeatStreams(tree, directions) {
+export function postprocessRepeatStreams(tree) {
   let flat_streams = postprocessRstreamTree(tree);
   console.log("a", flat_streams);
   flat_streams = flat_streams.nodes.map((s) => {
