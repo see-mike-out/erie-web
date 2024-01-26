@@ -91,6 +91,7 @@ export class SequenceStream {
     }
 
     let oi = 0;
+    console.log(this.streams);
     for (const stream of this.streams) {
       let _c = deepcopy(this.config || {});
       Object.assign(_c, stream.config || {});

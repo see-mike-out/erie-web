@@ -274,7 +274,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     let processed_repeat_stremas = postprocessRepeatStreams(repeat_streams);
 
     processed_repeat_stremas.forEach((s, i) => {
-      if (!s) { console.warn("empty repeat stream", s); return; }
+      if (!s) { console.warn("empty repeat stream", s); }
       if (has_repeat_speech && s.setConfig) s.setConfig("playRepeatSequenceName", true);
       if (i > 0) {
         s.setConfig("skipScaleSpeech", true);
