@@ -1,4 +1,4 @@
-import { ToneType, TextType, ToneSeries, ToneOverlaySeries, AudioGraphQueue, Pause } from '../player/audio-graph-player';
+import { ToneType, TextType, ToneSeries, ToneOverlaySeries, AudioGraphQueue } from '../player/audio-graph-player';
 import { DefaultFrequency } from '../player/audio-graph-player-proto';
 import { AfterAll, AfterThis, BeforeAll, BeforeThis, ForceRepeatScale, PlayAt } from '../scale/audio-graph-scale-desc';
 import { toOrdinalNumbers } from '../util/audio-graph-format-util';
