@@ -16,7 +16,6 @@ export function readyRecording() {
 
 export async function compileAuidoGraph(audio_spec, options) {
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec);
-  // console.log(normalized)
   // 1. load datasets first! && filling missing data type
   let loaded_datasets = {};
   let scalesToRemove = [];

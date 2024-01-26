@@ -27,9 +27,7 @@ export function makeRepeatStreamTree(level, values, directions) {
 
 export function postprocessRepeatStreams(tree) {
   let flat_streams = postprocessRstreamTree(tree);
-  console.log("a", flat_streams);
   flat_streams = flat_streams.nodes.map((s) => {
-    console.log("b", s)
     if (jType(s) === UnitStream.name) return s;
     else if (s.length == 1) return s[0];
     else if (s.length > 1) {
@@ -42,7 +40,6 @@ export function postprocessRepeatStreams(tree) {
 }
 
 function postprocessRstreamTree(tree) {
-  console.log("c", tree);
   if (tree.direction === 'leaf') return { nodes: tree.node, dir: 'leaf' };
   else {
     if (tree.direction === OVERLAY) {
