@@ -2,7 +2,7 @@ import { determineNoteRange, MultiNoteInstruments, SingleNoteInstruments } from 
 import { notifyStop } from '../util/audio-graph-speech';
 import { makeTick } from '../tick/audio-graph-time-tick';
 import { deepcopy, genRid } from '../util/audio-graph-util';
-import { AM, FM, makeSynth } from './audio-graph-synth';
+import { AM, ErieSynth, FM, makeSynth } from './audio-graph-synth';
 import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
 import { PresetFilters } from './audio-graph-audio-filter';
 import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
@@ -216,9 +216,9 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
     for (let sound of q) {
       if (sound.isFirst) {
         // set for the first value
-        if (inst?.constructor.name === "OscillatorNode") {
+        if (inst?.constructor.name === OscillatorNode.name) {
           inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-        } else if (inst?.constructor.name === "ErieSynth") {
+        } else if (inst?.constructor.name === ErieSynth.name) {
           inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
           if (inst.type === FM && sound.modulation !== undefined) {
             inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
@@ -249,13 +249,13 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
         // play the first
         startTime = ct + sound.time;
       } else {
-        if (inst?.constructor.name === "OscillatorNode") {
+        if (inst?.constructor.name === OscillatorNode.name) {
           if (rampers.pitch) {
             inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
           } else {
             inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
           }
-        } else if (inst?.constructor.name === "ErieSynth") {
+        } else if (inst?.constructor.name === ErieSynth.name) {
           if (rampers.pitch) {
             inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
           } else {
@@ -301,7 +301,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
         }
         if (sound.isLast) {
           gain.gain.linearRampToValueAtTime(0, ct + sound.time + 0.15);
-          if (inst?.constructor.name === "ErieSynth") {
+          if (inst?.constructor.name === ErieSynth.name) {
             inst.envelope.gain.cancelScheduledValues(ct + sound.time);
             inst.envelope.gain.setValueAtTime(1, ct + sound.time + (sound.duration));
             inst.envelope.gain.linearRampToValueAtTime(
@@ -453,9 +453,9 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
     inst.connect(panner);
 
     // set auditory values
-    if (inst?.constructor.name === "OscillatorNode") {
+    if (inst?.constructor.name === OscillatorNode.name) {
       inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
-    } else if (inst?.constructor.name === "ErieSynth") {
+    } else if (inst?.constructor.name === ErieSynth.name) {
       inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
       if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
         inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct);
