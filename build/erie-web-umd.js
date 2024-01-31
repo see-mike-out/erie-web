@@ -2320,167 +2320,6 @@
     return;
   }
 
-  // types
-  const NOM = "nominal", ORD = "ordinal", QUANT = "quantitative", TMP = "temporal", STATIC = "static";
-  // polarity
-  const POS$1 = "positive", NEG = 'negative';
-  // channels
-  const TIME_chn = "time",
-    TIME2_chn = "time2",
-    DUR_chn = "duration",
-    TAPCNT_chn = "tapCount",
-    TAPSPD_chn = "tapSpeed",
-    POST_REVERB_chn = "postReverb",
-    PITCH_chn = "pitch",
-    DETUNE_chn = "detune",
-    LOUDNESS_chn = "loudness",
-    PAN_chn = "pan",
-    SPEECH_chn = "speech",
-    SPEECH_BEFORE_chn = "speechBefore",
-    SPEECH_AFTER_chn = "speechAfter",
-    TIMBRE_chn = "timbre",
-    REPEAT_chn = "repeat",
-    MODULATION_chn = 'modulation',
-    HARMONICITY_chn = 'harmonicity';
-
-  // default caps
-  const MIN_TIME = 0, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH = 3000,
-    MAX_DETUNE = -1200, MIN_DETUNE = 1200,
-    MIN_LOUD = 0, MAX_LOUD = 10,
-    MIN_PAN = -1, MAX_PAN = 1,
-    MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5,
-    MAX_POST_REVERB = 4,
-    MAX_TAP_COUNT = 25,
-    MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED = 7,
-    DEF_SPEECH_RATE = 1.75;
-
-  const ChannelThresholds = {
-    [TIME_chn]: { min: 0 },
-    [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
-    [DETUNE_chn]: { max: MAX_DETUNE, min: MIN_DETUNE },
-    [LOUDNESS_chn]: { max: MAX_LOUD, min: MIN_LOUD },
-    [PAN_chn]: { max: MAX_PAN, min: MIN_PAN },
-    [DUR_chn]: { max: MAX_DUR, min: MIN_DUR },
-    [POST_REVERB_chn]: { max: MAX_POST_REVERB, min: 0 },
-    [TAPCNT_chn]: { max: MAX_TAP_COUNT, min: 0 },
-    [TAPSPD_chn]: { max: MAX_TAP_SPEED, min: MIN_TAP_SPEED }
-  };
-
-  // cap values if exceeding
-  const ChannelCaps = {
-    [TIME_chn]: { max: Infinity, min: MIN_TIME },
-    [PITCH_chn]: { max: MAX_LIMIT_PITCH, min: 0 },
-    [DETUNE_chn]: { max: MAX_DETUNE, min: MIN_DETUNE },
-    [LOUDNESS_chn]: { max: Infinity, min: -Infinity },
-    [PAN_chn]: { max: MAX_PAN, min: MIN_PAN },
-    [DUR_chn]: { max: Infinity, min: MIN_DUR },
-    [POST_REVERB_chn]: { max: Infinity, min: 0 },
-    [TAPCNT_chn]: { max: Infinity, min: 0 },
-    [TAPSPD_chn]: { max: MAX_LIMIT_TAP_SPEED, min: MIN_TAP_SPEED }
-  };
-
-  // channel categories
-  const TimeChannels = [
-    TIME_chn,
-    TIME2_chn
-  ];
-  const SpeechChannels = [
-    SPEECH_chn,
-    SPEECH_BEFORE_chn,
-    SPEECH_AFTER_chn
-  ];
-  const TapChannels = [
-    TAPCNT_chn,
-    TAPSPD_chn
-  ];
-  const DefaultChannels = [
-    TIME_chn,
-    TIME2_chn,
-    PITCH_chn,
-    DETUNE_chn,
-    LOUDNESS_chn,
-    PAN_chn,
-    DUR_chn,
-    SPEECH_chn,
-    SPEECH_BEFORE_chn,
-    SPEECH_AFTER_chn,
-    POST_REVERB_chn,
-    TAPCNT_chn,
-    TAPSPD_chn,
-    MODULATION_chn,
-    HARMONICITY_chn
-  ];
-
-  // quant scale types
-  const SQRT = "sqrt", POW = "pow", LOG = "log", SYMLOG = "symlog";
-
-  // tminig
-  const REL_TIMING = 'relative', SIM_TIMING = 'simultaneous';
-
-  // tapping
-  // TAPPING: each tap sound
-  // TAP: entire tappings
-  const DEF_TAP_PAUSE_RATE = 0.4,
-    MAX_TAPPING_DUR = 0.3,
-    DEF_TAPPING_DUR = 0.2,
-    DEF_TAPPING_DUR_BEAT = 1,
-    DEF_TAP_DUR = 2,
-    DEF_TAP_DUR_BEAT = 4,
-    SINGLE_TAP_MIDDLE = 'middle',
-    SINGLE_TAP_START = 'start';
-
-  // description related
-  const ScaleDescriptionOrder = [
-    REPEAT_chn,
-    TIME_chn,
-    TIMBRE_chn,
-    DUR_chn,
-    TAPCNT_chn,
-    TAPSPD_chn,
-    PITCH_chn,
-    DETUNE_chn,
-    LOUDNESS_chn,
-    PAN_chn,
-    MODULATION_chn,
-    HARMONICITY_chn,
-    POST_REVERB_chn
-  ], SKIP = 'skip', NONSKIP = 'nonskip';
-
-  // composition
-
-  const SEQUENCE = 'sequence', OVERLAY = 'overlay';
-
-  // ramping
-  const RampMethods = [true, false, 'abrupt', 'linear', 'exponential'];
-
-  function isJSON(d) {
-    try {
-      JSON.parse(d);
-      return true;
-    } catch {
-      return false
-    }
-  }
-
-  const TSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^\t'"\s\\]*(?:\s+[^\t'"\s\\]+)*)\s*(?:\t\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^\t\'"\s\\]*(?:\s+[^\t'"\s\\]+)*)\s*)*$/gi;
-  function isTSV(d) {
-    return d.match(TSV_format);
-  }
-
-  const CSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/gi;
-  function isCSV(d) {
-    return d.match(CSV_format);
-  }
-
-  function jType(v) {
-    return v?.constructor.name;
-  }
-
-  function detectType(values) {
-    if (values.every((d) => d?.constructor.name === "Number")) return QUANT;
-    else return ORD;
-  }
-
   const SupportedInstruments = ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"];
   const MultiNoteInstruments = ["piano", "pianoElec", "violin", "metal", "guitar"];
   const SingleNoteInstruments = ["hithat", "snare", "highKick", "lowKick", "clap"];
@@ -3015,7 +2854,7 @@
 
       // Connect the nodes
       this.modulator.connect(this.modulatorGain);
-      this.modulatorGain.connect(this.carrier);
+      this.modulatorGain.gain.connect(this.carrier);
       this.carrier.connect(this.envelope);
     }
 
@@ -3389,6 +3228,139 @@
     filter.gainer.gain.linearRampToValueAtTime(0, (startTime || 0) + (duration || 1) - filter.releaseTime);
   }
 
+  // types
+  const NOM = "nominal", ORD = "ordinal", QUANT = "quantitative", TMP = "temporal", STATIC = "static";
+  // polarity
+  const POS$1 = "positive", NEG = 'negative';
+  // channels
+  const TIME_chn = "time",
+    TIME2_chn = "time2",
+    DUR_chn = "duration",
+    TAPCNT_chn = "tapCount",
+    TAPSPD_chn = "tapSpeed",
+    POST_REVERB_chn = "postReverb",
+    PITCH_chn = "pitch",
+    DETUNE_chn = "detune",
+    LOUDNESS_chn = "loudness",
+    PAN_chn = "pan",
+    SPEECH_chn = "speech",
+    SPEECH_BEFORE_chn = "speechBefore",
+    SPEECH_AFTER_chn = "speechAfter",
+    TIMBRE_chn = "timbre",
+    REPEAT_chn = "repeat",
+    MODULATION_chn = 'modulation',
+    HARMONICITY_chn = 'harmonicity';
+
+  // default caps
+  const MIN_TIME = 0, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH = 3000,
+    MAX_DETUNE = -1200, MIN_DETUNE = 1200,
+    MIN_LOUD = 0, MAX_LOUD = 10,
+    MIN_PAN = -1, MAX_PAN = 1,
+    MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5,
+    MAX_POST_REVERB = 4,
+    MAX_TAP_COUNT = 25,
+    MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED = 7,
+    DEF_SPEECH_RATE = 1.75;
+
+  const ChannelThresholds = {
+    [TIME_chn]: { min: 0 },
+    [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
+    [DETUNE_chn]: { max: MAX_DETUNE, min: MIN_DETUNE },
+    [LOUDNESS_chn]: { max: MAX_LOUD, min: MIN_LOUD },
+    [PAN_chn]: { max: MAX_PAN, min: MIN_PAN },
+    [DUR_chn]: { max: MAX_DUR, min: MIN_DUR },
+    [POST_REVERB_chn]: { max: MAX_POST_REVERB, min: 0 },
+    [TAPCNT_chn]: { max: MAX_TAP_COUNT, min: 0 },
+    [TAPSPD_chn]: { max: MAX_TAP_SPEED, min: MIN_TAP_SPEED }
+  };
+
+  // cap values if exceeding
+  const ChannelCaps = {
+    [TIME_chn]: { max: Infinity, min: MIN_TIME },
+    [PITCH_chn]: { max: MAX_LIMIT_PITCH, min: 0 },
+    [DETUNE_chn]: { max: MAX_DETUNE, min: MIN_DETUNE },
+    [LOUDNESS_chn]: { max: Infinity, min: -Infinity },
+    [PAN_chn]: { max: MAX_PAN, min: MIN_PAN },
+    [DUR_chn]: { max: Infinity, min: MIN_DUR },
+    [POST_REVERB_chn]: { max: Infinity, min: 0 },
+    [TAPCNT_chn]: { max: Infinity, min: 0 },
+    [TAPSPD_chn]: { max: MAX_LIMIT_TAP_SPEED, min: MIN_TAP_SPEED }
+  };
+
+  // channel categories
+  const TimeChannels = [
+    TIME_chn,
+    TIME2_chn
+  ];
+  const SpeechChannels = [
+    SPEECH_chn,
+    SPEECH_BEFORE_chn,
+    SPEECH_AFTER_chn
+  ];
+  const TapChannels = [
+    TAPCNT_chn,
+    TAPSPD_chn
+  ];
+  const DefaultChannels = [
+    TIME_chn,
+    TIME2_chn,
+    PITCH_chn,
+    DETUNE_chn,
+    LOUDNESS_chn,
+    PAN_chn,
+    DUR_chn,
+    SPEECH_chn,
+    SPEECH_BEFORE_chn,
+    SPEECH_AFTER_chn,
+    POST_REVERB_chn,
+    TAPCNT_chn,
+    TAPSPD_chn,
+    MODULATION_chn,
+    HARMONICITY_chn
+  ];
+
+  // quant scale types
+  const SQRT = "sqrt", POW = "pow", LOG = "log", SYMLOG = "symlog";
+
+  // tminig
+  const REL_TIMING = 'relative', SIM_TIMING = 'simultaneous';
+
+  // tapping
+  // TAPPING: each tap sound
+  // TAP: entire tappings
+  const DEF_TAP_PAUSE_RATE = 0.4,
+    MAX_TAPPING_DUR = 0.3,
+    DEF_TAPPING_DUR = 0.2,
+    DEF_TAPPING_DUR_BEAT = 1,
+    DEF_TAP_DUR = 2,
+    DEF_TAP_DUR_BEAT = 4,
+    SINGLE_TAP_MIDDLE = 'middle',
+    SINGLE_TAP_START = 'start';
+
+  // description related
+  const ScaleDescriptionOrder = [
+    REPEAT_chn,
+    TIME_chn,
+    TIMBRE_chn,
+    DUR_chn,
+    TAPCNT_chn,
+    TAPSPD_chn,
+    PITCH_chn,
+    DETUNE_chn,
+    LOUDNESS_chn,
+    PAN_chn,
+    MODULATION_chn,
+    HARMONICITY_chn,
+    POST_REVERB_chn
+  ], SKIP = 'skip', NONSKIP = 'nonskip';
+
+  // composition
+
+  const SEQUENCE = 'sequence', OVERLAY = 'overlay';
+
+  // ramping
+  const RampMethods = [true, false, 'abrupt', 'linear', 'exponential'];
+
   const PresetFilters = {
     'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
     'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
@@ -3653,9 +3625,9 @@
       for (let sound of q) {
         if (sound.isFirst) {
           // set for the first value
-          if (inst?.constructor.name === "OscillatorNode") {
+          if (inst?.constructor.name === OscillatorNode.name) {
             inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-          } else if (inst?.constructor.name === "ErieSynth") {
+          } else if (inst?.constructor.name === ErieSynth.name) {
             inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
             if (inst.type === FM && sound.modulation !== undefined) {
               inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
@@ -3686,13 +3658,13 @@
           // play the first
           startTime = ct + sound.time;
         } else {
-          if (inst?.constructor.name === "OscillatorNode") {
+          if (inst?.constructor.name === OscillatorNode.name) {
             if (rampers.pitch) {
               inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
             } else {
               inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
             }
-          } else if (inst?.constructor.name === "ErieSynth") {
+          } else if (inst?.constructor.name === ErieSynth.name) {
             if (rampers.pitch) {
               inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
             } else {
@@ -3738,7 +3710,7 @@
           }
           if (sound.isLast) {
             gain.gain.linearRampToValueAtTime(0, ct + sound.time + 0.15);
-            if (inst?.constructor.name === "ErieSynth") {
+            if (inst?.constructor.name === ErieSynth.name) {
               inst.envelope.gain.cancelScheduledValues(ct + sound.time);
               inst.envelope.gain.setValueAtTime(1, ct + sound.time + (sound.duration));
               inst.envelope.gain.linearRampToValueAtTime(
@@ -3890,9 +3862,9 @@
       inst.connect(panner);
 
       // set auditory values
-      if (inst?.constructor.name === "OscillatorNode") {
+      if (inst?.constructor.name === OscillatorNode.name) {
         inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
-      } else if (inst?.constructor.name === "ErieSynth") {
+      } else if (inst?.constructor.name === ErieSynth.name) {
         inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
         if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
           inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct);
@@ -4107,6 +4079,34 @@
     "zh-HK",
     "zh-TW"
   ];
+
+  function isJSON(d) {
+    try {
+      JSON.parse(d);
+      return true;
+    } catch {
+      return false
+    }
+  }
+
+  const TSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^\t'"\s\\]*(?:\s+[^\t'"\s\\]+)*)\s*(?:\t\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^\t\'"\s\\]*(?:\s+[^\t'"\s\\]+)*)\s*)*$/gi;
+  function isTSV(d) {
+    return d.match(TSV_format);
+  }
+
+  const CSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/gi;
+  function isCSV(d) {
+    return d.match(CSV_format);
+  }
+
+  function jType(v) {
+    return v?.constructor.name;
+  }
+
+  function detectType(values) {
+    if (values.every((d) => d?.constructor.name === "Number")) return QUANT;
+    else return ORD;
+  }
 
   function makeParamFilter(expr) {
     if (jType(expr) !== "String") return null;
@@ -5195,8 +5195,6 @@
     AfterAll = 'afterAll',
     AfterThis = 'afterThis';
 
-  const OverStrm = 'OverlayStream', UnitStrm = 'UnitStream';
-
   class SequenceStream {
     constructor() {
       this.streams = [];
@@ -5281,6 +5279,7 @@
       }
 
       let oi = 0;
+      
       for (const stream of this.streams) {
         let _c = deepcopy(this.config || {});
         Object.assign(_c, stream.config || {});
@@ -5303,7 +5302,7 @@
         let determiner = 'This';
         if (multiSeq) determiner = "The " + toOrdinalNumbers(oi + 1);
 
-        if (jType(stream) !== OverStrm && !_c.skipScaleSpeech) {
+        if (jType(stream) !== OverlayStream.name && !_c.skipScaleSpeech) {
           let scale_text = stream.make_scale_text().filter((d) => d);
           let scales_to_announce = [];
           let forceRepeat = _c[ForceRepeatScale];
@@ -5327,7 +5326,7 @@
           } else {
             scales_queues.push(null);
           }
-        } else if (jType(stream) === OverStrm) {
+        } else if (jType(stream) === OverlayStream.name) {
           // each overlay title
           if (!_c.skipTitle) titles_queues[oi].add(TextType, { speech: `${determiner} stream has ${stream.overlays.length} overlaid sounds. `, speechRate }, _c);
 
@@ -5412,7 +5411,7 @@
         if (!_c.skipStartPlaySpeech) {
           this.queue.add(TextType, { speech: `Start playing. `, speechRate }, _c);
         }
-        if (jType(prerender_series) === 'AudioGraphQueue') {
+        if (jType(prerender_series) === AudioGraphQueue.name) {
           this.queue.addMulti(prerender_series.queue, _c);
         } else {
           this.queue.add(ToneSeries, prerender_series, _c);
@@ -5736,10 +5735,10 @@
     return tree;
   }
 
-  function postprocessRepeatStreams(tree, directions) {
+  function postprocessRepeatStreams(tree) {
     let flat_streams = postprocessRstreamTree(tree);
     flat_streams = flat_streams.nodes.map((s) => {
-      if (jType(s) === UnitStrm) return s;
+      if (jType(s) === UnitStream.name) return s;
       else if (s.length == 1) return s[0];
       else if (s.length > 1) {
         let overlay = new OverlayStream();
@@ -6818,7 +6817,8 @@
       let processed_repeat_stremas = postprocessRepeatStreams(repeat_streams);
 
       processed_repeat_stremas.forEach((s, i) => {
-        if (has_repeat_speech) s.setConfig("playRepeatSequenceName", true);
+        if (!s) { console.warn("empty repeat stream", s); }
+        if (has_repeat_speech && s.setConfig) s.setConfig("playRepeatSequenceName", true);
         if (i > 0) {
           s.setConfig("skipScaleSpeech", true);
           s.setConfig("skipStartSpeech", true);
@@ -6831,23 +6831,27 @@
         if (hasTick) {
           s.setConfig("tick", tick);
         }
-        if (jType(s) === 'OverlayStream') {
+        if (jType(s) === OverlayStream.name) {
           Object.assign(s.config, s.overlays[0].config);
           s.overlays.forEach((o, i) => {
-            o.setConfig("playRepeatSequenceName", false);
-            if (i == 0) {
-              o.setConfig("skipScaleSpeech", false);
-              o.setConfig("skipStartSpeech", false);
-            } else {
-              o.setConfig("skipScaleSpeech", true);
-              o.setConfig("skipStartSpeech", true);
+            if (o.setConfig) {
+              o.setConfig("playRepeatSequenceName", false);
+              if (i == 0) {
+                o.setConfig("skipScaleSpeech", false);
+                o.setConfig("skipStartSpeech", false);
+              } else {
+                o.setConfig("skipScaleSpeech", true);
+                o.setConfig("skipStartSpeech", true);
+              }
+              o.setConfig("skipFinishSpeech", true);
             }
-            o.setConfig("skipFinishSpeech", true);
           });
-          s.setConfig("skipScaleSpeech", true);
-          s.setConfig("skipTitle", true);
-          s.setConfig("skipStartSpeech", true);
-          s.setConfig("playRepeatSequenceName", true);
+          if (s.setConfig) {
+            s.setConfig("skipScaleSpeech", true);
+            s.setConfig("skipTitle", true);
+            s.setConfig("skipStartSpeech", true);
+            s.setConfig("playRepeatSequenceName", true);
+          }
           s.setName(listString(s.overlays.map((d) => d.name), ", ", true));
         }
         if (audioFilters) s.setFilters(audioFilters);
@@ -8067,7 +8071,6 @@
 
   async function compileAuidoGraph(audio_spec, options) {
     let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec);
-    // console.log(normalized)
     // 1. load datasets first! && filling missing data type
     let loaded_datasets = {};
     let scalesToRemove = [];

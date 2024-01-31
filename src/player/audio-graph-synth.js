@@ -127,7 +127,7 @@ export class ErieSynth {
 
     // Connect the nodes
     this.modulator.connect(this.modulatorGain);
-    this.modulatorGain.gain.connect(this.carrier);
+    this.modulatorGain.connect(this.carrier.frequency);
     this.carrier.connect(this.envelope);
   }
 
