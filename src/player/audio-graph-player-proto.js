@@ -8,7 +8,7 @@ import { PresetFilters } from './audio-graph-audio-filter';
 import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
 import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
 import { ErieFilters } from '../classes/erie-audio-filter';
-import { emitNoteEvent } from "./audio-graph-note-event";
+import { emitNotePlayEvent, emitNoteStopEvent } from "./audio-graph-note-event";
 
 let ErieGlobalSynth;
 
@@ -338,6 +338,8 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
       tick.start(startTime);
       tick.stop(ct + endTime);
     }
+
+    emitNotePlayEvent('tone', q[0]);
     inst.start(startTime);
     if (config?.isRecorded) {
       gain.gain.setValueAtTime(0, ct + endTime + 0.3);
@@ -348,6 +350,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
     inst.onended = (e) => {
       ErieGlobalControl = undefined;
       ErieGlobalState = undefined;
+      emitNoteStopEvent('tone', q[0]);
       sendToneFinishEvent({ sid });
       resolve();
     };
@@ -516,11 +519,12 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
 
     // check the last
     inst.onended = (e) => {
+      emitNoteStopEvent('tone', sound);
       resolve();
     };
 
     // play & stop
-    emitNoteEvent('tone', sound);
+    emitNotePlayEvent('tone', sound);
     inst.start(ct);
     inst.stop(ct + sound.duration + sound.postReverb);
   });

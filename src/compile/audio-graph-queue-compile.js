@@ -2,7 +2,7 @@ import { OverlayStream, UnitStream } from './audio-graph-datatype';
 import { makeRepeatStreamTree, postprocessRepeatStreams } from './audio-graph-repeat-stream';
 import { Def_tone } from "./audio-graph-normalize";
 import { jType } from "../util/audio-graph-typing-util";
-import { deepcopy, unique } from "../util/audio-graph-util";
+import { asc, deepcopy, unique } from "../util/audio-graph-util";
 import { listString } from "../util/audio-graph-format-util";
 import { transformData, orderArray } from "../data/audio-graph-data-transform";
 import {
@@ -78,13 +78,18 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
   let data_order = [];
   if (TIME_chn in encoding && encoding[TIME_chn].scale?.order) {
     data_order.push({
-      key: [encoding[TIME_chn].field], order: [encoding[TIME_chn].scale?.order]
+      key: encoding[TIME_chn].field, order: [encoding[TIME_chn].scale?.order]
     });
   } else if (TIME_chn in encoding && encoding[TIME_chn].scale?.sort) {
     data_order.push({
-      key: [encoding[TIME_chn].field], sort: encoding[TIME_chn].scale?.sort
+      key: encoding[TIME_chn].field, sort: encoding[TIME_chn].scale?.sort
+    });
+  } else if (TIME_chn in encoding) {
+    data_order.push({
+      key: encoding[TIME_chn].field, order: unique(data.map(d => d[encoding[TIME_chn].field])).toSorted(asc)
     });
   }
+
   if (is_repeated && encoding[REPEAT_chn].scale?.order) {
     data_order.push({
       key: repeat_field, order: encoding[REPEAT_chn].scale?.order
@@ -94,17 +99,20 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       key: repeat_field, sort: encoding[REPEAT_chn].scale?.sort
     });
   } else if (is_repeated) {
-    let order = repeat_field.map((k) => unique(data.map(d => d[k])));
-    data_order.push({
-      key: repeat_field, order
+    repeat_field.toReversed().forEach((key) => {
+      let order = unique(data.map(d => d[key])).toSorted(asc);
+      data_order.push({
+        key, order
+      });
     });
   }
+
   data = orderArray(data, data_order);
 
   delete data.tableInfo;
 
   // treat repeat
-  let audio_graph = [], repeated_graph = [], repeat_values, repeat_level = 0;
+  let audio_graph = [], repeated_graph = [], repeated_graph_map = {}, repeat_values, repeat_level = 0;
 
   if (is_repeated) {
     repeat_level = repeat_field.length;
@@ -118,6 +126,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       });
       d.membership = g.membership;
       repeated_graph.push(g);
+      repeated_graph_map[d.join("&")] = repeated_graph.length - 1
     });
   }
 
@@ -174,14 +183,10 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
   }
 
   // generate audio graphs
-  let repeat_count = -1;
   for (const i in data) {
     if (i === 'tableInfo') continue;
-    let datum = data[i], prev_datum = data[parseInt(i) - 1];
-    let new_repeat_piece = is_repeated && (repeat_field.map(k => datum[k]).join("_$_") !== repeat_field.map(k => prev_datum?.[k]).join("_$_"));
-    if (new_repeat_piece) {
-      repeat_count += 1;
-    }
+    let datum = data[i];
+    let repeat_index = is_repeated && repeated_graph_map[repeat_field.map(k => datum[k]).join("&")]
     let glyph = scales.time(
       (datum[encoding[TIME_chn].field] !== undefined ? datum[encoding[TIME_chn].field] : parseInt(i)),
       (hasTime2 ?
@@ -221,14 +226,14 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       };
     }
     if (speechBefore) {
-      if (is_repeated) repeated_graph[repeat_count].push(speechBefore);
+      if (is_repeated) repeated_graph[repeat_index].push(speechBefore);
       else audio_graph.push(speechBefore);
     }
     glyph.__datum = datum;
-    if (is_repeated) repeated_graph[repeat_count].push(glyph);
+    if (is_repeated) repeated_graph[repeat_index].push(glyph);
     else audio_graph.push(glyph);
     if (speechAfter) {
-      if (is_repeated) repeated_graph[repeat_count].push(speechAfter);
+      if (is_repeated) repeated_graph[repeat_index].push(speechAfter);
       else audio_graph.push(speechAfter);
     }
   }

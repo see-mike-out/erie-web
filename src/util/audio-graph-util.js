@@ -50,3 +50,12 @@ export function getFirstDefined(...args) {
   }
   return args[args.length - 1];
 }
+
+export function asc(a, b) {
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  else return a.localeCompare(b);
+}
+export function desc(a, b) {
+  if (typeof a === 'number' && typeof b === 'number') return b - a;
+  else return b.localeCompare(a);
+}

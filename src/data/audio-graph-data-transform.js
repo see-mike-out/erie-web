@@ -3,6 +3,7 @@ import { from as fromTidy, op, escape, table as aqTable } from "arquero";
 import { bin, extent } from "d3";
 import { randomKDE } from 'vega-statistics';
 import { sampleCurve } from 'vega-statistics';
+import { asc, desc } from "../util/audio-graph-util";
 
 export function transformData(data, transforms, dimensions) {
   let table = fromTidy(data);
@@ -185,57 +186,54 @@ function foldTable(table, fold_fields, by, exclude, new_names) {
 
 
 export function orderArray(data, orders) {
-  let outcome;
+  let outcome, sortFunctions = [];
   for (const ord of orders) {
     let key = ord.key, order = ord.order;
     if (ord.order) {
-      let indexSortFn = makeIndexSortFn(key, order);
-      outcome = data.toSorted(indexSortFn);
+      let sortFn = makeIndexSortFn(key, order);
+      sortFunctions.push(sortFn);
     } else if (ord.sort === "ascending" || ord.sort === true || ord.sort === "asc") {
       let sortFn = makeAscSortFn(key);
-      outcome = data.toSorted(sortFn);
+      sortFunctions.push(sortFn);
     } else if (ord.sort === "descending" || ord.sort === "desc") {
       let sortFn = makeDescSortFn(key);
-      outcome = data.toSorted((a, b) => sortFn);
+      sortFunctions.push(sortFn);
     }
+  }
+  sortFunctions.reverse()
+  if (sortFunctions.length > 0) {
+    outcome = data.toSorted((a, b) => {
+      for (const fn of sortFunctions) {
+        if (fn(a, b) > 0) return 1;
+        else if (fn(a, b) < 0) return - 1;
+      }
+      return 1;
+    });
   }
   return outcome || data;
 }
 
-function makeIndexSortFn(keys, orders) {
-  let nkeys = keys.length;
+function makeIndexSortFn(key, order) {
   return (a, b) => {
-    for (let i = 0; i < nkeys; i++) {
-      let det = orders[i].indexOf(a[keys[i]]) - orders[i].indexOf(b[keys[i]]);
-      if (det != 0) return det;
-    }
+    let det = order.indexOf(a[key]) - order.indexOf(b[key]);
+    if (det != 0) return det;
     return 0;
   }
 }
 
-
-function makeAscSortFn(keys) {
-  let nkeys = keys.length;
+function makeAscSortFn(key) {
   return (a, b) => {
-    for (let i = 0; i < nkeys; i++) {
-      let det = a[keys[i]] - b[keys[i]];
-      if (det != 0) return det;
-    }
-    return 0;
+    return asc(a[key], b[key]);
   }
 }
 
 
-function makeDescSortFn(keys) {
-  let nkeys = keys.length;
+function makeDescSortFn(key) {
   return (a, b) => {
-    for (let i = 0; i < nkeys; i++) {
-      let det = b[keys[i]] - a[keys[i]];
-      if (det != 0) return det;
-    }
-    return 0;
+    return desc(a[key], b[key]);
   }
 }
+
 // Manipulation of Vega to work with AQ;
 function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth, _extent, _minsteps, _maxsteps, steps, _as) {
   let method = cumulative ? 'cdf' : 'pdf';

@@ -14,12 +14,19 @@ export function makeRepeatStreamTree(level, values, directions) {
   tree.direction = dir;
   tree.nodes = [];
   tree.field = memberships[0].key;
+  let membership_checked = [];
   for (const member of memberships) {
-    if (!curr_value_list.includes(member.value)) {
-      let subtree = makeRepeatStreamTree(level + 1, values, directions);
-      subtree.parent_value = member.value;
-      tree.nodes.push(subtree);
-      curr_value_list.push(member.value);
+    if (!membership_checked.includes(member.value)) {
+      membership_checked.push(member.value);
+      if (!curr_value_list.includes(member.value)) {
+        let subValues = values.filter((d) => d[level] === member.value);
+        if (subValues.length > 0) {
+          let subtree = makeRepeatStreamTree(level + 1, subValues, directions);
+          subtree.parent_value = member.value;
+          tree.nodes.push(subtree);
+          curr_value_list.push(member.value);
+        }
+      }
     }
   }
   return tree;
