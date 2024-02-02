@@ -224,6 +224,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       if (is_repeated) repeated_graph[repeat_count].push(speechBefore);
       else audio_graph.push(speechBefore);
     }
+    glyph.__datum = datum;
     if (is_repeated) repeated_graph[repeat_count].push(glyph);
     else audio_graph.push(glyph);
     if (speechAfter) {

@@ -8,6 +8,7 @@ import { PresetFilters } from './audio-graph-audio-filter';
 import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
 import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
 import { ErieFilters } from '../classes/erie-audio-filter';
+import { emitNoteEvent } from "./audio-graph-note-event";
 
 let ErieGlobalSynth;
 
@@ -369,6 +370,7 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
     sendToneStartEvent({ sid });
     if (config?.isRecorded) await playPause(300);
   }
+
   if (sound.tap !== undefined && sound.tap?.pattern?.constructor.name === "Array") {
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
     let tapSound = deepcopy(sound);
@@ -518,6 +520,7 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
     };
 
     // play & stop
+    emitNoteEvent('tone', sound);
     inst.start(ct);
     inst.stop(ct + sound.duration + sound.postReverb);
   });
@@ -639,7 +642,7 @@ export async function playAbsoluteSpeeches(ctx, queue, config) {
 
 export let ErieGlobalPlayerEvents = new Map();
 export function setPlayerEvents(queue, config) {
-  if (window) {
+  if (typeof window !== 'undefined') {
     function stop(event) {
       if (event.key == 'x') {
         ErieGlobalState = Stopped;
@@ -658,7 +661,7 @@ export function setPlayerEvents(queue, config) {
 }
 
 export function clearPlayerEvents() {
-  if (window) {
+  if (typeof window !== 'undefined') {
     let stop = ErieGlobalPlayerEvents.get('stop-event');
     window.removeEventListener('keypress', stop);
     ErieGlobalPlayerEvents.delete('stop-event');

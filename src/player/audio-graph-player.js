@@ -370,6 +370,7 @@ function makeSingleStreamQueueValues(sounds) {
       tap,
       modulation: sound.modulation || 0,
       harmonicity: sound.harmonicity || 0,
+      __datum: sound.__datum,
       others: {}
     };
     if (sound.speech) {
@@ -378,7 +379,7 @@ function makeSingleStreamQueueValues(sounds) {
     }
     // custom channels;
     Object.keys(sound || {}).forEach((chn) => {
-      if (!DefaultChannels.includes(chn)) {
+      if (!DefaultChannels.includes(chn) && chn !== '__datum') {
         ith_q.others[chn] = sound[chn];
       }
     });
