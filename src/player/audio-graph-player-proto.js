@@ -383,6 +383,8 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
       if (config?.isRecorded) await playPause(300);
       sendToneFinishEvent({ sid });
     }
+
+    emitNotePlayEvent('tone', sound);
     for (const s of sound.tap.pattern) {
       if (t === 1) {
         tapSound.duration = s;
@@ -406,9 +408,12 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
         return;
       }
     }
+    emitNoteStopEvent('tone', sound);
   } else {
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+    emitNotePlayEvent('tone', sound);
     await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
+    emitNoteStopEvent('tone', sound);
     // ErieGlobalControl = undefined;
     // ErieGlobalState = undefined;
     if (!config.subpart) {
@@ -519,12 +524,10 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
 
     // check the last
     inst.onended = (e) => {
-      emitNoteStopEvent('tone', sound);
       resolve();
     };
 
     // play & stop
-    emitNotePlayEvent('tone', sound);
     inst.start(ct);
     inst.stop(ct + sound.duration + sound.postReverb);
   });
@@ -549,12 +552,14 @@ export async function playSingleSpeech(sound, config) {
     if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
     if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
     else utterance.lang = document.documentElement.lang;
+    emitNotePlayEvent('speech', sound);
     ErieGlobalSynth.speak(utterance);
     ErieGlobalControl = { type: Speech, player: ErieGlobalSynth };
     utterance.onend = () => {
       window.removeEventListener('keypress', stop);
       ErieGlobalControl = undefined;
       ErieGlobalState = undefined;
+      emitNoteStopEvent('speech', sound);
       if (!config.subpart) {
         sendSpeechFinishEvent({ sid });
       }
