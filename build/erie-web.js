@@ -1,5 +1,24 @@
-(function (exports, d3, arquero, vegaStatistics) {
+(function (exports, d3, aq, vegaStatistics) {
   'use strict';
+
+  function _interopNamespaceDefault(e) {
+    var n = Object.create(null);
+    if (e) {
+      Object.keys(e).forEach(function (k) {
+        if (k !== 'default') {
+          var d = Object.getOwnPropertyDescriptor(e, k);
+          Object.defineProperty(n, k, d.get ? d : {
+            enumerable: true,
+            get: function () { return e[k]; }
+          });
+        }
+      });
+    }
+    n.default = e;
+    return Object.freeze(n);
+  }
+
+  var aq__namespace = /*#__PURE__*/_interopNamespaceDefault(aq);
 
   function deepcopy$1(o) {
     return JSON.parse(JSON.stringify(o || null));
@@ -3819,6 +3838,8 @@
         if (config?.isRecorded) await playPause(300);
         sendToneFinishEvent({ sid });
       }
+
+      emitNotePlayEvent('tone', sound);
       for (const s of sound.tap.pattern) {
         if (t === 1) {
           tapSound.duration = s;
@@ -3842,9 +3863,12 @@
           return;
         }
       }
+      emitNoteStopEvent('tone', sound);
     } else {
       let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+      emitNotePlayEvent('tone', sound);
       await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
+      emitNoteStopEvent('tone', sound);
       // ErieGlobalControl = undefined;
       // ErieGlobalState = undefined;
       if (!config.subpart) {
@@ -3955,12 +3979,10 @@
 
       // check the last
       inst.onended = (e) => {
-        emitNoteStopEvent('tone', sound);
         resolve();
       };
 
       // play & stop
-      emitNotePlayEvent('tone', sound);
       inst.start(ct);
       inst.stop(ct + sound.duration + sound.postReverb);
     });
@@ -3985,12 +4007,14 @@
       if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
       if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
       else utterance.lang = document.documentElement.lang;
+      emitNotePlayEvent('speech', sound);
       ErieGlobalSynth.speak(utterance);
       ErieGlobalControl = { type: Speech, player: ErieGlobalSynth };
       utterance.onend = () => {
         window.removeEventListener('keypress', stop);
         ErieGlobalControl = undefined;
         ErieGlobalState = undefined;
+        emitNoteStopEvent('speech', sound);
         if (!config.subpart) {
           sendSpeechFinishEvent({ sid });
         }
@@ -6289,8 +6313,10 @@
     config.forceSequenceScaleConsistency = forceSequenceScaleConsistency;
   }
 
+  const fromTidy = aq__namespace.from, escape = aq__namespace.escape, aqTable = aq__namespace.table;
+
   function transformData(data, transforms, dimensions) {
-    let table = arquero.from(data);
+    let table = fromTidy(data);
     let tableInfo = {};
     if (transforms?.constructor.name === "Array" && transforms.length > 0) {
       for (const transform of transforms) {
@@ -6301,10 +6327,10 @@
           let new_field_name2 = transform.end || old_field_name + "__bin_end";
           dimensions.push(new_field_name, new_field_name2);
           let { start, end, nBuckets, equiBin } = createBin(table.column(old_field_name).data, transform);
-          let binned = arquero.table({ [new_field_name]: start, [new_field_name2]: end });
+          let binned = aqTable({ [new_field_name]: start, [new_field_name2]: end });
           table = table.assign(binned);
           // drop na
-          table = table.filter(arquero.escape(d => d[new_field_name] !== undefined && d[new_field_name2] !== undefined));
+          table = table.filter(escape(d => d[new_field_name] !== undefined && d[new_field_name2] !== undefined));
           if (!tableInfo.bin) tableInfo.bin = {};
           tableInfo.bin[old_field_name] = { nBuckets, equiBin };
         }
@@ -6549,7 +6575,7 @@
           values.push(t);
         });
       });
-      return arquero.from(values).groupby(groupby);
+      return fromTidy(values).groupby(groupby);
     } else {
       let g = table.array(field);
       const density = vegaStatistics.randomKDE(g, bandwidth)[method];
@@ -6568,7 +6594,7 @@
         }
         values.push(t);
       });
-      return arquero.from(values);
+      return fromTidy(values);
     }
   }
 
@@ -6583,7 +6609,7 @@
     let tab_re = grouped_table.objects();
     let groups = [], names = [];
     partitions.forEach((p) => {
-      let g = arquero.from(tab_re.filter((d, i) => p.includes(i)));
+      let g = fromTidy(tab_re.filter((d, i) => p.includes(i)));
       groups.push(g);
       names.push(groupby.map(gb => g.get(gb)));
     });
@@ -8299,4 +8325,4 @@
 
   return exports;
 
-})({}, d3, arquero, vegaStatistics);
+})({}, d3, aq, vegaStatistics);

@@ -1,9 +1,12 @@
 import { Auto } from "../compile/audio-graph-normalize";
-import { from as fromTidy, op, escape, table as aqTable } from "arquero";
+import * as aq from "arquero";
+// import { from as fromTidy, op, escape, table as aqTable } from "arquero";
 import { bin, extent } from "d3";
 import { randomKDE } from 'vega-statistics';
 import { sampleCurve } from 'vega-statistics';
 import { asc, desc } from "../util/audio-graph-util";
+
+const fromTidy = aq.from, op = aq.op, escape = aq.escape, aqTable = aq.table;
 
 export function transformData(data, transforms, dimensions) {
   let table = fromTidy(data);
