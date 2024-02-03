@@ -2678,6 +2678,15 @@
     return args[args.length - 1];
   }
 
+  function asc(a, b) {
+    if (typeof a === 'number' && typeof b === 'number') return a - b;
+    else return a.localeCompare(b);
+  }
+  function desc(a, b) {
+    if (typeof a === 'number' && typeof b === 'number') return b - a;
+    else return b.localeCompare(a);
+  }
+
   const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
   function makeTick(ctx, def, duration) {
     // ticker definition;
@@ -3420,6 +3429,28 @@
     document.body.dispatchEvent(chnageEvent);
   }
 
+  function emitNotePlayEvent(type, note) {
+    if (typeof document === 'object') {
+      document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
+        detail: {
+          type,
+          note
+        }
+      }));
+    }
+  }
+
+  function emitNoteStopEvent(type, note) {
+    if (typeof document === 'object') {
+      document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
+        detail: {
+          type,
+          note
+        }
+      }));
+    }
+  }
+
   let ErieGlobalSynth;
 
   function makeContext() {
@@ -3746,6 +3777,8 @@
         tick.start(startTime);
         tick.stop(ct + endTime);
       }
+
+      emitNotePlayEvent('tone', q[0]);
       inst.start(startTime);
       if (config?.isRecorded) {
         gain.gain.setValueAtTime(0, ct + endTime + 0.3);
@@ -3756,6 +3789,7 @@
       inst.onended = (e) => {
         ErieGlobalControl = undefined;
         ErieGlobalState = undefined;
+        emitNoteStopEvent('tone', q[0]);
         sendToneFinishEvent({ sid });
         resolve();
       };
@@ -3778,6 +3812,7 @@
       sendToneStartEvent({ sid });
       if (config?.isRecorded) await playPause(300);
     }
+
     if (sound.tap !== undefined && sound.tap?.pattern?.constructor.name === "Array") {
       let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
       let tapSound = deepcopy(sound);
@@ -3923,10 +3958,12 @@
 
       // check the last
       inst.onended = (e) => {
+        emitNoteStopEvent('tone', sound);
         resolve();
       };
 
       // play & stop
+      emitNotePlayEvent('tone', sound);
       inst.start(ct);
       inst.stop(ct + sound.duration + sound.postReverb);
     });
@@ -3992,7 +4029,7 @@
 
   let ErieGlobalPlayerEvents = new Map();
   function setPlayerEvents(queue, config) {
-    if (window) {
+    if (typeof window !== 'undefined') {
       function stop(event) {
         if (event.key == 'x') {
           ErieGlobalState = Stopped$1;
@@ -4011,7 +4048,7 @@
   }
 
   function clearPlayerEvents() {
-    if (window) {
+    if (typeof window !== 'undefined') {
       let stop = ErieGlobalPlayerEvents.get('stop-event');
       window.removeEventListener('keypress', stop);
       ErieGlobalPlayerEvents.delete('stop-event');
@@ -4751,6 +4788,7 @@
         tap,
         modulation: sound.modulation || 0,
         harmonicity: sound.harmonicity || 0,
+        __datum: sound.__datum,
         others: {}
       };
       if (sound.speech) {
@@ -4759,7 +4797,7 @@
       }
       // custom channels;
       Object.keys(sound || {}).forEach((chn) => {
-        if (!DefaultChannels.includes(chn)) {
+        if (!DefaultChannels.includes(chn) && chn !== '__datum') {
           ith_q.others[chn] = sound[chn];
         }
       });
@@ -5724,12 +5762,19 @@
     tree.direction = dir;
     tree.nodes = [];
     tree.field = memberships[0].key;
+    let membership_checked = [];
     for (const member of memberships) {
-      if (!curr_value_list.includes(member.value)) {
-        let subtree = makeRepeatStreamTree(level + 1, values, directions);
-        subtree.parent_value = member.value;
-        tree.nodes.push(subtree);
-        curr_value_list.push(member.value);
+      if (!membership_checked.includes(member.value)) {
+        membership_checked.push(member.value);
+        if (!curr_value_list.includes(member.value)) {
+          let subValues = values.filter((d) => d[level] === member.value);
+          if (subValues.length > 0) {
+            let subtree = makeRepeatStreamTree(level + 1, subValues, directions);
+            subtree.parent_value = member.value;
+            tree.nodes.push(subtree);
+            curr_value_list.push(member.value);
+          }
+        }
       }
     }
     return tree;
@@ -6428,57 +6473,54 @@
 
 
   function orderArray(data, orders) {
-    let outcome;
+    let outcome, sortFunctions = [];
     for (const ord of orders) {
       let key = ord.key, order = ord.order;
       if (ord.order) {
-        let indexSortFn = makeIndexSortFn(key, order);
-        outcome = data.toSorted(indexSortFn);
+        let sortFn = makeIndexSortFn(key, order);
+        sortFunctions.push(sortFn);
       } else if (ord.sort === "ascending" || ord.sort === true || ord.sort === "asc") {
         let sortFn = makeAscSortFn(key);
-        outcome = data.toSorted(sortFn);
+        sortFunctions.push(sortFn);
       } else if (ord.sort === "descending" || ord.sort === "desc") {
         let sortFn = makeDescSortFn(key);
-        outcome = data.toSorted((a, b) => sortFn);
+        sortFunctions.push(sortFn);
       }
+    }
+    sortFunctions.reverse();
+    if (sortFunctions.length > 0) {
+      outcome = data.toSorted((a, b) => {
+        for (const fn of sortFunctions) {
+          if (fn(a, b) > 0) return 1;
+          else if (fn(a, b) < 0) return - 1;
+        }
+        return 1;
+      });
     }
     return outcome || data;
   }
 
-  function makeIndexSortFn(keys, orders) {
-    let nkeys = keys.length;
+  function makeIndexSortFn(key, order) {
     return (a, b) => {
-      for (let i = 0; i < nkeys; i++) {
-        let det = orders[i].indexOf(a[keys[i]]) - orders[i].indexOf(b[keys[i]]);
-        if (det != 0) return det;
-      }
+      let det = order.indexOf(a[key]) - order.indexOf(b[key]);
+      if (det != 0) return det;
       return 0;
     }
   }
 
-
-  function makeAscSortFn(keys) {
-    let nkeys = keys.length;
+  function makeAscSortFn(key) {
     return (a, b) => {
-      for (let i = 0; i < nkeys; i++) {
-        let det = a[keys[i]] - b[keys[i]];
-        if (det != 0) return det;
-      }
-      return 0;
+      return asc(a[key], b[key]);
     }
   }
 
 
-  function makeDescSortFn(keys) {
-    let nkeys = keys.length;
+  function makeDescSortFn(key) {
     return (a, b) => {
-      for (let i = 0; i < nkeys; i++) {
-        let det = b[keys[i]] - a[keys[i]];
-        if (det != 0) return det;
-      }
-      return 0;
+      return desc(a[key], b[key]);
     }
   }
+
   // Manipulation of Vega to work with AQ;
   function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth, _extent, _minsteps, _maxsteps, steps, _as) {
     let method = cumulative ? 'cdf' : 'pdf';
@@ -6621,13 +6663,18 @@
     let data_order = [];
     if (TIME_chn in encoding && encoding[TIME_chn].scale?.order) {
       data_order.push({
-        key: [encoding[TIME_chn].field], order: [encoding[TIME_chn].scale?.order]
+        key: encoding[TIME_chn].field, order: [encoding[TIME_chn].scale?.order]
       });
     } else if (TIME_chn in encoding && encoding[TIME_chn].scale?.sort) {
       data_order.push({
-        key: [encoding[TIME_chn].field], sort: encoding[TIME_chn].scale?.sort
+        key: encoding[TIME_chn].field, sort: encoding[TIME_chn].scale?.sort
+      });
+    } else if (TIME_chn in encoding) {
+      data_order.push({
+        key: encoding[TIME_chn].field, order: unique(data.map(d => d[encoding[TIME_chn].field])).toSorted(asc)
       });
     }
+
     if (is_repeated && encoding[REPEAT_chn].scale?.order) {
       data_order.push({
         key: repeat_field, order: encoding[REPEAT_chn].scale?.order
@@ -6637,17 +6684,20 @@
         key: repeat_field, sort: encoding[REPEAT_chn].scale?.sort
       });
     } else if (is_repeated) {
-      let order = repeat_field.map((k) => unique(data.map(d => d[k])));
-      data_order.push({
-        key: repeat_field, order
+      repeat_field.toReversed().forEach((key) => {
+        let order = unique(data.map(d => d[key])).toSorted(asc);
+        data_order.push({
+          key, order
+        });
       });
     }
+
     data = orderArray(data, data_order);
 
     delete data.tableInfo;
 
     // treat repeat
-    let audio_graph = [], repeated_graph = [], repeat_values, repeat_level = 0;
+    let audio_graph = [], repeated_graph = [], repeated_graph_map = {}, repeat_values, repeat_level = 0;
 
     if (is_repeated) {
       repeat_level = repeat_field.length;
@@ -6661,6 +6711,7 @@
         });
         d.membership = g.membership;
         repeated_graph.push(g);
+        repeated_graph_map[d.join("&")] = repeated_graph.length - 1;
       });
     }
 
@@ -6717,14 +6768,10 @@
     }
 
     // generate audio graphs
-    let repeat_count = -1;
     for (const i in data) {
       if (i === 'tableInfo') continue;
-      let datum = data[i], prev_datum = data[parseInt(i) - 1];
-      let new_repeat_piece = is_repeated && (repeat_field.map(k => datum[k]).join("_$_") !== repeat_field.map(k => prev_datum?.[k]).join("_$_"));
-      if (new_repeat_piece) {
-        repeat_count += 1;
-      }
+      let datum = data[i];
+      let repeat_index = is_repeated && repeated_graph_map[repeat_field.map(k => datum[k]).join("&")];
       let glyph = scales.time(
         (datum[encoding[TIME_chn].field] !== undefined ? datum[encoding[TIME_chn].field] : parseInt(i)),
         (hasTime2 ?
@@ -6764,13 +6811,14 @@
         };
       }
       if (speechBefore) {
-        if (is_repeated) repeated_graph[repeat_count].push(speechBefore);
+        if (is_repeated) repeated_graph[repeat_index].push(speechBefore);
         else audio_graph.push(speechBefore);
       }
-      if (is_repeated) repeated_graph[repeat_count].push(glyph);
+      glyph.__datum = datum;
+      if (is_repeated) repeated_graph[repeat_index].push(glyph);
       else audio_graph.push(glyph);
       if (speechAfter) {
-        if (is_repeated) repeated_graph[repeat_count].push(speechAfter);
+        if (is_repeated) repeated_graph[repeat_index].push(speechAfter);
         else audio_graph.push(speechAfter);
       }
     }
