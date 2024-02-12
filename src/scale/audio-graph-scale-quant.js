@@ -52,7 +52,7 @@ export function makeQuantitativeScaleFunction(channel, encoding, values, info) {
   if (times && !rangeProvided) {
     range = domain.map(d => d * times);
     rangeProvided = true;
-  }// to skip the below changes when `times` is present while range is not.
+  } // to skip the below changes when `times` is present while range is not.
 
   let rangeMin = scaleDef?.rangeMin, rangeMax = scaleDef?.rangeMax;
   if (!rangeProvided && maxDistinct) {
@@ -85,8 +85,20 @@ export function makeQuantitativeScaleFunction(channel, encoding, values, info) {
   } else if (domain[0] > domain[1] && polarity === POS) {
     range = range.reverse();
   }
-  
+
   scaleProperties.range = range;
+
+  // domain fix when the range is more divided than the domain (linear mapping)
+  if (!encoding?.scale?.domain && domain.length == 2 && rangeProvided && domain.length < range.length) {
+    console.warn(`The domain is not provided while the range is provided. Erie fixed domain to match with the range. This fix is linear, so if you are using other scale types, make sure to provide the specific domain cuts.`);
+    domain = range.map((d, i) => {
+      if (i == 0) return domainMin;
+      else if (i == range.length - 1) return domainMax;
+      else {
+        return domainMin + (domainMax - domainMin) * (i / (range.length - 1));
+      }
+    });
+  }
 
   // transform
   let scaleFunction;
@@ -115,5 +127,6 @@ export function makeQuantitativeScaleFunction(channel, encoding, values, info) {
   if (nice) scaleFunction = scaleFunction.nice();
   scaleFunction = scaleFunction.range(range);
   scaleFunction.properties = scaleProperties;
+  window['scale_'+channel] = scaleFunction;
   return scaleFunction;
 }

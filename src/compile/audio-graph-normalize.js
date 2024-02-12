@@ -259,10 +259,6 @@ function normalizeSingleSpec(spec, parent) {
   let encoding_aggregates = [];
   if (spec.encoding) {
     normalized.encoding = {};
-    // if (spec.encoding[TAPCNT_chn] && spec.encoding[TAPSPD_chn]) {
-    //   console.warn("tapCount and tapSpeed cannot be used together. tapSpeed is ignored.")
-    //   delete spec.encoding[TAPSPD_chn];
-    // }
     if (spec.encoding[TIME_chn]?.scale?.timing === SIM_TIMING) {
       if (spec.encoding[SPEECH_BEFORE_chn] && spec.encoding[SPEECH_AFTER_chn]) {
         console.warn(`Speech channels cannot be used for simultaneous timing. ${SPEECH_BEFORE_chn} and ${SPEECH_AFTER_chn} are dropped.`);

@@ -186,6 +186,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
   for (const i in data) {
     if (i === 'tableInfo') continue;
     let datum = data[i];
+    // if (datum[encoding[TIME_chn].field] !== undefined) continue;
     let repeat_index = is_repeated && repeated_graph_map[repeat_field.map(k => datum[k]).join("&")]
     let glyph = scales.time(
       (datum[encoding[TIME_chn].field] !== undefined ? datum[encoding[TIME_chn].field] : parseInt(i)),

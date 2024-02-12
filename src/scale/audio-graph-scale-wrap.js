@@ -1,4 +1,4 @@
-import { unique } from "../util/audio-graph-util";
+import { asc, unique } from "../util/audio-graph-util";
 import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
 import { listString } from "../util/audio-graph-format-util";
 import { jType, detectType } from "../util/audio-graph-typing-util";
@@ -22,12 +22,18 @@ export function getAudioScales(channel, encoding, values, beat, data) {
   let times = encoding.scale?.times;
   let zero = encoding.scale?.zero !== undefined ? encoding.scale?.zero : false;
   let domainMax, domainMin;
+  // check on this
   if (jType(channel) !== "Array" && values) {
-    domainMax = Math.max(...values);
-    domainMin = Math.min(...values);
+    let domainSorted = values.toSorted(asc);
+    domainMax = domainSorted[domainSorted.length - 1];
+    domainMin = domainSorted[0];
   } else if (values) {
-    domainMax = Math.max(Math.max(...values[0]), Math.max(...values[1]));
-    domainMin = Math.min(Math.min(...values[0]), Math.min(...values[1]));
+    let domainSorted = values[0].concat(values[1]).toSorted(asc);
+    domainMax = domainSorted[domainSorted.length - 1];
+    domainMin = domainSorted[0];
+    // legacy (keep until stable)
+    // domainMax = Math.max(Math.max(...values[0]), Math.max(...values[1]));
+    // domainMin = Math.min(Math.min(...values[0]), Math.min(...values[1]));
   }
 
   let nice = encoding.scale?.nice;

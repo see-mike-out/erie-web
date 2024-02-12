@@ -218,10 +218,10 @@ function scaleInfoUpdater(channel, scaleInfo, data) {
     let datums = [];
     if (jType(field) === 'Array') {
       field.forEach((f) => {
-        datums.push(...data.map((d, i) => d[f] || i))
+        datums.push(...data.map((d, i) => d[f]))
       });
     } else {
-      datums.push(...data.map((d, i) => d[field] || i))
+      datums.push(...data.map((d, i) => d[field]))
     }
     if (scaleInfo[scaleId].type === TMP) {
       datums = datums.map((d) => new Date(d));

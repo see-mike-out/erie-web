@@ -17,6 +17,10 @@ export function transformData(data, transforms, dimensions) {
       if (transform.bin) {
         let old_field_name = transform.bin;
         let new_field_name = transform.as || old_field_name + "__bin";
+        if (table.column(new_field_name)) {
+          // duplicate binning
+          continue;
+        }
         let new_field_name2 = transform.end || old_field_name + "__bin_end";
         dimensions.push(new_field_name, new_field_name2)
         let { start, end, nBuckets, equiBin } = createBin(table.column(old_field_name).data, transform);
