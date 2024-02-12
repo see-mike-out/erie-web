@@ -2696,11 +2696,15 @@
 
   function asc(a, b) {
     if (typeof a === 'number' && typeof b === 'number') return a - b;
-    else return a.localeCompare(b);
+    else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return a - b;
+    else if (a?.localeCompare) return a.localeCompare(b);
+    else return a > b || 0;
   }
   function desc(a, b) {
     if (typeof a === 'number' && typeof b === 'number') return b - a;
-    else return b.localeCompare(a);
+    else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return b - a;
+    else if (b?.localeCompare) return b.localeCompare(a);
+    else return b > a || 0;
   }
 
   const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
@@ -6096,10 +6100,6 @@
     let encoding_aggregates = [];
     if (spec.encoding) {
       normalized.encoding = {};
-      // if (spec.encoding[TAPCNT_chn] && spec.encoding[TAPSPD_chn]) {
-      //   console.warn("tapCount and tapSpeed cannot be used together. tapSpeed is ignored.")
-      //   delete spec.encoding[TAPSPD_chn];
-      // }
       if (spec.encoding[TIME_chn]?.scale?.timing === SIM_TIMING) {
         if (spec.encoding[SPEECH_BEFORE_chn] && spec.encoding[SPEECH_AFTER_chn]) {
           console.warn(`Speech channels cannot be used for simultaneous timing. ${SPEECH_BEFORE_chn} and ${SPEECH_AFTER_chn} are dropped.`);
@@ -6324,6 +6324,10 @@
         if (transform.bin) {
           let old_field_name = transform.bin;
           let new_field_name = transform.as || old_field_name + "__bin";
+          if (table.column(new_field_name)) {
+            // duplicate binning
+            continue;
+          }
           let new_field_name2 = transform.end || old_field_name + "__bin_end";
           dimensions.push(new_field_name, new_field_name2);
           let { start, end, nBuckets, equiBin } = createBin(table.column(old_field_name).data, transform);
@@ -6794,6 +6798,7 @@
     for (const i in data) {
       if (i === 'tableInfo') continue;
       let datum = data[i];
+      // if (datum[encoding[TIME_chn].field] !== undefined) continue;
       let repeat_index = is_repeated && repeated_graph_map[repeat_field.map(k => datum[k]).join("&")];
       let glyph = scales.time(
         (datum[encoding[TIME_chn].field] !== undefined ? datum[encoding[TIME_chn].field] : parseInt(i)),
@@ -7251,7 +7256,7 @@
     if (times && !rangeProvided) {
       range = domain.map(d => d * times);
       rangeProvided = true;
-    }// to skip the below changes when `times` is present while range is not.
+    } // to skip the below changes when `times` is present while range is not.
 
     let rangeMin = scaleDef?.rangeMin, rangeMax = scaleDef?.rangeMax;
     if (!rangeProvided && maxDistinct) {
@@ -7284,8 +7289,20 @@
     } else if (domain[0] > domain[1] && polarity === POS$1) {
       range = range.reverse();
     }
-    
+
     scaleProperties.range = range;
+
+    // domain fix when the range is more divided than the domain (linear mapping)
+    if (!encoding?.scale?.domain && domain.length == 2 && rangeProvided && domain.length < range.length) {
+      console.warn(`The domain is not provided while the range is provided. Erie fixed domain to match with the range. This fix is linear, so if you are using other scale types, make sure to provide the specific domain cuts.`);
+      domain = range.map((d, i) => {
+        if (i == 0) return domainMin;
+        else if (i == range.length - 1) return domainMax;
+        else {
+          return domainMin + (domainMax - domainMin) * (i / (range.length - 1));
+        }
+      });
+    }
 
     // transform
     let scaleFunction;
@@ -7314,6 +7331,7 @@
     if (nice) scaleFunction = scaleFunction.nice();
     scaleFunction = scaleFunction.range(range);
     scaleFunction.properties = scaleProperties;
+    window['scale_'+channel] = scaleFunction;
     return scaleFunction;
   }
 
@@ -7770,12 +7788,18 @@
     let times = encoding.scale?.times;
     let zero = encoding.scale?.zero !== undefined ? encoding.scale?.zero : false;
     let domainMax, domainMin;
+    // check on this
     if (jType(channel) !== "Array" && values) {
-      domainMax = Math.max(...values);
-      domainMin = Math.min(...values);
+      let domainSorted = values.toSorted(asc);
+      domainMax = domainSorted[domainSorted.length - 1];
+      domainMin = domainSorted[0];
     } else if (values) {
-      domainMax = Math.max(Math.max(...values[0]), Math.max(...values[1]));
-      domainMin = Math.min(Math.min(...values[0]), Math.min(...values[1]));
+      let domainSorted = values[0].concat(values[1]).toSorted(asc);
+      domainMax = domainSorted[domainSorted.length - 1];
+      domainMin = domainSorted[0];
+      // legacy (keep until stable)
+      // domainMax = Math.max(Math.max(...values[0]), Math.max(...values[1]));
+      // domainMin = Math.min(Math.min(...values[0]), Math.min(...values[1]));
     }
 
     let nice = encoding.scale?.nice;
@@ -8120,10 +8144,10 @@
       let datums = [];
       if (jType(field) === 'Array') {
         field.forEach((f) => {
-          datums.push(...data.map((d, i) => d[f] || i));
+          datums.push(...data.map((d, i) => d[f]));
         });
       } else {
-        datums.push(...data.map((d, i) => d[field] || i));
+        datums.push(...data.map((d, i) => d[field]));
       }
       if (scaleInfo[scaleId].type === TMP) {
         datums = datums.map((d) => new Date(d));
