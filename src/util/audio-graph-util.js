@@ -53,9 +53,13 @@ export function getFirstDefined(...args) {
 
 export function asc(a, b) {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
-  else return a.localeCompare(b);
+  else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return a - b;
+  else if (a?.localeCompare) return a.localeCompare(b);
+  else return a > b || 0;
 }
 export function desc(a, b) {
   if (typeof a === 'number' && typeof b === 'number') return b - a;
-  else return b.localeCompare(a);
+  else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return b - a;
+  else if (b?.localeCompare) return b.localeCompare(a);
+  else return b > a || 0;
 }
