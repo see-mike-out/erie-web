@@ -1,7 +1,7 @@
 import { Auto } from "../compile/audio-graph-normalize";
 import * as aq from "arquero";
 // import { from as fromTidy, op, escape, table as aqTable } from "arquero";
-import { bin, extent } from "d3";
+import { bin, extent, group } from "d3";
 import { randomKDE } from 'vega-statistics';
 import { sampleCurve } from 'vega-statistics';
 import { asc, desc } from "../util/audio-graph-util";
@@ -22,7 +22,8 @@ export function transformData(data, transforms, dimensions) {
           continue;
         }
         let new_field_name2 = transform.end || old_field_name + "__bin_end";
-        dimensions.push(new_field_name, new_field_name2)
+        if (!dimensions.includes(new_field_name)) dimensions.push(new_field_name);
+        if (!dimensions.includes(new_field_name2)) dimensions.push(new_field_name2);
         let { start, end, nBuckets, equiBin } = createBin(table.column(old_field_name).data, transform);
         let binned = aqTable({ [new_field_name]: start, [new_field_name2]: end });
         table = table.assign(binned);
@@ -34,7 +35,7 @@ export function transformData(data, transforms, dimensions) {
       // aggregate
       else if (transform.aggregate) {
         let aggregates = transform.aggregate;
-        let groupby = transform.groupby || {};
+        let groupby = transform.groupby || [];
         if (groupby === Auto) {
           groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }

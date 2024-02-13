@@ -405,7 +405,7 @@ function normalizeSingleSpec(spec, parent) {
       }
     }
   }
-  // trasnform
+  // transform
   if (spec.common_transform) {
     normalized.common_transform = deepcopy(spec.common_transform)
   }
