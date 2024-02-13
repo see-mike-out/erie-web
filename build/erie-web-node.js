@@ -6248,7 +6248,7 @@ function normalizeSingleSpec(spec, parent) {
       }
     }
   }
-  // trasnform
+  // transform
   if (spec.common_transform) {
     normalized.common_transform = deepcopy(spec.common_transform);
   }
@@ -6332,7 +6332,8 @@ function transformData(data, transforms, dimensions) {
           continue;
         }
         let new_field_name2 = transform.end || old_field_name + "__bin_end";
-        dimensions.push(new_field_name, new_field_name2);
+        if (!dimensions.includes(new_field_name)) dimensions.push(new_field_name);
+        if (!dimensions.includes(new_field_name2)) dimensions.push(new_field_name2);
         let { start, end, nBuckets, equiBin } = createBin(table.column(old_field_name).data, transform);
         let binned = aqTable({ [new_field_name]: start, [new_field_name2]: end });
         table = table.assign(binned);
@@ -6344,7 +6345,7 @@ function transformData(data, transforms, dimensions) {
       // aggregate
       else if (transform.aggregate) {
         let aggregates = transform.aggregate;
-        let groupby = transform.groupby || {};
+        let groupby = transform.groupby || [];
         if (groupby === Auto) {
           groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }
@@ -6648,7 +6649,9 @@ async function compileSingleLayerAuidoGraph(audio_spec, _data, config, tickDef, 
     if ([NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
     } else if (d === REPEAT_chn) {
-      return enc.field
+      return enc.field;
+    } else if (!enc.aggregate) {
+      return enc.field;
     }
   }).filter((d) => d).flat();
 
@@ -6997,10 +7000,14 @@ function applyTransforms(data, spec) {
     let enc = spec.encoding[d];
     if ([NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
+    } else if (d === REPEAT_chn) {
+      return enc.field;
+    } else if (!enc.aggregate) {
+      return enc.field;
     }
   }).filter((d) => d);
 
-  data = transformData(data, [...(spec.common_transform || []), ...(spec.transform || [])], forced_dimensions);
+  data = transformData(data, [...(spec.common_transform || []), ...(spec.transform || [])], unique(forced_dimensions));
   return data;
 }
 
