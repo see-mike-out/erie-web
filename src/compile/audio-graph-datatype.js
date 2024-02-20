@@ -439,7 +439,6 @@ export class OverlayStream {
   }
 }
 
-
 export class UnitStream {
   constructor(instrument_type, stream, scales, opt) {
     this.instrument_type = instrument_type;

@@ -19,6 +19,7 @@ import { deepcopy, genRid, getFirstDefined } from "../util/audio-graph-util";
 import { DefaultChannels } from "../scale/audio-graph-scale-constant";
 import { sendQueueFinishEvent, sendQueueStartEvent, sendToneStartEvent } from "./audio-graph-player-event";
 import { makeTapPattern, mergeTapPattern } from "../util/audio-graph-scale-util";
+import { generatePCMCode } from "../pulse/audio-control-pulse-generator";
 
 export const TextType = 'text',
   ToneType = 'tone',
@@ -139,6 +140,7 @@ export class AudioGraphQueue {
           if (this.isSupportedInst(sound.timbre)) checkInstrumentSampling.add(sound.timbre);
           else if (this.isSampling(sound.timbre)) userSampledInstruments.add(sound.timbre);
         });
+        item.getPCM = () => generatePCMCode(item);
       } else if (type === ToneOverlaySeries) {
         if (info.overlays.length > 0) {
           item.overlays = info.overlays.map((d) => {
