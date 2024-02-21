@@ -37,31 +37,31 @@ export async function generatePCMCode(queue) {
     }
   } else {
     // continous sound
-    // not so smooth..
-    let ramp_pitch = getRampFunction(queue.ramp.pitch),
-      ramp_pan = getRampFunction(queue.ramp.pan),
+    let ramp_pan = getRampFunction(queue.ramp.pan),
       ramp_gain = getRampFunction(queue.ramp.loudness);
     sounds.sort((a, b) => a.time - b.time);
+    let acc_prev = 0;
     for (let i = 0; i < sounds.length - 1; i++) {
       let sound = sounds[i], next_sound = sounds[i + 1];
       let f = Math.round(sound.time * sampleRate),
         t = Math.round(next_sound.time * sampleRate);
       let length = t - f;
 
-      let f_data = populatePCMforFreq(sound.pitch, length, sampleRate);
+      let { data, acc } = populatePCMforFreqRamp(sound.pitch, next_sound.pitch, queue.ramp.pitch, acc_prev, length, sampleRate);
+      acc_prev = acc;
+
       let f_gain = sound.loudness;
       if (f_gain === undefined) f_gain = 1;
       let f_pan = sound.pan;
       if (f_pan === undefined) f_pan = 0;
 
-      let t_data = populatePCMforFreq(next_sound.pitch, length, sampleRate);
       let t_gain = sound.loudness;
       if (t_gain === undefined) t_gain = 1;
       let t_pan = sound.pan;
       if (t_pan === undefined) t_pan = 0;
 
       for (let i = 0; i < length; i++) {
-        let rpi = ramp_pitch(f_data[i], t_data[i], i / length);
+        let rpi = data[i];
         let rga = ramp_gain(f_gain, t_gain, i / length)
         let rpa = ramp_pan(f_pan, t_pan, i / length);
         let LRgain = getLRgain(rpa);
@@ -75,11 +75,41 @@ export async function generatePCMCode(queue) {
 
 function populatePCMforFreq(pitch, frameCount, sampleRate) {
   let data = new Float32Array(frameCount);
-  let cycle = sampleRate / pitch;
+  let cycle = pitch == 0 ? 0 : sampleRate / pitch;
   for (let i = 0; i < frameCount; i++) {
-    data[i] = Math.sin(Math.PI / cycle * i);
+    data[i] = Math.sin(2 * Math.PI / cycle * i);
   }
   return data
+}
+
+function populatePCMforFreqRamp(pitch_from, pitch_to, ramp, acc, frameCount, sampleRate) {
+  if (ramp === "abrupt" || ramp === false) {
+    return { data: populatePCMforFreq(pitch_from, frameCount, sampleRate), acc: 0 };
+  } else if (ramp === "linear" || ramp === true || ramp === undefined) {
+    let data = new Float32Array(frameCount);
+    let cycle_from = pitch_from == 0 ? 0 : sampleRate / pitch_from, cycle_to = pitch_to == 0 ? 0 : sampleRate / pitch_to;
+    let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
+      return cycle_from + ((cycle_to - cycle_from) / (frameCount - 1) * i);
+    });
+    for (let i = 0; i < frameCount; i++) {
+      acc += 2 * Math.PI / cycles[i];
+      if (Math.sin(acc) == 0) acc = 0;
+      data[i] = Math.sin(acc);
+    }
+    return { data, acc };
+  } else if (ramp === "exponential") {
+    let data = new Float32Array(frameCount);
+    let cycle_from = sampleRate / pitch_from, cycle_to = sampleRate / pitch_to;
+    let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
+      return (cycle_to - cycle_from) * Math.exp(i / frameCount) + cycle_from
+    });
+    for (let i = 0; i < frameCount; i++) {
+      acc += 2 * Math.PI / cycles[i];
+      if (Math.sin(acc) == 0) acc = 0;
+      data[i] = Math.sin(acc);
+    }
+    return { data, acc };
+  }
 }
 
 function getLRgain(pan) {
@@ -87,12 +117,12 @@ function getLRgain(pan) {
   return [Math.cos(panp), Math.sin(panp)];
 }
 
-function getRampFunction(m) {
-  if (m === "linear" || !m) {
+function getRampFunction(ramp) {
+  if (ramp === "linear" || ramp === true || ramp === undefined) {
     return (a, b, r) => { return a * (1 - r) + b * r };
-  } else if (m === "abrupt") {
-    return (a, b, r) => { return a };
-  } else if (m === "exp") {
+  } else if (ramp === "abrupt" || ramp === false) {
+    return (a, _, __) => { return a };
+  } else if (ramp === "exponential") {
     return (a, b, r) => {
       return (b - a) * Math.exp(r) + a
     };
