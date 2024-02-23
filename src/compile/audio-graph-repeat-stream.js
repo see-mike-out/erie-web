@@ -55,7 +55,7 @@ function postprocessRstreamTree(tree) {
         let { nodes, dir } = postprocessRstreamTree(node);
         flat_overlay.push(...nodes);
       });
-      return { nodes: flat_overlay.filter(d => d !== undefined), dir: OVERLAY };
+      return { nodes: [flat_overlay.filter(d => d !== undefined)] };
     } else if (tree.direction === SEQUENCE) {
       let flat_seq = [];
       tree.nodes.forEach((node) => {
