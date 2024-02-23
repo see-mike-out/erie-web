@@ -4748,6 +4748,7 @@ class AudioGraphQueue {
         } else {
           item.overlays = info.overlays;
         }
+        item.getPCM = () => generatePCMCode(item);
       } else if (type === Pause) {
         item.duration = info.duration; // in seconds
       } else if (type === LegendType) {
