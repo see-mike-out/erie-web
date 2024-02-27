@@ -2,7 +2,7 @@
 
 var d3 = require('d3');
 var aq = require('arquero');
-var vegaStatistics = require('vega-statistics');
+var vega = require('vega');
 
 function _interopNamespaceDefault(e) {
   var n = Object.create(null);
@@ -6707,10 +6707,10 @@ function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth,
     let { groups, names } = aqPartition(table, groupby);
     groups.forEach((group, i) => {
       let g = group.array(field);
-      const density = vegaStatistics.randomKDE(g, bandwidth)[method];
+      const density = vega.randomKDE(g, bandwidth)[method];
       const scale = counts ? g.length : 1;
       const local = domain || d3.extent(g);
-      let curve = vegaStatistics.sampleCurve(density, local, minsteps, maxsteps);
+      let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
       curve.forEach(v => {
         const t = {
           [_as[0]]: v[0],
@@ -6727,10 +6727,10 @@ function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth,
     return fromTidy(values).groupby(groupby);
   } else {
     let g = table.array(field);
-    const density = vegaStatistics.randomKDE(g, bandwidth)[method];
+    const density = vega.randomKDE(g, bandwidth)[method];
     const scale = counts ? g.length : 1;
     const local = domain || d3.extent(g);
-    let curve = vegaStatistics.sampleCurve(density, local, minsteps, maxsteps);
+    let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
     curve.forEach(v => {
       const t = {
         [_as[0]]: v[0],

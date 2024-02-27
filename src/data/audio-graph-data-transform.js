@@ -2,8 +2,8 @@ import { Auto } from "../compile/audio-graph-normalize";
 import * as aq from "arquero";
 // import { from as fromTidy, op, escape, table as aqTable } from "arquero";
 import { bin, extent, group } from "d3";
-import { randomKDE } from 'vega-statistics';
-import { sampleCurve } from 'vega-statistics';
+import { randomKDE } from 'vega';
+import { sampleCurve } from 'vega';
 import { asc, desc } from "../util/audio-graph-util";
 
 const fromTidy = aq.from, op = aq.op, escape = aq.escape, aqTable = aq.table;

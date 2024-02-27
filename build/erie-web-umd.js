@@ -1,8 +1,8 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3'), require('arquero'), require('vega-statistics')) :
-  typeof define === 'function' && define.amd ? define(['exports', 'd3', 'arquero', 'vega-statistics'], factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Erie = {}, global.d3, global.aq, global.vegaStatistics));
-})(this, (function (exports, d3, aq, vegaStatistics) { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3'), require('arquero'), require('vega')) :
+  typeof define === 'function' && define.amd ? define(['exports', 'd3', 'arquero', 'vega'], factory) :
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Erie = {}, global.d3, global.aq, global.vega));
+})(this, (function (exports, d3, aq, vega) { 'use strict';
 
   function _interopNamespaceDefault(e) {
     var n = Object.create(null);
@@ -6707,10 +6707,10 @@
       let { groups, names } = aqPartition(table, groupby);
       groups.forEach((group, i) => {
         let g = group.array(field);
-        const density = vegaStatistics.randomKDE(g, bandwidth)[method];
+        const density = vega.randomKDE(g, bandwidth)[method];
         const scale = counts ? g.length : 1;
         const local = domain || d3.extent(g);
-        let curve = vegaStatistics.sampleCurve(density, local, minsteps, maxsteps);
+        let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
         curve.forEach(v => {
           const t = {
             [_as[0]]: v[0],
@@ -6727,10 +6727,10 @@
       return fromTidy(values).groupby(groupby);
     } else {
       let g = table.array(field);
-      const density = vegaStatistics.randomKDE(g, bandwidth)[method];
+      const density = vega.randomKDE(g, bandwidth)[method];
       const scale = counts ? g.length : 1;
       const local = domain || d3.extent(g);
-      let curve = vegaStatistics.sampleCurve(density, local, minsteps, maxsteps);
+      let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
       curve.forEach(v => {
         const t = {
           [_as[0]]: v[0],
