@@ -23,9 +23,6 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega@5/build-es5/vega.min.js"></script>
-<script>
-  const vegaStatistics = vega;
-</script>
 <!-- For development -->
 <script src="{path}/erie-web.js"></script>
 <!-- For production -->
