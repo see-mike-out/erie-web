@@ -1,4 +1,4 @@
-(function (exports, tts, d3, aq, vega) {
+(function (exports, standardizedAudioContext, tts, d3, aq, vega) {
   'use strict';
 
   function _interopNamespaceDefault(e) {
@@ -2755,15 +2755,13 @@
     }
   }
 
-  const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 1, DefaultModGainFM = 100;
+  const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 0.5, DefaultModGainFM = 10;
 
   function makeSynth(ctx, definition) {
     let synth = new ErieSynth(ctx, definition.type || FM);
     synth.generate(definition);
     return synth;
   }
-
-  // inspired by https://observablehq.com/@ramonaisonline/synthesis
 
   class ErieSynth {
     constructor(ctx, type) {
@@ -2883,9 +2881,9 @@
       this.decayTime = definition.decayTime || 0.1;
 
       // Connect the nodes
-      this.modulator.connect(this.modulatorGain);
-      this.modulatorGain.connect(this.carrier.frequency);
-      this.carrier.connect(this.envelope);
+      this.modulator.connect(this.modulatorGain.gain);
+      this.carrier.connect(this.modulatorGain);
+      this.modulatorGain.connect(this.envelope); 
     }
 
     connect(node) {
@@ -2906,7 +2904,7 @@
 
   class ErieSynthFrequency {
     constructor(synther) {
-      this.value = 440;
+      this.value = DefModPitch;
       this.automationRate = 'a-rate';
       this.maxValue = 22050;
       this.minValue = -22055;
@@ -2930,24 +2928,27 @@
     // here, duration is the noise node's duration, for continuous tone it's the entire length;
     const bufferSize = ctx.sampleRate * duration;
     // Create an empty buffer
-    const noiseBuffer = new AudioBuffer({
+    const noiseBuffer = new standardizedAudioContext.AudioBuffer({
       length: bufferSize,
       sampleRate: ctx.sampleRate,
+      numberOfChannels: 2
     });
     // Fill the buffer with noise
-    const data = noiseBuffer.getChannelData(0);
+    const data0 = noiseBuffer.getChannelData(0);
+    const data1 = noiseBuffer.getChannelData(0);
     // for pink
     let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
     for (let i = 0; i < bufferSize; i++) {
       if (type === PinkNoise) {
         PinkNoiseFunction(coeffs);
-        data[i] = coeffs.o;
+        data0[i] = coeffs.o;
       } else if (type === BrownNoise) {
         BrownNoiseFunction(coeffs);
-        data[i] = coeffs.o;
+        data0[i] = coeffs.o;
       } else {
-        data[i] = WhiteNoiseFunction();
+        data0[i] = WhiteNoiseFunction();
       }
+      data1[i] = data0[i];
     }
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
@@ -3492,12 +3493,15 @@
     };
   }
 
-  async function GoogleCloudTTSGenerator(sound, config, resolve, options) {
+  const SSMLGENDERS = [`NEUTRAL`, `FEMALE`, `MALE`];
+
+  async function GoogleCloudTTSGenerator(sound, config) {
     if (typeof window === 'undefined') {
       // node
       let text = sound.speech;
-      let languageCode = bcp47language.includes(sound.language) ? sound.language : 'en-US';
-      let ssmlGender = config.ssmlGender || 'NEUTRAL';
+      let lang = sound.language || config.language;
+      let languageCode = bcp47language.includes(lang) ? lang : 'en-US';
+      let ssmlGender = SSMLGENDERS.includes(config.ssmlGender) ? config.ssmlGender : 'NEUTRAL';
       let pitch = sound.pitch, speakingRate = sound.speechRate || config.speechRate || 1;
       const request = {
         input: { text: text },
@@ -3508,15 +3512,62 @@
       // Performs the text-to-speech request
       const [response] = await client.synthesizeSpeech(request);
       return response.audioContent;
-      // resolve();
     } else {
       console.warn("This function can only be run on node server environment");
-      resolve();
+      return null;
     }
   }
 
+  const SampleRate$1 = 44100, BufferChannels$1 = 2;
+
+  class AudioPrimitiveBuffer {
+    constructor(length, sampleRate) {
+      // in seconds
+      this.length = length;
+      this.sampleRate = sampleRate || SampleRate$1;
+      this.compiled = false;
+      this.compiledBuffer;
+      this.primitive = [];
+    }
+
+    add(at, data) {
+      this.primitive.push({ at, data });
+    }
+
+    async compile() {
+      let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels$1));
+      let bufferLength = this.length * this.sampleRate;
+      let temp_ctx = new standardizedAudioContext.AudioContext();
+      this.compiledBuffer = temp_ctx.createBuffer(
+        maxChannels,
+        bufferLength,
+        this.sampleRate,
+      );    for (const p of this.primitive) {
+        let at = (p.at || 0) * 44100;
+        for (let i = 0; i < p.data.numberOfChannels; i++) {
+          let channelData = this.compiledBuffer.getChannelData(i);
+          let currChannelData = p.data.getChannelData(i);
+          currChannelData.forEach((q, k) => {
+            channelData[at + k] += q;
+          });
+        }
+      }
+      this.compiled = true;
+      return this.compiledBuffer;
+    }
+  }
+
+  // todo
+  // export function concatenateBuffers(...args) {
+  //   console.log(args);
+  // }
+
   function makeContext() {
-    return new AudioContext();
+    return new standardizedAudioContext.AudioContext();
+  }
+  const SampleRate = 44100, BufferChannels = 2;
+  function makeOfflineContext(length) {
+    return new standardizedAudioContext.OfflineAudioContext(BufferChannels, SampleRate * length, SampleRate);
   }
 
   function setCurrentTime(ctx) {
@@ -3588,7 +3639,7 @@
     linear: 'exponentialRampToValueAtTime'
   };
 
-  async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, synthDefs, waveDefs, filters) {
+  async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
     // clear previous state
     ErieGlobalState = undefined;
 
@@ -3609,50 +3660,46 @@
     // play as async promise
     let sid = genRid();
     sendToneStartEvent({ sid });
-    if (config?.isRecorded) await playPause(300);
-    return new Promise((resolve, reject) => {
-      // get the current time
-      let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
 
-      const tick = makeTick(ctx, config.tick, endTime);
+    // return new Promise(async (resolve, reject) => {
+    // get the current time
+    let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
 
-      // set and play sounds
-      for (let sound of q) {
-        if (ErieGlobalState === Stopped$1) {
-          resolve();
-          break;
-        }
-        // get discrete oscillator
-        const inst = makeInstrument(ctx);
-        inst.connect(gain);
+    const tick = makeTick(ctx, config.tick, endTime);
 
-        // play & stop
-        inst.start(ct + sound.time);
-        inst.stop(ct + sound.time + 0.01);
-
-        // play the sound
-        inst.onended = async () => {
-          if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
-            ErieGlobalControl?.player?.cancel();
-          }
-          await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
-          if (sound.isLast) {
-            if (config?.isRecorded) await playPause(300);
-            sendToneFinishEvent({ sid });
-            resolve();
-          }
-        };
+    // set and play sounds
+    for (let sound of q) {
+      if (ErieGlobalState === Stopped$1) {
+        resolve();
+        break;
       }
-      if (tick) {
-        tick.start(ct + 0.01);
-        tick.stop(ct + endTime + 0.01);
+      // get discrete oscillator
+      const inst = makeInstrument(ctx);
+      inst.connect(gain);
+
+      if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
+        ErieGlobalControl?.player?.cancel();
       }
-    });
+      await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+      if (sound.isLast) {
+        sendToneFinishEvent({ sid });
+      }
+    }
+    if (tick) {
+      tick.start(ct + 0.01);
+      tick.stop(ct + endTime + 0.01);
+    }
   }
 
-  async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs, waveDefs, filters) {
+  async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveDefs, filters, bufferPrimitve) {
     // clear previous state
     ErieGlobalState = undefined;
+
+    let ctx = _ctx, offline = false;
+    if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
+      offline = true;
+      ctx = makeOfflineContext(bufferPrimitve.length);
+    }
 
     // set audio context controls
     setErieGlobalControl({ type: Tone, player: ctx });
@@ -3710,7 +3757,7 @@
 
     let sid = genRid();
     sendToneStartEvent({ sid });
-    if (config?.isRecorded) await playPause(300);
+
     // play as async promise
     return new Promise((resolve, reject) => {
       // get instrument
@@ -3846,11 +3893,10 @@
 
       emitNotePlayEvent('tone', q[0]);
       inst.start(startTime);
-      if (config?.isRecorded) {
-        gain.gain.setValueAtTime(0, ct + endTime + 0.3);
-        inst.stop(ct + endTime + 0.3);
-      } else {
-        inst.stop(ct + endTime);
+      if (offline && bufferPrimitve) {
+        ctx.startRendering((rb) => {
+          bufferPrimitve.add(startTime, rb);
+        });
       }
       inst.onended = (e) => {
         setErieGlobalControl(undefined);
@@ -3859,10 +3905,11 @@
         sendToneFinishEvent({ sid });
         resolve();
       };
+      inst.stop(ct + endTime);
     });
   }
 
-  async function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters) {
+  async function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
     if (config?.subpart && ErieGlobalState === Stopped$1) return;
     if (!config?.subpart) ErieGlobalState = undefined;
 
@@ -3876,7 +3923,7 @@
     if (!config.subpart) {
       sid = genRid();
       sendToneStartEvent({ sid });
-      if (config?.isRecorded) await playPause(300);
+
     }
 
     if (sound.tap !== undefined && sound.tap?.pattern?.constructor.name === "Array") {
@@ -3885,7 +3932,7 @@
       let t = 1, acc = 0, i = 0; // d
       if (sound.tap.pattern.length == 0) {
         await playPause((sound.duration || 0.2) * 1000);
-        if (config?.isRecorded) await playPause(300);
+
         sendToneFinishEvent({ sid });
       }
 
@@ -3894,7 +3941,7 @@
         if (t === 1) {
           tapSound.duration = s;
           if (s > 0) {
-            await __playSingleTone(ctx, ct + acc, tapSound, config, instSamples, synthDefs, waveDefs, filters);
+            await __playSingleTone(ctx, ct + acc, tapSound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
           }
           t = 0;
         } else {
@@ -3905,17 +3952,17 @@
         i++;
         if (i == sound.tap.pattern.length) {
           if (!config.subpart) {
-            if (config?.isRecorded) await playPause(300);
+
             sendToneFinishEvent({ sid });
           }
-          return;
         }
       }
       emitNoteStopEvent('tone', sound);
+      return;
     } else {
       let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
       emitNotePlayEvent('tone', sound);
-      await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
+      await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
       emitNoteStopEvent('tone', sound);
       if (!config.subpart) {
         sendToneFinishEvent({ sid });
@@ -3924,8 +3971,13 @@
     }
   }
 
-  async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters) {
+  async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
     // filters
+    let ctx = _ctx, offline = false;
+    if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
+      offline = true;
+      ctx = makeOfflineContext(sound.duration);
+    }
     let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
     for (const filterName of filters) {
       if (PresetFilters[filterName]) {
@@ -3938,6 +3990,7 @@
         filterFinishers[filterName] = ErieFilters[filterName].finisher;
       }
     }
+
     let destination = ctx.destination;
     for (const filterName of filters) {
       let filter = filterNodes[filterName];
@@ -3976,6 +4029,9 @@
         if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
           inst.modulator.frequency.cancelScheduledValues(ct);
           inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct);
+        } else if (sound.harmonicity === undefined) {
+          inst.modulator.frequency.cancelScheduledValues(ct);
+          inst.modulator.frequency.setValueAtTime(sound.pitch, ct);
         }
 
         inst.envelope.gain.cancelScheduledValues(ct);
@@ -4023,14 +4079,20 @@
         panner.pan.setValueAtTime(sound.pan, ct);
       }
 
-      // check the last
-      inst.onended = (e) => {
-        resolve();
-      };
-
       // play & stop
       inst.start(ct);
-      inst.stop(ct + sound.duration + sound.postReverb);
+      if (offline && bufferPrimitve) {
+        ctx.startRendering().then((rb) => {
+          bufferPrimitve.add(sound.time, rb);
+          resolve();
+        });
+      } else {
+        inst.onended = (_) => {
+          resolve();
+        };
+        inst.stop(ct + sound.duration + sound.postReverb);
+      }
+      return;
     });
   }
 
@@ -4060,7 +4122,7 @@
       };
 
       if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
-        GoogleCloudTTSGenerator(sound, config, {});
+        GoogleCloudTTSGenerator(sound, config);
       } else {
         if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
           console.warn("Google Cloud TTS API can only be used on Node.js Server environment.");
@@ -4070,7 +4132,7 @@
     });
   }
 
-  async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters) {
+  async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
     // clear previous state
     ErieGlobalState = undefined;
 
@@ -4085,9 +4147,9 @@
         sendSpeechFinishEvent({ sid });
       } else {
         sendToneStartEvent({ sid });
-        if (config?.isRecorded) await playPause(300);
+
         await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
-        if (config?.isRecorded) await playPause(300);
+
         sendToneFinishEvent({ sid });
       }
     }
@@ -4506,146 +4568,6 @@
     return noteScale[o][n + (a || '')];
   }
 
-  const channels = 2;
-  async function generatePCMCode(queue) {
-    // currently only support sine wave
-    // this is an experimental feature. currently only works for non-overlaid tone-series queues.
-    // queue: a discrete or continous queue data
-    // supported channels: time, pitch, loudness, pan
-    let ctx = new AudioContext();
-    let sampleRate = ctx.sampleRate;
-    let queues = [];
-    if (queue.type === ToneSeries) {
-      queues.push(queue);
-    } else if (queue.type === ToneOverlaySeries) {
-      queues.push(...queue.overlays);
-    }
-    let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d) => d.time + d.duration + (d.postReverb || 0))));
-    let length = Math.max(...queue_lengths);
-    let frameCount = sampleRate * length;
-    let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
-    let channel0 = buffer.getChannelData(0);
-    let channel1 = buffer.getChannelData(1);
-
-
-    for (let i = 0; i < frameCount; i++) {
-      channel0[i] = 0;
-      channel1[i] = 0;
-    }
-    for (const queue of queues) {
-      let sounds = queue.sounds;
-      if (!queue.continued) {
-        // discrete sounds
-        for (const sound of sounds) {
-          let f = sound.time * sampleRate,
-            t = (sound.time + sound.duration + sound.postReverb) * sampleRate;
-          let length = t - f;
-          let data = populatePCMforFreq(sound.pitch, length, sampleRate);
-          let gain = sound.loudness;
-          if (gain === undefined) gain = 1;
-          let pan = sound.pan;
-          if (pan === undefined) pan = 0;
-          let LRgain = getLRgain(pan);
-          for (let i = 0; i < length; i++) {
-            channel0[f + i] += data[i] * gain * LRgain[0];
-            channel1[f + i] += data[i] * gain * LRgain[1];
-          }
-        }
-      } else {
-        // continous sound
-        let ramp_pan = getRampFunction(queue.ramp?.pan),
-          ramp_gain = getRampFunction(queue.ramp?.loudness);
-        sounds.sort((a, b) => a.time - b.time);
-        let acc_prev = 0;
-        for (let i = 0; i < sounds.length - 1; i++) {
-          let sound = sounds[i], next_sound = sounds[i + 1];
-          let f = Math.round(sound.time * sampleRate),
-            t = Math.round(next_sound.time * sampleRate);
-          let length = t - f;
-
-          let { data, acc } = populatePCMforFreqRamp(sound.pitch, next_sound.pitch, queue.ramp?.pitch, acc_prev, length, sampleRate);
-          acc_prev = acc;
-
-          let f_gain = sound.loudness;
-          if (f_gain === undefined) f_gain = 1;
-          let f_pan = sound.pan;
-          if (f_pan === undefined) f_pan = 0;
-
-          let t_gain = sound.loudness;
-          if (t_gain === undefined) t_gain = 1;
-          let t_pan = sound.pan;
-          if (t_pan === undefined) t_pan = 0;
-
-          for (let j = 0; j < length; j++) {
-            let rpi = data[j];
-            let rga = ramp_gain(f_gain, t_gain, j / length);
-            let rpa = ramp_pan(f_pan, t_pan, j / length);
-            let LRgain = getLRgain(rpa);
-            channel0[f + j] += rpi * rga * LRgain[0];
-            channel1[f + j] += rpi * rga * LRgain[1];
-          }
-        }
-      }
-    }
-    return buffer;
-  }
-
-  function populatePCMforFreq(pitch, frameCount, sampleRate) {
-    let data = new Float32Array(frameCount);
-    let cycle = pitch == 0 ? 0 : sampleRate / pitch;
-    for (let i = 0; i < frameCount; i++) {
-      data[i] = Math.sin(2 * Math.PI / cycle * i);
-    }
-    return data
-  }
-
-  function populatePCMforFreqRamp(pitch_from, pitch_to, ramp, acc, frameCount, sampleRate) {
-    if (ramp === "abrupt" || ramp === false) {
-      return { data: populatePCMforFreq(pitch_from, frameCount, sampleRate), acc: 0 };
-    } else if (ramp === "linear" || ramp === true || ramp === undefined) {
-      let data = new Float32Array(frameCount);
-      let cycle_from = pitch_from == 0 ? 0 : sampleRate / pitch_from, cycle_to = pitch_to == 0 ? 0 : sampleRate / pitch_to;
-      let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
-        return cycle_from + ((cycle_to - cycle_from) / (frameCount - 1) * i);
-      });
-      for (let i = 0; i < frameCount; i++) {
-        acc += 2 * Math.PI / cycles[i];
-        if (Math.sin(acc) == 0) acc = 0;
-        data[i] = Math.sin(acc);
-      }
-      return { data, acc };
-    } else if (ramp === "exponential") {
-      let data = new Float32Array(frameCount);
-      let cycle_from = sampleRate / pitch_from, cycle_to = sampleRate / pitch_to;
-      let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
-        return (cycle_to - cycle_from) * Math.exp(i / frameCount) + cycle_from
-      });
-      for (let i = 0; i < frameCount; i++) {
-        acc += 2 * Math.PI / cycles[i];
-        if (Math.sin(acc) == 0) acc = 0;
-        data[i] = Math.sin(acc);
-      }
-      return { data, acc };
-    }
-  }
-
-  function getLRgain(pan) {
-    let panp = Math.PI * (pan + 1) / 4;
-    return [Math.cos(panp), Math.sin(panp)];
-  }
-
-  function getRampFunction(ramp) {
-    if (ramp === "linear" || ramp === true || ramp === undefined) {
-      return (a, b, r) => { return a * (1 - r) + b * r };
-    } else if (ramp === "abrupt" || ramp === false) {
-      return (a, _, __) => { return a };
-    } else if (ramp === "exponential") {
-      return (a, b, r) => {
-        return (b - a) * Math.exp(r) + a
-      };
-    }
-  }
-
   const TextType = 'text',
     ToneType = 'tone',
     ToneSeries = 'tone-series',
@@ -4675,6 +4597,7 @@
       this.synths = {};
       this.waves = {};
       this.playId;
+      this.buffers = [];
     }
 
     setConfig(key, value) {
@@ -4711,7 +4634,8 @@
       if (Types.includes(type)) {
         let item = {
           type,
-          config: lineConfig
+          config: lineConfig,
+          duration: info.duration
         };
         if (type === TextType) {
           item.text = info?.text || info || '';
@@ -4765,7 +4689,6 @@
             if (this.isSupportedInst(sound.timbre)) checkInstrumentSampling.add(sound.timbre);
             else if (this.isSampling(sound.timbre)) userSampledInstruments.add(sound.timbre);
           });
-          item.getPCM = () => generatePCMCode(item);
         } else if (type === ToneOverlaySeries) {
           if (info.overlays.length > 0) {
             item.overlays = info.overlays.map((d) => {
@@ -4788,7 +4711,6 @@
           } else {
             item.overlays = info.overlays;
           }
-          item.getPCM = () => generatePCMCode(item);
         } else if (type === Pause) {
           item.duration = info.duration; // in seconds
         } else if (type === LegendType) {
@@ -4835,11 +4757,12 @@
       }
     }
 
-    async play(i, j) {
+    async play(i, j, options) {
       if (this.state !== Playing) {
         setPlayerEvents(this, this.config);
         let queue = this.queue;
         this.playAt = i || 0;
+        let outputs = Array((j || this.queue.length) - i).fill({});
         // for pause & resume
         if (i !== undefined && j !== undefined) {
           queue = this.queue.slice(i, j);
@@ -4850,23 +4773,28 @@
         }
         this.state = Playing;
         this.fireStartEvent();
+        let k = 0;
         for (const item of queue) {
-          console.log(item, this.state);
+          console.log(item, this.state, options);
           if (this.state === Stopped || this.state === Paused) break;
-          await this.playLine(item);
+          outputs[k] = await this.playLine(item, options);
           this.playAt += 1;
+          k++;
         }
         this.fireStopEvent();
         clearPlayerEvents();
         this.state = Stopped;
         this.playAt = undefined;
+        return outputs;
       }
     }
 
-    async playLine(item) {
+    async playLine(item, options) {
       let config = deepcopy(this.config);
       Object.assign(config, item.config);
       config.ramp = item.ramp;
+      let bufferPrimitve;
+      if (options.pcm) bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
       if (item?.type === TextType) {
         await playSingleSpeech(item.text, config);
       } else if (item?.type === ToneType) {
@@ -4876,7 +4804,7 @@
             this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl);
           }
         }
-        await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+        await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
         ctx.close();
       } else if (item?.type === Pause) {
         await playPause(item.duration * 1000);
@@ -4888,9 +4816,9 @@
           }
         }
         if (item.continued) {
-          await playAbsoluteContinuousTones(ctx, item.sounds, config, this.synths, this.waves, item.filters);
+          await playAbsoluteContinuousTones(ctx, item.sounds, config, this.synths, this.waves, item.filters, bufferPrimitve);
         } else if (!item.relative) {
-          await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+          await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
         } else {
           await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
         }
@@ -4914,15 +4842,20 @@
         }
         for (let stream of item.overlays) {
           if (stream.continued) {
-            promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters));
+            promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters, bufferPrimitve));
           } else if (!stream.relative) {
-            promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
+            promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
           } else {
             promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
           }
         }
         await Promise.all(promises);
         ctx.close();
+      }
+      if (bufferPrimitve) {
+        let currBuffer = await bufferPrimitve?.compile();
+        this.buffers.push(currBuffer);
+        return bufferPrimitve;
       }
       return;
     }
@@ -5929,7 +5862,8 @@
       return {
         instrument_type: this.instrument_type, sounds: this.stream, continued: this.option?.is_continued, relative: this.option?.relative,
         filters: this.audioFilters,
-        ramp: this.ramp
+        ramp: this.ramp,
+        duration: this.duration
       };
     }
   }
@@ -6982,6 +6916,7 @@
     }
 
     // generate audio graphs
+    let total_duration = 0, repeat_total_duration = Array(repeated_graph.length).fill(0);
     for (const i in data) {
       if (i === 'tableInfo') continue;
       let datum = data[i];
@@ -7009,6 +6944,7 @@
           glyph.duration = glyph[channel].totalLength;
         }
       }
+
       if (glyph[SPEECH_BEFORE_chn]) {
         speechBefore = {
           speech: glyph[SPEECH_BEFORE_chn],
@@ -7030,8 +6966,19 @@
         else audio_graph.push(speechBefore);
       }
       glyph.__datum = datum;
-      if (is_repeated) repeated_graph[repeat_index].push(glyph);
-      else audio_graph.push(glyph);
+      let endTime = 0;
+      if (glyph.end) {
+        endTime = glyph.end + (glyph.postReverb || 0);
+      } else if (glyph.duration) {
+        endTime = (glyph.start || 0) + glyph.duration + (glyph.postReverb || 0);
+      }
+      if (is_repeated) {
+        repeated_graph[repeat_index].push(glyph);
+        repeat_total_duration[repeat_index] = Math.max(repeat_total_duration[repeat_index], endTime);
+      } else {
+        audio_graph.push(glyph);
+        total_duration = Math.max(total_duration, endTime);
+      }
       if (speechAfter) {
         if (is_repeated) repeated_graph[repeat_index].push(speechAfter);
         else audio_graph.push(speechAfter);
@@ -7046,6 +6993,7 @@
       let repeat_streams = makeRepeatStreamTree(0, repeat_values, repeat_direction);
       repeated_graph.forEach((g, i) => {
         let r_stream = new UnitStream(instrument_type, g, scales, { is_continued, relative: relative_stream });
+        r_stream.duration = repeat_total_duration[i];
         Object.keys(config || {}).forEach(key => {
           r_stream.setConfig(key, config?.[key]);
         });
@@ -7095,6 +7043,7 @@
         }
         if (jType(s) === OverlayStream.name) {
           Object.assign(s.config, s.overlays[0].config);
+          s.duration = Math.max(...s.overlays.map((d) => d.duration));
           s.overlays.forEach((o, i) => {
             if (o.setConfig) {
               o.setConfig("playRepeatSequenceName", false);
@@ -7123,6 +7072,7 @@
     // if not repeated
     else {
       stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream });
+      stream.duration = total_duration;
       Object.keys(config || {}).forEach(key => {
         stream.setConfig(key, config?.[key]);
       });
@@ -8495,7 +8445,214 @@
     exports.ErieSampleBaseUrl = url;
   }
 
+  const channels = 2;
+  async function generatePCMCode(queue) {
+    // currently only support sine wave
+    // this is an experimental feature. currently only works for non-overlaid tone-series queues.
+    // queue: a discrete or continous queue data
+    // supported channels: time, pitch, loudness, pan
+    let ctx = new standardizedAudioContext.AudioContext();
+    let sampleRate = ctx.sampleRate;
+    let queues = [];
+    if (queue.type === ToneSeries) {
+      queues.push(queue);
+    } else if (queue.type === ToneOverlaySeries) {
+      queues.push(...queue.overlays);
+    }
+    let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d) => d.time + d.duration + (d.postReverb || 0))));
+    let length = Math.max(...queue_lengths);
+    let frameCount = sampleRate * length;
+    let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
+    let channel0 = buffer.getChannelData(0);
+    let channel1 = buffer.getChannelData(1);
+
+
+    for (let i = 0; i < frameCount; i++) {
+      channel0[i] = 0;
+      channel1[i] = 0;
+    }
+    for (const queue of queues) {
+      let sounds = queue.sounds;
+      if (!queue.continued) {
+        // discrete sounds
+        for (const sound of sounds) {
+          let f = sound.time * sampleRate,
+            t = (sound.time + sound.duration + sound.postReverb) * sampleRate;
+          let length = t - f;
+          let data = populatePCMforFreq(sound.pitch, length, sampleRate);
+          let gain = sound.loudness;
+          if (gain === undefined) gain = 1;
+          let pan = sound.pan;
+          if (pan === undefined) pan = 0;
+          let LRgain = getLRgain(pan);
+          for (let i = 0; i < length; i++) {
+            channel0[f + i] += data[i] * gain * LRgain[0];
+            channel1[f + i] += data[i] * gain * LRgain[1];
+          }
+        }
+      } else {
+        // continous sound
+        let ramp_pan = getRampFunction(queue.ramp?.pan),
+          ramp_gain = getRampFunction(queue.ramp?.loudness);
+        sounds.sort((a, b) => a.time - b.time);
+        let acc_prev = 0;
+        for (let i = 0; i < sounds.length - 1; i++) {
+          let sound = sounds[i], next_sound = sounds[i + 1];
+          let f = Math.round(sound.time * sampleRate),
+            t = Math.round(next_sound.time * sampleRate);
+          let length = t - f;
+
+          let { data, acc } = populatePCMforFreqRamp(sound.pitch, next_sound.pitch, queue.ramp?.pitch, acc_prev, length, sampleRate);
+          acc_prev = acc;
+
+          let f_gain = sound.loudness;
+          if (f_gain === undefined) f_gain = 1;
+          let f_pan = sound.pan;
+          if (f_pan === undefined) f_pan = 0;
+
+          let t_gain = sound.loudness;
+          if (t_gain === undefined) t_gain = 1;
+          let t_pan = sound.pan;
+          if (t_pan === undefined) t_pan = 0;
+
+          for (let j = 0; j < length; j++) {
+            let rpi = data[j];
+            let rga = ramp_gain(f_gain, t_gain, j / length);
+            let rpa = ramp_pan(f_pan, t_pan, j / length);
+            let LRgain = getLRgain(rpa);
+            channel0[f + j] += rpi * rga * LRgain[0];
+            channel1[f + j] += rpi * rga * LRgain[1];
+          }
+        }
+      }
+    }
+    return buffer;
+  }
+
+  function populatePCMforFreq(pitch, frameCount, sampleRate) {
+    let data = new Float32Array(frameCount);
+    let cycle = pitch == 0 ? 0 : sampleRate / pitch;
+    for (let i = 0; i < frameCount; i++) {
+      data[i] = Math.sin(2 * Math.PI / cycle * i);
+    }
+    return data
+  }
+
+  function populatePCMforFreqRamp(pitch_from, pitch_to, ramp, acc, frameCount, sampleRate) {
+    if (ramp === "abrupt" || ramp === false) {
+      return { data: populatePCMforFreq(pitch_from, frameCount, sampleRate), acc: 0 };
+    } else if (ramp === "linear" || ramp === true || ramp === undefined) {
+      let data = new Float32Array(frameCount);
+      let cycle_from = pitch_from == 0 ? 0 : sampleRate / pitch_from, cycle_to = pitch_to == 0 ? 0 : sampleRate / pitch_to;
+      let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
+        return cycle_from + ((cycle_to - cycle_from) / (frameCount - 1) * i);
+      });
+      for (let i = 0; i < frameCount; i++) {
+        acc += 2 * Math.PI / cycles[i];
+        if (Math.sin(acc) == 0) acc = 0;
+        data[i] = Math.sin(acc);
+      }
+      return { data, acc };
+    } else if (ramp === "exponential") {
+      let data = new Float32Array(frameCount);
+      let cycle_from = sampleRate / pitch_from, cycle_to = sampleRate / pitch_to;
+      let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
+        return (cycle_to - cycle_from) * Math.exp(i / frameCount) + cycle_from
+      });
+      for (let i = 0; i < frameCount; i++) {
+        acc += 2 * Math.PI / cycles[i];
+        if (Math.sin(acc) == 0) acc = 0;
+        data[i] = Math.sin(acc);
+      }
+      return { data, acc };
+    }
+  }
+
+  function getLRgain(pan) {
+    let panp = Math.PI * (pan + 1) / 4;
+    return [Math.cos(panp), Math.sin(panp)];
+  }
+
+  function getRampFunction(ramp) {
+    if (ramp === "linear" || ramp === true || ramp === undefined) {
+      return (a, b, r) => { return a * (1 - r) + b * r };
+    } else if (ramp === "abrupt" || ramp === false) {
+      return (a, _, __) => { return a };
+    } else if (ramp === "exponential") {
+      return (a, b, r) => {
+        return (b - a) * Math.exp(r) + a
+      };
+    }
+  }
+
+  // The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
+
+  async function makeWaveFromBuffer(buffer, ext) {
+    let nChannels = buffer.numberOfChannels,
+      samples = buffer.length,
+      sampleRate = buffer.sampleRate,
+      waveLength = samples * nChannels * 2 + 44,
+      waveBuffer = new ArrayBuffer(waveLength),
+      view = new DataView(waveBuffer),
+      channelData = [];
+
+    let offset = 0, viewPos = 0;
+
+    // write WAVE header
+    viewPos = setUint32(view, 0x46464952, viewPos); // "RIFF"
+    viewPos = setUint32(view, waveLength - 8, viewPos); // file waveLength - 8
+    viewPos = setUint32(view, 0x45564157, viewPos); // "WAVE"
+
+    viewPos = setUint32(view, 0x20746d66, viewPos); // "fmt " chunk
+    viewPos = setUint32(view, 16, viewPos); // waveLength = 16
+    viewPos = setUint16(view, 1, viewPos); // PCM (uncompressed)
+    viewPos = setUint16(view, nChannels, viewPos);
+    viewPos = setUint32(view, sampleRate, viewPos);
+    viewPos = setUint32(view, sampleRate * 2 * nChannels, viewPos); // avg. bytes/sec
+    viewPos = setUint16(view, nChannels * 2, viewPos); // block-align
+    viewPos = setUint16(view, 16, viewPos); // 16-bit (hardcoded in this demo)
+
+    viewPos = setUint32(view, 0x61746164, viewPos); // "data" - chunk
+    viewPos = setUint32(view, waveLength - viewPos - 4, viewPos); // chunk waveLength
+
+    // write interleaved data
+    for (let i = 0; i < nChannels; i++) {
+      channelData.push(buffer.getChannelData(i));
+    }
+
+    while (viewPos < waveLength) {
+      for (let i = 0; i < nChannels; i++) {
+        // interleave channelData
+        let sample = Math.max(-1, Math.min(1, channelData[i][offset])); // clamp
+        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+        view.setInt16(viewPos, sample, true); // write 16-bit sample
+        viewPos += 2;
+      }
+      offset++; // next source sample
+    }
+
+    // create Blob
+    let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
+    if (ext) {
+      return new Blob([waveBlob], { type: "audio/" + (ext || "wav") });
+    }
+    else return waveBlob;
+  }
+
+  function setUint16(view, data, viewPos) {
+    view.setUint16(viewPos, data, true);
+    viewPos += 2;
+    return viewPos;
+  }
+
+  function setUint32(view, data, viewPos) {
+    view.setUint32(viewPos, data, true);
+    viewPos += 4;
+    return viewPos;
+  }
+
   exports.Aggregate = Aggregate;
+  exports.AudioPrimitiveBuffer = AudioPrimitiveBuffer;
   exports.Bin = Bin;
   exports.Calculate = Calculate;
   exports.Channel = Channel;
@@ -8536,10 +8693,11 @@
   exports.WebSpeechGenerator = WebSpeechGenerator;
   exports.compileAuidoGraph = compileAuidoGraph;
   exports.generatePCMCode = generatePCMCode;
+  exports.makeWaveFromBuffer = makeWaveFromBuffer;
   exports.readyRecording = readyRecording;
   exports.registerFilter = registerFilter;
   exports.setSampleBaseUrl = setSampleBaseUrl;
 
   return exports;
 
-})({}, tts, d3, aq, vega);
+})({}, standardizedAudioContext, tts, d3, aq, vega);
