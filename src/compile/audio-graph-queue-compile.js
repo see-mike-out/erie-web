@@ -185,6 +185,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
   }
 
   // generate audio graphs
+  let total_duration = 0, repeat_total_duration = Array(repeated_graph.length).fill(0);
   for (const i in data) {
     if (i === 'tableInfo') continue;
     let datum = data[i];
@@ -212,6 +213,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
         glyph.duration = glyph[channel].totalLength;
       }
     }
+
     if (glyph[SPEECH_BEFORE_chn]) {
       speechBefore = {
         speech: glyph[SPEECH_BEFORE_chn],
@@ -233,8 +235,19 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       else audio_graph.push(speechBefore);
     }
     glyph.__datum = datum;
-    if (is_repeated) repeated_graph[repeat_index].push(glyph);
-    else audio_graph.push(glyph);
+    let endTime = 0;
+    if (glyph.end) {
+      endTime = glyph.end + (glyph.postReverb || 0)
+    } else if (glyph.duration) {
+      endTime = (glyph.start || 0) + glyph.duration + (glyph.postReverb || 0)
+    }
+    if (is_repeated) {
+      repeated_graph[repeat_index].push(glyph);
+      repeat_total_duration[repeat_index] = Math.max(repeat_total_duration[repeat_index], endTime)
+    } else {
+      audio_graph.push(glyph);
+      total_duration = Math.max(total_duration, endTime)
+    }
     if (speechAfter) {
       if (is_repeated) repeated_graph[repeat_index].push(speechAfter);
       else audio_graph.push(speechAfter);
@@ -249,6 +262,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
     let repeat_streams = makeRepeatStreamTree(0, repeat_values, repeat_direction);
     repeated_graph.forEach((g, i) => {
       let r_stream = new UnitStream(instrument_type, g, scales, { is_continued, relative: relative_stream });
+      r_stream.duration = repeat_total_duration[i];
       Object.keys(config || {}).forEach(key => {
         r_stream.setConfig(key, config?.[key]);
       });
@@ -298,6 +312,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       }
       if (jType(s) === OverlayStream.name) {
         Object.assign(s.config, s.overlays[0].config);
+        s.duration = Math.max(...s.overlays.map((d) => d.duration));
         s.overlays.forEach((o, i) => {
           if (o.setConfig) {
             o.setConfig("playRepeatSequenceName", false);
@@ -326,6 +341,7 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
   // if not repeated
   else {
     stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream });
+    stream.duration = total_duration;
     Object.keys(config || {}).forEach(key => {
       stream.setConfig(key, config?.[key]);
     });

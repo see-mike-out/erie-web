@@ -1,5 +1,6 @@
 export const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
 export const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
+import { AudioBuffer } from 'standardized-audio-context';
 
 // inspired by : https://noisehack.com/generate-noise-web-audio-api/ (but it's not using audioscriptprocess, which is deprecated)
 // and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
@@ -11,21 +12,24 @@ export function makeNoiseNode(ctx, type, duration, sound) {
   const noiseBuffer = new AudioBuffer({
     length: bufferSize,
     sampleRate: ctx.sampleRate,
+    numberOfChannels: 2
   });
   // Fill the buffer with noise
-  const data = noiseBuffer.getChannelData(0);
+  const data0 = noiseBuffer.getChannelData(0);
+  const data1 = noiseBuffer.getChannelData(0);
   // for pink
   let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
   for (let i = 0; i < bufferSize; i++) {
     if (type === PinkNoise) {
       PinkNoiseFunction(coeffs);
-      data[i] = coeffs.o;
+      data0[i] = coeffs.o;
     } else if (type === BrownNoise) {
       BrownNoiseFunction(coeffs);
-      data[i] = coeffs.o;
+      data0[i] = coeffs.o;
     } else {
-      data[i] = WhiteNoiseFunction();
+      data0[i] = WhiteNoiseFunction();
     }
+    data1[i] = data0[i];
   }
   const noise = ctx.createBufferSource()
   noise.buffer = noiseBuffer;

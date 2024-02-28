@@ -131,7 +131,7 @@ export class SequenceStream {
         }
 
         if (scales_to_announce.length > 0) {
-          let scales_queue = new AudioGraphQueue()
+          let scales_queue = new AudioGraphQueue();
           scales_queue.add(TextType, { speech: `${determiner} stream has the following sound mappings. `, speechRate }, _c);
           scales_queue.addMulti(scales_to_announce, { ..._c, tick: null });
           scale_count++;
@@ -496,7 +496,8 @@ export class UnitStream {
     return {
       instrument_type: this.instrument_type, sounds: this.stream, continued: this.option?.is_continued, relative: this.option?.relative,
       filters: this.audioFilters,
-      ramp: this.ramp
+      ramp: this.ramp,
+      duration: this.duration
     };
   }
 }

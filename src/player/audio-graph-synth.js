@@ -1,12 +1,10 @@
-export const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 1, DefaultModGainFM = 100;
+export const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 0.5, DefaultModGainFM = 10;
 
 export function makeSynth(ctx, definition) {
   let synth = new ErieSynth(ctx, definition.type || FM);
   synth.generate(definition);
   return synth;
 }
-
-// inspired by https://observablehq.com/@ramonaisonline/synthesis
 
 export class ErieSynth {
   constructor(ctx, type) {
@@ -126,9 +124,9 @@ export class ErieSynth {
     this.decayTime = definition.decayTime || 0.1;
 
     // Connect the nodes
-    this.modulator.connect(this.modulatorGain);
-    this.modulatorGain.connect(this.carrier.frequency);
-    this.carrier.connect(this.envelope);
+    this.modulator.connect(this.modulatorGain.gain);
+    this.carrier.connect(this.modulatorGain);
+    this.modulatorGain.connect(this.envelope); 
   }
 
   connect(node) {
@@ -149,7 +147,7 @@ export class ErieSynth {
 
 export class ErieSynthFrequency {
   constructor(synther) {
-    this.value = 440;
+    this.value = DefModPitch;
     this.automationRate = 'a-rate';
     this.maxValue = 22050;
     this.minValue = -22055;

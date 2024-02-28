@@ -11,9 +11,15 @@ import { ErieFilters } from '../classes/erie-audio-filter';
 import { emitNotePlayEvent, emitNoteStopEvent } from "./audio-graph-note-event";
 import { WebSpeechGenerator } from './audio-graph-web-speech-generator';
 import { GoogleCloudTTSGenerator } from './audio-graph-google-tts-generator';
+import { AudioContext, OfflineAudioContext } from 'standardized-audio-context';
+import { AudioPrimitiveBuffer } from '../pulse/audio-primitive-buffer';
 
 export function makeContext() {
   return new AudioContext();
+}
+const SampleRate = 44100, BufferChannels = 2;
+export function makeOfflineContext(length) {
+  return new OfflineAudioContext(BufferChannels, SampleRate * length, SampleRate);
 }
 
 export function setCurrentTime(ctx) {
@@ -87,7 +93,7 @@ const RamperNames = {
   linear: 'exponentialRampToValueAtTime'
 }
 
-export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, synthDefs, waveDefs, filters) {
+export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
   // clear previous state
   ErieGlobalState = undefined;
 
@@ -108,50 +114,46 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   // play as async promise
   let sid = genRid();
   sendToneStartEvent({ sid });
-  if (config?.isRecorded) await playPause(300);
-  return new Promise((resolve, reject) => {
-    // get the current time
-    let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
 
-    const tick = makeTick(ctx, config.tick, endTime);
+  // return new Promise(async (resolve, reject) => {
+  // get the current time
+  let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
 
-    // set and play sounds
-    for (let sound of q) {
-      if (ErieGlobalState === Stopped) {
-        resolve();
-        break;
-      }
-      // get discrete oscillator
-      const inst = makeInstrument(ctx);
-      inst.connect(gain);
+  const tick = makeTick(ctx, config.tick, endTime);
 
-      // play & stop
-      inst.start(ct + sound.time);
-      inst.stop(ct + sound.time + 0.01);
-
-      // play the sound
-      inst.onended = async () => {
-        if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
-          ErieGlobalControl?.player?.cancel();
-        }
-        await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
-        if (sound.isLast) {
-          if (config?.isRecorded) await playPause(300);
-          sendToneFinishEvent({ sid });
-          resolve();
-        }
-      };
+  // set and play sounds
+  for (let sound of q) {
+    if (ErieGlobalState === Stopped) {
+      resolve();
+      break;
     }
-    if (tick) {
-      tick.start(ct + 0.01);
-      tick.stop(ct + endTime + 0.01);
+    // get discrete oscillator
+    const inst = makeInstrument(ctx);
+    inst.connect(gain);
+
+    if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
+      ErieGlobalControl?.player?.cancel();
     }
-  });
+    await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+    if (sound.isLast) {
+      sendToneFinishEvent({ sid });
+    }
+  }
+  if (tick) {
+    tick.start(ct + 0.01);
+    tick.stop(ct + endTime + 0.01);
+  }
 }
 
-export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs, waveDefs, filters) {
+export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveDefs, filters, bufferPrimitve) {
   // clear previous state
   ErieGlobalState = undefined;
+
+  let ctx = _ctx, offline = false;
+  if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
+    offline = true;
+    ctx = makeOfflineContext(bufferPrimitve.length);
+  }
 
   // set audio context controls
   setErieGlobalControl({ type: Tone, player: ctx });
@@ -209,7 +211,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
 
   let sid = genRid()
   sendToneStartEvent({ sid });
-  if (config?.isRecorded) await playPause(300);
+
   // play as async promise
   return new Promise((resolve, reject) => {
     // get instrument
@@ -345,11 +347,10 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
 
     emitNotePlayEvent('tone', q[0]);
     inst.start(startTime);
-    if (config?.isRecorded) {
-      gain.gain.setValueAtTime(0, ct + endTime + 0.3);
-      inst.stop(ct + endTime + 0.3);
-    } else {
-      inst.stop(ct + endTime);
+    if (offline && bufferPrimitve) {
+      ctx.startRendering((rb) => {
+        bufferPrimitve.add(startTime, rb);
+      });
     }
     inst.onended = (e) => {
       setErieGlobalControl(undefined);
@@ -358,10 +359,11 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
       sendToneFinishEvent({ sid });
       resolve();
     };
+    inst.stop(ct + endTime);
   });
 }
 
-export async function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters) {
+export async function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
   if (config?.subpart && ErieGlobalState === Stopped) return;
   if (!config?.subpart) ErieGlobalState = undefined;
 
@@ -375,7 +377,7 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
   if (!config.subpart) {
     sid = genRid()
     sendToneStartEvent({ sid });
-    if (config?.isRecorded) await playPause(300);
+
   }
 
   if (sound.tap !== undefined && sound.tap?.pattern?.constructor.name === "Array") {
@@ -384,7 +386,7 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
     let t = 1, acc = 0, i = 0; // d
     if (sound.tap.pattern.length == 0) {
       await playPause((sound.duration || 0.2) * 1000);
-      if (config?.isRecorded) await playPause(300);
+
       sendToneFinishEvent({ sid });
     }
 
@@ -393,7 +395,7 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
       if (t === 1) {
         tapSound.duration = s;
         if (s > 0) {
-          await __playSingleTone(ctx, ct + acc, tapSound, config, instSamples, synthDefs, waveDefs, filters);
+          await __playSingleTone(ctx, ct + acc, tapSound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
         }
         t = 0;
       } else {
@@ -404,17 +406,17 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
       i++;
       if (i == sound.tap.pattern.length) {
         if (!config.subpart) {
-          if (config?.isRecorded) await playPause(300);
+
           sendToneFinishEvent({ sid });
         }
-        return;
       }
     }
     emitNoteStopEvent('tone', sound);
+    return;
   } else {
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
     emitNotePlayEvent('tone', sound);
-    await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
+    await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
     emitNoteStopEvent('tone', sound);
     if (!config.subpart) {
       sendToneFinishEvent({ sid });
@@ -423,8 +425,13 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
   }
 }
 
-async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters) {
+async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
   // filters
+  let ctx = _ctx, offline = false;
+  if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
+    offline = true;
+    ctx = makeOfflineContext(sound.duration);
+  }
   let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
   for (const filterName of filters) {
     if (PresetFilters[filterName]) {
@@ -437,6 +444,7 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
       filterFinishers[filterName] = ErieFilters[filterName].finisher
     }
   }
+
   let destination = ctx.destination;
   for (const filterName of filters) {
     let filter = filterNodes[filterName];
@@ -475,6 +483,9 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
       if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
         inst.modulator.frequency.cancelScheduledValues(ct);
         inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct);
+      } else if (sound.harmonicity === undefined) {
+        inst.modulator.frequency.cancelScheduledValues(ct);
+        inst.modulator.frequency.setValueAtTime(sound.pitch, ct);
       }
 
       inst.envelope.gain.cancelScheduledValues(ct);
@@ -522,14 +533,20 @@ async function __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, 
       panner.pan.setValueAtTime(sound.pan, ct);
     }
 
-    // check the last
-    inst.onended = (e) => {
-      resolve();
-    };
-
     // play & stop
     inst.start(ct);
-    inst.stop(ct + sound.duration + sound.postReverb);
+    if (offline && bufferPrimitve) {
+      ctx.startRendering().then((rb) => {
+        bufferPrimitve.add(sound.time, rb);
+        resolve();
+      });
+    } else {
+      inst.onended = (_) => {
+        resolve();
+      };
+      inst.stop(ct + sound.duration + sound.postReverb);
+    }
+    return;
   });
 }
 
@@ -569,7 +586,7 @@ export async function playSingleSpeech(sound, config) {
   });
 }
 
-export async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters) {
+export async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
   // clear previous state
   ErieGlobalState = undefined;
 
@@ -584,9 +601,9 @@ export async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, 
       sendSpeechFinishEvent({ sid });
     } else {
       sendToneStartEvent({ sid });
-      if (config?.isRecorded) await playPause(300);
+
       await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
-      if (config?.isRecorded) await playPause(300);
+
       sendToneFinishEvent({ sid });
     }
   }

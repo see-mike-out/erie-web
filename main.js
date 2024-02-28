@@ -24,6 +24,8 @@ import { setSampleBaseUrl, ErieSampleBaseUrl } from './src/base';
 import { generatePCMCode } from './src/pulse/audio-control-pulse-generator';
 import { GoogleCloudTTSGenerator } from "./src/player/audio-graph-google-tts-generator";
 import { WebSpeechGenerator } from "./src/player/audio-graph-web-speech-generator";
+import { AudioPrimitiveBuffer, concatenateBuffers } from "./src/pulse/audio-primitive-buffer"
+import { makeWaveFromBuffer } from "./src/pulse/audio-buffer-to-wave"
 
 export {
   Data,
@@ -70,5 +72,8 @@ export {
   ErieSampleBaseUrl,
   generatePCMCode,
   GoogleCloudTTSGenerator,
-  WebSpeechGenerator
+  WebSpeechGenerator,
+  AudioPrimitiveBuffer,
+  concatenateBuffers,
+  makeWaveFromBuffer
 }

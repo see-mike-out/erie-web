@@ -11,15 +11,16 @@ import {
   // playAbsoluteSpeeches,
   makeContext,
   Tone, Speech, DefaultFrequency,
-  ErieGlobalControl
+  ErieGlobalControl,
+  makeOfflineContext
 } from "./audio-graph-player-proto";
 
 import { SupportedInstruments, loadSamples } from "./audio-graph-instrument-sample";
 import { deepcopy, genRid, getFirstDefined } from "../util/audio-graph-util";
 import { DefaultChannels } from "../scale/audio-graph-scale-constant";
 import { sendQueueFinishEvent, sendQueueStartEvent, sendToneStartEvent } from "./audio-graph-player-event";
-import { makeTapPattern, mergeTapPattern } from "../util/audio-graph-scale-util";
-import { generatePCMCode } from "../pulse/audio-control-pulse-generator";
+import { mergeTapPattern } from "../util/audio-graph-scale-util";
+import { AudioPrimitiveBuffer } from "../pulse/audio-primitive-buffer";
 
 export const TextType = 'text',
   ToneType = 'tone',
@@ -50,6 +51,7 @@ export class AudioGraphQueue {
     this.synths = {};
     this.waves = {};
     this.playId;
+    this.buffers = [];
   }
 
   setConfig(key, value) {
@@ -86,7 +88,8 @@ export class AudioGraphQueue {
     if (Types.includes(type)) {
       let item = {
         type,
-        config: lineConfig
+        config: lineConfig,
+        duration: info.duration
       };
       if (type === TextType) {
         item.text = info?.text || info || '';
@@ -140,7 +143,6 @@ export class AudioGraphQueue {
           if (this.isSupportedInst(sound.timbre)) checkInstrumentSampling.add(sound.timbre);
           else if (this.isSampling(sound.timbre)) userSampledInstruments.add(sound.timbre);
         });
-        item.getPCM = () => generatePCMCode(item);
       } else if (type === ToneOverlaySeries) {
         if (info.overlays.length > 0) {
           item.overlays = info.overlays.map((d) => {
@@ -163,7 +165,6 @@ export class AudioGraphQueue {
         } else {
           item.overlays = info.overlays;
         }
-        item.getPCM = () => generatePCMCode(item);
       } else if (type === Pause) {
         item.duration = info.duration; // in seconds
       } else if (type === LegendType) {
@@ -210,11 +211,12 @@ export class AudioGraphQueue {
     }
   }
 
-  async play(i, j) {
+  async play(i, j, options) {
     if (this.state !== Playing) {
       setPlayerEvents(this, this.config);
       let queue = this.queue;
       this.playAt = i || 0;
+      let outputs = Array((j || this.queue.length) - i).fill({});
       // for pause & resume
       if (i !== undefined && j !== undefined) {
         queue = this.queue.slice(i, j);
@@ -225,23 +227,28 @@ export class AudioGraphQueue {
       }
       this.state = Playing;
       this.fireStartEvent();
+      let k = 0;
       for (const item of queue) {
-        console.log(item, this.state);
+        console.log(item, this.state, options);
         if (this.state === Stopped || this.state === Paused) break;
-        await this.playLine(item);
+        outputs[k] = await this.playLine(item, options);
         this.playAt += 1;
+        k++;
       }
       this.fireStopEvent();
       clearPlayerEvents();
       this.state = Stopped;
       this.playAt = undefined;
+      return outputs;
     }
   }
 
-  async playLine(item) {
+  async playLine(item, options) {
     let config = deepcopy(this.config);
     Object.assign(config, item.config);
     config.ramp = item.ramp;
+    let bufferPrimitve;
+    if (options.pcm) bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
     if (item?.type === TextType) {
       await playSingleSpeech(item.text, config);
     } else if (item?.type === ToneType) {
@@ -251,7 +258,7 @@ export class AudioGraphQueue {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
-      await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+      await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       ctx.close();
     } else if (item?.type === Pause) {
       await playPause(item.duration * 1000, config);
@@ -263,11 +270,11 @@ export class AudioGraphQueue {
         }
       }
       if (item.continued) {
-        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.synths, this.waves, item.filters);
+        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.synths, this.waves, item.filters, bufferPrimitve);
       } else if (!item.relative) {
-        await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+        await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else {
-        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters)
+        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve)
       }
       ctx.close();
     } else if (item?.type === ToneSpeechSeries) {
@@ -277,7 +284,7 @@ export class AudioGraphQueue {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
-      await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+      await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       ctx.close();
     } else if (item?.type === ToneOverlaySeries) {
       let promises = [];
@@ -289,15 +296,20 @@ export class AudioGraphQueue {
       }
       for (let stream of item.overlays) {
         if (stream.continued) {
-          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters));
+          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else if (!stream.relative) {
-          promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
+          promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else {
-          promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
+          promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         }
       }
       await Promise.all(promises);
       ctx.close();
+    }
+    if (bufferPrimitve) {
+      let currBuffer = await bufferPrimitve?.compile();
+      this.buffers.push(currBuffer);
+      return bufferPrimitve;
     }
     return;
   }
