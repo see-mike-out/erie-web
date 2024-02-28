@@ -9,8 +9,8 @@ import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
 import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
 import { ErieFilters } from '../classes/erie-audio-filter';
 import { emitNotePlayEvent, emitNoteStopEvent } from "./audio-graph-note-event";
-
-let ErieGlobalSynth;
+import { WebSpeechGenerator } from './audio-graph-web-speech-generator';
+import { GoogleCloudTTSGenerator } from './audio-graph-google-tts-generator';
 
 export function makeContext() {
   return new AudioContext();
@@ -77,6 +77,10 @@ export const Stopped = 'stopped',
   Speech = 'speech';
 export let ErieGlobalControl, ErieGlobalState;
 
+export function setErieGlobalControl(ctrl) {
+  ErieGlobalControl = ctrl;
+}
+
 const RamperNames = {
   abrupt: 'setValueAtTime',
   linear: 'linearRampToValueAtTime',
@@ -89,7 +93,7 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
-  ErieGlobalControl = { type: Tone, player: ctx };
+  setErieGlobalControl({ type: Tone, player: ctx });
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(ctx.destination);
@@ -150,7 +154,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
   ErieGlobalState = undefined;
 
   // set audio context controls
-  ErieGlobalControl = { type: Tone, player: ctx };
+  setErieGlobalControl({ type: Tone, player: ctx });
 
   // rampers 
   let rampers = {};
@@ -348,7 +352,7 @@ export async function playAbsoluteContinuousTones(ctx, queue, config, synthDefs,
       inst.stop(ct + endTime);
     }
     inst.onended = (e) => {
-      ErieGlobalControl = undefined;
+      setErieGlobalControl(undefined);
       ErieGlobalState = undefined;
       emitNoteStopEvent('tone', q[0]);
       sendToneFinishEvent({ sid });
@@ -365,7 +369,7 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
   ErieGlobalState = undefined;
 
   // set audio context controls
-  ErieGlobalControl = { type: Tone, player: ctx };
+  setErieGlobalControl({ type: Tone, player: ctx });
 
   let sid;
   if (!config.subpart) {
@@ -399,8 +403,6 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
       acc += s;
       i++;
       if (i == sound.tap.pattern.length) {
-        // ErieGlobalControl = undefined;
-        // ErieGlobalState = undefined;
         if (!config.subpart) {
           if (config?.isRecorded) await playPause(300);
           sendToneFinishEvent({ sid });
@@ -414,8 +416,6 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
     emitNotePlayEvent('tone', sound);
     await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
     emitNoteStopEvent('tone', sound);
-    // ErieGlobalControl = undefined;
-    // ErieGlobalState = undefined;
     if (!config.subpart) {
       sendToneFinishEvent({ sid });
     }
@@ -539,32 +539,33 @@ export async function playSingleSpeech(sound, config) {
   if (config?.subpart && ErieGlobalState === Stopped) return;
   if (!config?.subpart) ErieGlobalState = undefined;
 
+
   let sid = genRid();
   if (!config.subpart) {
     sendSpeechStartEvent({ sound, sid });
   }
   return new Promise((resolve, reject) => {
-    if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
-    var utterance = new SpeechSynthesisUtterance(sound.speech);
-    if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
-    else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
-    if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;
-    if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
-    if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
-    else utterance.lang = document.documentElement.lang;
-    emitNotePlayEvent('speech', sound);
-    ErieGlobalSynth.speak(utterance);
-    ErieGlobalControl = { type: Speech, player: ErieGlobalSynth };
-    utterance.onend = () => {
+    let onstart = () => {
+      emitNotePlayEvent('speech', sound);
+    }
+    let onend = () => {
       window.removeEventListener('keypress', stop);
-      ErieGlobalControl = undefined;
+      setErieGlobalControl(undefined);
       ErieGlobalState = undefined;
       emitNoteStopEvent('speech', sound);
       if (!config.subpart) {
         sendSpeechFinishEvent({ sid });
       }
-      resolve();
-    };
+    }
+
+    if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+      GoogleCloudTTSGenerator(sound, config, {}, resolve);
+    } else {
+      if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+        console.warn("Google Cloud TTS API can only be used on Node.js Server environment.")
+      }
+      WebSpeechGenerator(sound, config, onstart, onend, resolve);
+    }
   });
 }
 
@@ -599,7 +600,7 @@ export async function playAbsoluteSpeeches(ctx, queue, config) {
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
-  ErieGlobalControl = { type: Tone, player: ctx };
+  setErieGlobalControl({ type: Tone, player: ctx });
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(ctx.destination);
@@ -683,7 +684,7 @@ export function playPause(ms, config) {
   })
 }
 
-const bcp47language = [
+export const bcp47language = [
   "ar-SA",
   "bn-BD",
   "bn-IN",

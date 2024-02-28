@@ -1,4 +1,4 @@
-(function (exports, d3, aq, vega) {
+(function (exports, tts, d3, aq, vega) {
   'use strict';
 
   function _interopNamespaceDefault(e) {
@@ -18,6 +18,7 @@
     return Object.freeze(n);
   }
 
+  var tts__namespace = /*#__PURE__*/_interopNamespaceDefault(tts);
   var aq__namespace = /*#__PURE__*/_interopNamespaceDefault(aq);
 
   function deepcopy$1(o) {
@@ -3473,6 +3474,47 @@
 
   let ErieGlobalSynth;
 
+  async function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
+    if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
+    var utterance = new SpeechSynthesisUtterance(sound.speech);
+    if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
+    else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
+    if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;
+    if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
+    if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
+    else utterance.lang = document.documentElement.lang;
+    onstart();
+    ErieGlobalSynth.speak(utterance);
+    setErieGlobalControl({ type: Speech, player: ErieGlobalSynth });
+    utterance.onend = () => {
+      onend();
+      resolve();
+    };
+  }
+
+  async function GoogleCloudTTSGenerator(sound, config, resolve, options) {
+    if (typeof window === 'undefined') {
+      // node
+      let text = sound.speech;
+      let languageCode = bcp47language.includes(sound.language) ? sound.language : 'en-US';
+      let ssmlGender = config.ssmlGender || 'NEUTRAL';
+      let pitch = sound.pitch, speakingRate = sound.speechRate || config.speechRate || 1;
+      const request = {
+        input: { text: text },
+        voice: { languageCode, ssmlGender },
+        audioConfig: { audioEncoding: 'MP3', speakingRate, pitch },
+      };
+      const client = new tts__namespace.TextToSpeechClient();
+      // Performs the text-to-speech request
+      const [response] = await client.synthesizeSpeech(request);
+      return response.audioContent;
+      // resolve();
+    } else {
+      console.warn("This function can only be run on node server environment");
+      resolve();
+    }
+  }
+
   function makeContext() {
     return new AudioContext();
   }
@@ -3536,6 +3578,10 @@
     Speech = 'speech';
   let ErieGlobalControl, ErieGlobalState;
 
+  function setErieGlobalControl(ctrl) {
+    ErieGlobalControl = ctrl;
+  }
+
   const RamperNames = {
     abrupt: 'setValueAtTime',
     linear: 'linearRampToValueAtTime',
@@ -3548,7 +3594,7 @@
 
     // playing a series of discrete tones with an aboslute schedule
     // set audio context controls
-    ErieGlobalControl = { type: Tone, player: ctx };
+    setErieGlobalControl({ type: Tone, player: ctx });
     // gain == loudness
     const gain = ctx.createGain();
     gain.connect(ctx.destination);
@@ -3609,7 +3655,7 @@
     ErieGlobalState = undefined;
 
     // set audio context controls
-    ErieGlobalControl = { type: Tone, player: ctx };
+    setErieGlobalControl({ type: Tone, player: ctx });
 
     // rampers 
     let rampers = {};
@@ -3807,7 +3853,7 @@
         inst.stop(ct + endTime);
       }
       inst.onended = (e) => {
-        ErieGlobalControl = undefined;
+        setErieGlobalControl(undefined);
         ErieGlobalState = undefined;
         emitNoteStopEvent('tone', q[0]);
         sendToneFinishEvent({ sid });
@@ -3824,7 +3870,7 @@
     ErieGlobalState = undefined;
 
     // set audio context controls
-    ErieGlobalControl = { type: Tone, player: ctx };
+    setErieGlobalControl({ type: Tone, player: ctx });
 
     let sid;
     if (!config.subpart) {
@@ -3858,8 +3904,6 @@
         acc += s;
         i++;
         if (i == sound.tap.pattern.length) {
-          // ErieGlobalControl = undefined;
-          // ErieGlobalState = undefined;
           if (!config.subpart) {
             if (config?.isRecorded) await playPause(300);
             sendToneFinishEvent({ sid });
@@ -3873,8 +3917,6 @@
       emitNotePlayEvent('tone', sound);
       await __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters);
       emitNoteStopEvent('tone', sound);
-      // ErieGlobalControl = undefined;
-      // ErieGlobalState = undefined;
       if (!config.subpart) {
         sendToneFinishEvent({ sid });
       }
@@ -3998,32 +4040,33 @@
     if (config?.subpart && ErieGlobalState === Stopped$1) return;
     if (!config?.subpart) ErieGlobalState = undefined;
 
+
     let sid = genRid();
     if (!config.subpart) {
       sendSpeechStartEvent({ sound, sid });
     }
     return new Promise((resolve, reject) => {
-      if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
-      var utterance = new SpeechSynthesisUtterance(sound.speech);
-      if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
-      else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
-      if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;
-      if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
-      if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
-      else utterance.lang = document.documentElement.lang;
-      emitNotePlayEvent('speech', sound);
-      ErieGlobalSynth.speak(utterance);
-      ErieGlobalControl = { type: Speech, player: ErieGlobalSynth };
-      utterance.onend = () => {
+      let onstart = () => {
+        emitNotePlayEvent('speech', sound);
+      };
+      let onend = () => {
         window.removeEventListener('keypress', stop);
-        ErieGlobalControl = undefined;
+        setErieGlobalControl(undefined);
         ErieGlobalState = undefined;
         emitNoteStopEvent('speech', sound);
         if (!config.subpart) {
           sendSpeechFinishEvent({ sid });
         }
-        resolve();
       };
+
+      if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+        GoogleCloudTTSGenerator(sound, config, {});
+      } else {
+        if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+          console.warn("Google Cloud TTS API can only be used on Node.js Server environment.");
+        }
+        WebSpeechGenerator(sound, config, onstart, onend, resolve);
+      }
     });
   }
 
@@ -7478,7 +7521,7 @@
     if (nice) scaleFunction = scaleFunction.nice();
     scaleFunction = scaleFunction.range(range);
     scaleFunction.properties = scaleProperties;
-    window['scale_'+channel] = scaleFunction;
+    // window['scale_'+channel] = scaleFunction;
     return scaleFunction;
   }
 
@@ -8465,6 +8508,7 @@
   exports.ErieFilters = ErieFilters;
   exports.Filter = Filter;
   exports.Fold = Fold;
+  exports.GoogleCloudTTSGenerator = GoogleCloudTTSGenerator;
   exports.LoudnessChannel = LoudnessChannel;
   exports.ModulationChannel = ModulationChannel;
   exports.Overlay = Overlay;
@@ -8489,6 +8533,7 @@
   exports.Transform = Transform;
   exports.Wave = Wave;
   exports.WaveTone = WaveTone;
+  exports.WebSpeechGenerator = WebSpeechGenerator;
   exports.compileAuidoGraph = compileAuidoGraph;
   exports.generatePCMCode = generatePCMCode;
   exports.readyRecording = readyRecording;
@@ -8497,4 +8542,4 @@
 
   return exports;
 
-})({}, d3, aq, vega);
+})({}, tts, d3, aq, vega);

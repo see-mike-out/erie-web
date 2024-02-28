@@ -1,13 +1,13 @@
 {
   "name": "erie-web",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A declarative grammar for data sonification for web",
   "main": "index.js",
   "module": "main.js",
   "unpkg": "build/erie-web.min.js",
   "jsdelivr": "build/erie-web.min.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "build": "rollup main.js --file build/erie-web.js --format iife && rollup main.js --file build/erie-web.min.js --format iife --compact && rollup main.js --file build/erie-web-node.js --format cjs && rollup main.js --file build/erie-web-node.min.js --format cjs --compact && rollup main.js --file build/erie-web-umd.js --format umd --name \"Erie\" && rollup main.js --file build/erie-web-umd.min.js --format umd --name \"Erie\" --compact"
   },
   "repository": {
@@ -25,12 +25,16 @@
   "homepage": "https://see-mike-out.github.io/erie-documentation",
   "license": "MIT",
   "devDependencies": {
+    "@google-cloud/text-to-speech": "^5.1.0",
     "esm": "^3.2.25",
-    "esm-wallaby": "^3.2.29"
+    "esm-wallaby": "^3.2.29",
+    "vitest": "^1.3.1"
   },
   "dependencies": {
     "arquero": "^5.2.0",
     "d3": "^7.8.4",
+    "google-gax": "^4.3.1",
+    "grpc-web": "^1.5.0",
     "moment": "^2.29.4",
     "vega": "^5.27.0"
   },

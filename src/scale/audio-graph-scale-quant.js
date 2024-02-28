@@ -127,6 +127,6 @@ export function makeQuantitativeScaleFunction(channel, encoding, values, info) {
   if (nice) scaleFunction = scaleFunction.nice();
   scaleFunction = scaleFunction.range(range);
   scaleFunction.properties = scaleProperties;
-  window['scale_'+channel] = scaleFunction;
+  // window['scale_'+channel] = scaleFunction;
   return scaleFunction;
 }

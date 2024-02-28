@@ -21,7 +21,9 @@ import { Config } from './src/classes/erie-config';
 import { ErieFilters, registerFilter } from './src/classes/erie-audio-filter';
 import { compileAuidoGraph, readyRecording } from './src/audio-graph';
 import { setSampleBaseUrl, ErieSampleBaseUrl } from './src/base';
-import { generatePCMCode } from './src/pulse/audio-control-pulse-generator'
+import { generatePCMCode } from './src/pulse/audio-control-pulse-generator';
+import { GoogleCloudTTSGenerator } from "./src/player/audio-graph-google-tts-generator";
+import { WebSpeechGenerator } from "./src/player/audio-graph-web-speech-generator";
 
 export {
   Data,
@@ -66,5 +68,7 @@ export {
   readyRecording,
   setSampleBaseUrl,
   ErieSampleBaseUrl,
-  generatePCMCode
+  generatePCMCode,
+  GoogleCloudTTSGenerator,
+  WebSpeechGenerator
 }
