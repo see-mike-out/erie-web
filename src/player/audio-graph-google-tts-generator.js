@@ -14,7 +14,7 @@ export async function GoogleCloudTTSGenerator(sound, config) {
     const request = {
       input: { text: text },
       voice: { languageCode, ssmlGender },
-      audioConfig: { audioEncoding: 'MP3', speakingRate, pitch },
+      audioConfig: { audioEncoding: config?.audioEncoding || 'MULAW', speakingRate, pitch },
     };
     const client = new tts.TextToSpeechClient();
     // Performs the text-to-speech request

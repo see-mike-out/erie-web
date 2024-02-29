@@ -3413,46 +3413,62 @@
     biquadPitch: { type: PITCH_chn }
   };
 
+  function isBrowserEventPossible() {
+    return typeof document === 'object' && document?.body?.dispatchEvent
+  }
+
   // event-related
   function sendToneStartEvent(detail) {
-    let playEvent = new CustomEvent("erieOnPlayTone", { detail });
-    document.body.dispatchEvent(playEvent);
-    let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
-    document.body.dispatchEvent(chnageEvent);
+    if (isBrowserEventPossible()) {
+      let playEvent = new CustomEvent("erieOnPlayTone", { detail });
+      document.body.dispatchEvent(playEvent);
+      let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
+      document.body.dispatchEvent(chnageEvent);
+    }
   }
   function sendToneFinishEvent(detail) {
-    let playEvent = new CustomEvent("erieOnFinishTone", { detail });
-    document.body.dispatchEvent(playEvent);
-    let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
-    document.body.dispatchEvent(chnageEvent);
+    if (isBrowserEventPossible()) {
+      let playEvent = new CustomEvent("erieOnFinishTone", { detail });
+      document.body.dispatchEvent(playEvent);
+      let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
+      document.body.dispatchEvent(chnageEvent);
+    }
   }
   function sendSpeechStartEvent(detail) {
-    let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
-    document.body.dispatchEvent(playEvent);
-    let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
-    document.body.dispatchEvent(chnageEvent);
+    if (isBrowserEventPossible()) {
+      let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
+      document.body.dispatchEvent(playEvent);
+      let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
+      document.body.dispatchEvent(chnageEvent);
+    }
   }
   function sendSpeechFinishEvent(detail) {
-    let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
-    document.body.dispatchEvent(playEvent);
-    let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
-    document.body.dispatchEvent(chnageEvent);
+    if (isBrowserEventPossible()) {
+      let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
+      document.body.dispatchEvent(playEvent);
+      let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
+      document.body.dispatchEvent(chnageEvent);
+    }
   }
   function sendQueueStartEvent(detail) {
-    let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
-    document.body.dispatchEvent(playEvent);
-    let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
-    document.body.dispatchEvent(chnageEvent);
+    if (isBrowserEventPossible()) {
+      let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
+      document.body.dispatchEvent(playEvent);
+      let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
+      document.body.dispatchEvent(chnageEvent);
+    }
   }
   function sendQueueFinishEvent(detail) {
-    let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
-    document.body.dispatchEvent(playEvent);
-    let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
-    document.body.dispatchEvent(chnageEvent);
+    if (isBrowserEventPossible()) {
+      let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
+      document.body.dispatchEvent(playEvent);
+      let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
+      document.body.dispatchEvent(chnageEvent);
+    }
   }
 
   function emitNotePlayEvent(type, note) {
-    if (typeof document === 'object') {
+    if (isBrowserEventPossible()) {
       document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
         detail: {
           type,
@@ -3463,7 +3479,7 @@
   }
 
   function emitNoteStopEvent(type, note) {
-    if (typeof document === 'object') {
+    if (isBrowserEventPossible()) {
       document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
         detail: {
           type,
@@ -3482,8 +3498,8 @@
     else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
     if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;
     if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
-    if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
-    else utterance.lang = document.documentElement.lang;
+    if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : (typeof document !== undefined ? document : {}).documentElement?.lang;
+    else utterance.lang = (typeof document !== undefined ? document : {}).documentElement?.lang;
     onstart();
     ErieGlobalSynth.speak(utterance);
     setErieGlobalControl({ type: Speech, player: ErieGlobalSynth });
@@ -3506,7 +3522,7 @@
       const request = {
         input: { text: text },
         voice: { languageCode, ssmlGender },
-        audioConfig: { audioEncoding: 'MP3', speakingRate, pitch },
+        audioConfig: { audioEncoding: config?.audioEncoding || 'MULAW', speakingRate, pitch },
       };
       const client = new tts__namespace.TextToSpeechClient();
       // Performs the text-to-speech request
@@ -3557,10 +3573,26 @@
     }
   }
 
-  // todo
-  // export function concatenateBuffers(...args) {
-  //   console.log(args);
-  // }
+
+  function concatenateBuffers(buffers) {
+    let totalLength = buffers.map((d) => d?.length || 0).reduce((a, c) => a + c, 0);
+    let ctx = new standardizedAudioContext.AudioContext();
+    let totalBuffer = ctx.createBuffer(2, totalLength, ctx.sampleRate);
+    let view = 0;
+    for (const buffer of buffers) {
+      for (let i = 0; i < 2; i++) {
+        let channelData = totalBuffer.getChannelData(i);
+        let currChannelData;
+        if (buffer.numberOfChannels == 1) currChannelData = buffer.getChannelData(0);
+        else if (buffer.numberOfChannels == 2) currChannelData = buffer.getChannelData(1);
+        for (let j = 0; j < buffer.length; j++) {
+          channelData[view + j] = currChannelData[j];
+        }
+      }
+      view += buffer.length;
+    }
+    return totalBuffer;
+  }
 
   function makeContext() {
     return new standardizedAudioContext.AudioContext();
@@ -4568,6 +4600,74 @@
     return noteScale[o][n + (a || '')];
   }
 
+  // The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
+
+  async function makeWaveFromBuffer(buffer, ext) {
+    let nChannels = buffer.numberOfChannels,
+      samples = buffer.length,
+      sampleRate = buffer.sampleRate,
+      waveLength = samples * nChannels * 2 + 44,
+      waveBuffer = new ArrayBuffer(waveLength),
+      view = new DataView(waveBuffer),
+      channelData = [];
+
+    let offset = 0, viewPos = 0;
+
+    // write WAVE header
+    viewPos = setUint32(view, 0x46464952, viewPos); // "RIFF"
+    viewPos = setUint32(view, waveLength - 8, viewPos); // file waveLength - 8
+    viewPos = setUint32(view, 0x45564157, viewPos); // "WAVE"
+
+    viewPos = setUint32(view, 0x20746d66, viewPos); // "fmt " chunk
+    viewPos = setUint32(view, 16, viewPos); // waveLength = 16
+    viewPos = setUint16(view, 1, viewPos); // PCM (uncompressed)
+    viewPos = setUint16(view, nChannels, viewPos);
+    viewPos = setUint32(view, sampleRate, viewPos);
+    viewPos = setUint32(view, sampleRate * 2 * nChannels, viewPos); // avg. bytes/sec
+    viewPos = setUint16(view, nChannels * 2, viewPos); // block-align
+    viewPos = setUint16(view, 16, viewPos); // 16-bit (hardcoded in this demo)
+
+    viewPos = setUint32(view, 0x61746164, viewPos); // "data" - chunk
+    viewPos = setUint32(view, waveLength - viewPos - 4, viewPos); // chunk waveLength
+
+    // write interleaved data
+    for (let i = 0; i < nChannels; i++) {
+      channelData.push(buffer.getChannelData(i));
+    }
+
+    while (viewPos < waveLength) {
+      for (let i = 0; i < nChannels; i++) {
+        // interleave channelData
+        let sample = Math.max(-1, Math.min(1, channelData[i][offset])); // clamp
+        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+        view.setInt16(viewPos, sample, true); // write 16-bit sample
+        viewPos += 2;
+      }
+      offset++; // next source sample
+    }
+
+    // create Blob
+    let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
+    if (ext === '$raw') {
+      return waveBuffer;
+    } else if (ext) {
+      return new Blob([waveBlob], { type: "audio/" + (ext || "wav") });
+    }
+    else return waveBlob;
+  }
+
+  function setUint16(view, data, viewPos) {
+    view.setUint16(viewPos, data, true);
+    viewPos += 2;
+    return viewPos;
+  }
+
+  function setUint32(view, data, viewPos) {
+    view.setUint32(viewPos, data, true);
+    viewPos += 4;
+    return viewPos;
+  }
+
   const TextType = 'text',
     ToneType = 'tone',
     ToneSeries = 'tone-series',
@@ -4905,6 +5005,29 @@
       this.queue = [];
       clearPlayerEvents();
     }
+
+    async getFullAudio(ttsFetch) {
+      let output = [];
+      let ctx = new AudioContext();
+      for (let i = 0; i < this.queue.length; i++) {
+        let t = this.queue[i].type;
+        if ([ToneType, ToneSeries, ToneOverlaySeries].includes(t)) {
+          let buffers = await this.play(i, i + 1, { pcm: true });
+          for (const b of buffers) {
+            if (b?.constructor.name === AudioPrimitiveBuffer?.name) {
+              output.push(b.compiledBuffer);
+            }
+          }
+        } else if (t === TextType) {
+          let res = await ttsFetch(this.queue[i]);
+          output.push(await ctx.decodeAudioData(res));
+        } else ;
+      }
+
+      let merged = concatenateBuffers(output);
+      let blob = await makeWaveFromBuffer(merged, "mp3");
+      return window.URL.createObjectURL(blob);
+    }
   }
 
 
@@ -4984,6 +5107,16 @@
       o[d[k]] = t;
     });
     return o;
+  }
+
+  function bufferToArrayBuffer(x) {
+    let arrayBuffer = new ArrayBuffer(x.length);
+    let arr = new Uint8Array(arrayBuffer);
+
+    for (let i = 0; i < x.length; ++i) {
+      arr[i] = x[i];
+    }
+    return arrayBuffer;
   }
 
   const descriptionKeywords = [
@@ -8360,8 +8493,6 @@
     sequence.setWaves(toHashedObject(waves, 'name'));
 
     // 4b. make streams
-    audio_spec.config.sequenceScaleConsistency !== undefined ? audio_spec.config.sequenceScaleConsistency : true;
-
     normalized?.length > 1;
     for (const stream of normalized) {
       if (stream.intro) {
@@ -8377,6 +8508,7 @@
         let is_repeated = isRepeatedStream(stream.stream);
         let data = deepcopy(loaded_datasets[stream.stream.data.name]);
         let slag = await compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales);
+
         if (!is_repeated) {
           sequence.addStream(slag.stream);
         } else {
@@ -8431,7 +8563,7 @@
         sequence.setConfig(key, audio_spec.config[key]);
       });
     }
-    if (window?.erieRecorderReady) {
+    if (typeof window !== 'undefined' && window?.erieRecorderReady) {
       isRecorded = true;
     }
     sequence.setConfig('isRecorded', isRecorded);
@@ -8585,72 +8717,6 @@
     }
   }
 
-  // The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
-
-  async function makeWaveFromBuffer(buffer, ext) {
-    let nChannels = buffer.numberOfChannels,
-      samples = buffer.length,
-      sampleRate = buffer.sampleRate,
-      waveLength = samples * nChannels * 2 + 44,
-      waveBuffer = new ArrayBuffer(waveLength),
-      view = new DataView(waveBuffer),
-      channelData = [];
-
-    let offset = 0, viewPos = 0;
-
-    // write WAVE header
-    viewPos = setUint32(view, 0x46464952, viewPos); // "RIFF"
-    viewPos = setUint32(view, waveLength - 8, viewPos); // file waveLength - 8
-    viewPos = setUint32(view, 0x45564157, viewPos); // "WAVE"
-
-    viewPos = setUint32(view, 0x20746d66, viewPos); // "fmt " chunk
-    viewPos = setUint32(view, 16, viewPos); // waveLength = 16
-    viewPos = setUint16(view, 1, viewPos); // PCM (uncompressed)
-    viewPos = setUint16(view, nChannels, viewPos);
-    viewPos = setUint32(view, sampleRate, viewPos);
-    viewPos = setUint32(view, sampleRate * 2 * nChannels, viewPos); // avg. bytes/sec
-    viewPos = setUint16(view, nChannels * 2, viewPos); // block-align
-    viewPos = setUint16(view, 16, viewPos); // 16-bit (hardcoded in this demo)
-
-    viewPos = setUint32(view, 0x61746164, viewPos); // "data" - chunk
-    viewPos = setUint32(view, waveLength - viewPos - 4, viewPos); // chunk waveLength
-
-    // write interleaved data
-    for (let i = 0; i < nChannels; i++) {
-      channelData.push(buffer.getChannelData(i));
-    }
-
-    while (viewPos < waveLength) {
-      for (let i = 0; i < nChannels; i++) {
-        // interleave channelData
-        let sample = Math.max(-1, Math.min(1, channelData[i][offset])); // clamp
-        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
-        view.setInt16(viewPos, sample, true); // write 16-bit sample
-        viewPos += 2;
-      }
-      offset++; // next source sample
-    }
-
-    // create Blob
-    let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
-    if (ext) {
-      return new Blob([waveBlob], { type: "audio/" + (ext || "wav") });
-    }
-    else return waveBlob;
-  }
-
-  function setUint16(view, data, viewPos) {
-    view.setUint16(viewPos, data, true);
-    viewPos += 2;
-    return viewPos;
-  }
-
-  function setUint32(view, data, viewPos) {
-    view.setUint32(viewPos, data, true);
-    viewPos += 4;
-    return viewPos;
-  }
-
   exports.Aggregate = Aggregate;
   exports.AudioPrimitiveBuffer = AudioPrimitiveBuffer;
   exports.Bin = Bin;
@@ -8691,7 +8757,9 @@
   exports.Wave = Wave;
   exports.WaveTone = WaveTone;
   exports.WebSpeechGenerator = WebSpeechGenerator;
+  exports.bufferToArrayBuffer = bufferToArrayBuffer;
   exports.compileAuidoGraph = compileAuidoGraph;
+  exports.concatenateBuffers = concatenateBuffers;
   exports.generatePCMCode = generatePCMCode;
   exports.makeWaveFromBuffer = makeWaveFromBuffer;
   exports.readyRecording = readyRecording;

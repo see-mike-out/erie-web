@@ -20,7 +20,8 @@ import { deepcopy, genRid, getFirstDefined } from "../util/audio-graph-util";
 import { DefaultChannels } from "../scale/audio-graph-scale-constant";
 import { sendQueueFinishEvent, sendQueueStartEvent, sendToneStartEvent } from "./audio-graph-player-event";
 import { mergeTapPattern } from "../util/audio-graph-scale-util";
-import { AudioPrimitiveBuffer } from "../pulse/audio-primitive-buffer";
+import { AudioPrimitiveBuffer, concatenateBuffers } from "../pulse/audio-primitive-buffer";
+import { makeWaveFromBuffer } from "../pulse/audio-buffer-to-wave";
 
 export const TextType = 'text',
   ToneType = 'tone',
@@ -358,6 +359,31 @@ export class AudioGraphQueue {
     this.state = Finished;
     this.queue = [];
     clearPlayerEvents();
+  }
+
+  async getFullAudio(ttsFetch) {
+    let output = [];
+    let ctx = new AudioContext();
+    for (let i = 0; i < this.queue.length; i++) {
+      let t = this.queue[i].type;
+      if ([ToneType, ToneSeries, ToneOverlaySeries].includes(t)) {
+        let buffers = await this.play(i, i + 1, { pcm: true });
+        for (const b of buffers) {
+          if (b?.constructor.name === AudioPrimitiveBuffer?.name) {
+            output.push(b.compiledBuffer);
+          }
+        }
+      } else if (t === TextType) {
+        let res = await ttsFetch(this.queue[i]);
+        output.push(await ctx.decodeAudioData(res));
+      } else if (t === ToneSpeechSeries) {
+        // todo
+      }
+    }
+
+    let merged = concatenateBuffers(output);
+    let blob = await makeWaveFromBuffer(merged, "mp3");
+    return window.URL.createObjectURL(blob);
   }
 }
 

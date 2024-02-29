@@ -40,7 +40,23 @@ export class AudioPrimitiveBuffer {
   }
 }
 
-// todo
-// export function concatenateBuffers(...args) {
-//   console.log(args);
-// }
+
+export function concatenateBuffers(buffers) {
+  let totalLength = buffers.map((d) => d?.length || 0).reduce((a, c) => a + c, 0);
+  let ctx = new AudioContext();
+  let totalBuffer = ctx.createBuffer(2, totalLength, ctx.sampleRate);
+  let view = 0;
+  for (const buffer of buffers) {
+    for (let i = 0; i < 2; i++) {
+      let channelData = totalBuffer.getChannelData(i);
+      let currChannelData;
+      if (buffer.numberOfChannels == 1) currChannelData = buffer.getChannelData(0);
+      else if (buffer.numberOfChannels == 2) currChannelData = buffer.getChannelData(1);
+      for (let j = 0; j < buffer.length; j++) {
+        channelData[view + j] = currChannelData[j];
+      }
+    }
+    view += buffer.length;
+  }
+  return totalBuffer;
+}

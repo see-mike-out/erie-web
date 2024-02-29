@@ -11,7 +11,7 @@ import { ErieFilters } from '../classes/erie-audio-filter';
 import { emitNotePlayEvent, emitNoteStopEvent } from "./audio-graph-note-event";
 import { WebSpeechGenerator } from './audio-graph-web-speech-generator';
 import { GoogleCloudTTSGenerator } from './audio-graph-google-tts-generator';
-import { AudioContext, OfflineAudioContext } from 'standardized-audio-context';
+import { AudioContext, OfflineAudioContext, isSupported } from 'standardized-audio-context';
 import { AudioPrimitiveBuffer } from '../pulse/audio-primitive-buffer';
 
 export function makeContext() {

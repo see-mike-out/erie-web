@@ -70,8 +70,6 @@ export async function compileAuidoGraph(audio_spec, options) {
   sequence.setWaves(toHashedObject(waves, 'name'));
 
   // 4b. make streams
-  let sequenceScaleConsistency = audio_spec.config.sequenceScaleConsistency !== undefined ? audio_spec.config.sequenceScaleConsistency : true;
-
   let si = 0, isSeq = normalized?.length > 1;
   for (const stream of normalized) {
     if (stream.intro) {
@@ -87,6 +85,7 @@ export async function compileAuidoGraph(audio_spec, options) {
       let is_repeated = isRepeatedStream(stream.stream);
       let data = deepcopy(loaded_datasets[stream.stream.data.name]);
       let slag = await compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales)
+
       if (!is_repeated) {
         sequence.addStream(slag.stream);
       } else {
@@ -144,7 +143,7 @@ export async function compileAuidoGraph(audio_spec, options) {
       sequence.setConfig(key, audio_spec.config[key]);
     });
   }
-  if (window?.erieRecorderReady) {
+  if (typeof window !== 'undefined' && window?.erieRecorderReady) {
     isRecorded = true;
   }
   sequence.setConfig('isRecorded', isRecorded);

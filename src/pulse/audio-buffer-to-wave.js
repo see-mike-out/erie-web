@@ -46,7 +46,9 @@ export async function makeWaveFromBuffer(buffer, ext) {
 
   // create Blob
   let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
-  if (ext) {
+  if (ext === '$raw') {
+    return waveBuffer;
+  } else if (ext) {
     return new Blob([waveBlob], { type: "audio/" + (ext || "wav") });
   }
   else return waveBlob;

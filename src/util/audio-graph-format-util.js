@@ -34,3 +34,13 @@ export function toHashedObject(a, k, dp) {
   });
   return o;
 }
+
+export function bufferToArrayBuffer(x) {
+  let arrayBuffer = new ArrayBuffer(x.length);
+  let arr = new Uint8Array(arrayBuffer);
+
+  for (let i = 0; i < x.length; ++i) {
+    arr[i] = x[i];
+  }
+  return arrayBuffer;
+}

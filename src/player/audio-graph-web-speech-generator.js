@@ -9,8 +9,8 @@ export async function WebSpeechGenerator(sound, config, onstart, onend, resolve)
   else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
   if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;
   if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
-  if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : document?.documentElement?.lang;
-  else utterance.lang = document.documentElement.lang;
+  if (sound?.language) utterance.lang = bcp47language.includes(sound.language) ? sound.language : (typeof document !== undefined ? document : {}).documentElement?.lang;
+  else utterance.lang = (typeof document !== undefined ? document : {}).documentElement?.lang;
   onstart();
   ErieGlobalSynth.speak(utterance);
   setErieGlobalControl({ type: Speech, player: ErieGlobalSynth });
