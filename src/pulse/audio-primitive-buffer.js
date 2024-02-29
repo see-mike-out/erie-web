@@ -17,23 +17,31 @@ export class AudioPrimitiveBuffer {
   }
 
   async compile() {
-    let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels));
-    let bufferLength = this.length * this.sampleRate;
+    let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels)) || BufferChannels;
+    if (maxChannels < 1) maxChannels = BufferChannels;
+    else if (maxChannels > 32) maxChannels = 32;
+    let bufferLength = this.length ? this.length * this.sampleRate : this.primitive.map((p) => p.data.length).reduce((a, c) => a + c, 0);
+    if (bufferLength == 0) bufferLength = this.sampleRate * 0.1;
     let temp_ctx = new AudioContext();
     this.compiledBuffer = temp_ctx.createBuffer(
       maxChannels,
       bufferLength,
       this.sampleRate,
-    );;
+    );
+    let lastAt;
     for (const p of this.primitive) {
-      let at = (p.at || 0) * 44100;
-      for (let i = 0; i < p.data.numberOfChannels; i++) {
+      let at = Math.round((p.at || 0) * 44100);
+      if (p.at === "next") {
+        at = lastAt || 0;
+      }
+      for (let i = 0; i < maxChannels; i++) {
         let channelData = this.compiledBuffer.getChannelData(i);
-        let currChannelData = p.data.getChannelData(i);
+        let currChannelData = p.data.getChannelData(i % p.data.numberOfChannels);
         currChannelData.forEach((q, k) => {
           channelData[at + k] += q;
         })
       }
+      lastAt = at + p.data.length;
     }
     this.compiled = true;
     return this.compiledBuffer;

@@ -16,6 +16,6 @@ export async function WebSpeechGenerator(sound, config, onstart, onend, resolve)
   setErieGlobalControl({ type: Speech, player: ErieGlobalSynth });
   utterance.onend = () => {
     onend();
-    resolve();
+    if (resolve) resolve();
   };
 }

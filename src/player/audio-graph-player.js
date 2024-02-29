@@ -8,11 +8,9 @@ import {
   playSingleSpeech,
   playRelativeDiscreteTonesAndSpeeches,
   playPause,
-  // playAbsoluteSpeeches,
   makeContext,
   Tone, Speech, DefaultFrequency,
-  ErieGlobalControl,
-  makeOfflineContext
+  ErieGlobalControl
 } from "./audio-graph-player-proto";
 
 import { SupportedInstruments, loadSamples } from "./audio-graph-instrument-sample";
@@ -217,7 +215,7 @@ export class AudioGraphQueue {
       setPlayerEvents(this, this.config);
       let queue = this.queue;
       this.playAt = i || 0;
-      let outputs = Array((j || this.queue.length) - i).fill({});
+      let outputs = Array((j || queue.length) - (i || 0)).fill({});
       // for pause & resume
       if (i !== undefined && j !== undefined) {
         queue = this.queue.slice(i, j);
@@ -249,9 +247,10 @@ export class AudioGraphQueue {
     Object.assign(config, item.config);
     config.ramp = item.ramp;
     let bufferPrimitve;
-    if (options.pcm) bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
+    if (options?.pcm) bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
+    let ttsFetchFunction = options?.ttsFetchFunction
     if (item?.type === TextType) {
-      await playSingleSpeech(item.text, config);
+      await playSingleSpeech(item.text, config, bufferPrimitve, ttsFetchFunction);
     } else if (item?.type === ToneType) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
@@ -275,7 +274,7 @@ export class AudioGraphQueue {
       } else if (!item.relative) {
         await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else {
-        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve)
+        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction)
       }
       ctx.close();
     } else if (item?.type === ToneSpeechSeries) {
@@ -285,7 +284,7 @@ export class AudioGraphQueue {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
-      await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+      await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
       ctx.close();
     } else if (item?.type === ToneOverlaySeries) {
       let promises = [];
@@ -361,23 +360,19 @@ export class AudioGraphQueue {
     clearPlayerEvents();
   }
 
-  async getFullAudio(ttsFetch) {
+  async getFullAudio(ttsFetchFunction) {
     let output = [];
     let ctx = new AudioContext();
+
+    let options = { pcm: true, ttsFetchFunction }
     for (let i = 0; i < this.queue.length; i++) {
-      let t = this.queue[i].type;
-      if ([ToneType, ToneSeries, ToneOverlaySeries].includes(t)) {
-        let buffers = await this.play(i, i + 1, { pcm: true });
-        for (const b of buffers) {
-          if (b?.constructor.name === AudioPrimitiveBuffer?.name) {
-            output.push(b.compiledBuffer);
-          }
+      let buffers = await this.play(i, i + 1, options);
+      for (const b of buffers) {
+        if (b?.constructor.name === AudioPrimitiveBuffer?.name) {
+          output.push(b.compiledBuffer);
+        } else {
+          output.push(await ctx.decodeAudioData(b));
         }
-      } else if (t === TextType) {
-        let res = await ttsFetch(this.queue[i]);
-        output.push(await ctx.decodeAudioData(res));
-      } else if (t === ToneSpeechSeries) {
-        // todo
       }
     }
 
