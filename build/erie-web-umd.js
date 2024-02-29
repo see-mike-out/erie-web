@@ -3508,7 +3508,7 @@
     setErieGlobalControl({ type: Speech, player: ErieGlobalSynth });
     utterance.onend = () => {
       onend();
-      resolve();
+      if (resolve) resolve();
     };
   }
 
@@ -3554,22 +3554,31 @@
     }
 
     async compile() {
-      let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels$1));
-      let bufferLength = this.length * this.sampleRate;
+      let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels$1)) || BufferChannels$1;
+      if (maxChannels < 1) maxChannels = BufferChannels$1;
+      else if (maxChannels > 32) maxChannels = 32;
+      let bufferLength = this.length ? this.length * this.sampleRate : this.primitive.map((p) => p.data.length).reduce((a, c) => a + c, 0);
+      if (bufferLength == 0) bufferLength = this.sampleRate * 0.1;
       let temp_ctx = new standardizedAudioContext.AudioContext();
       this.compiledBuffer = temp_ctx.createBuffer(
         maxChannels,
         bufferLength,
         this.sampleRate,
-      );    for (const p of this.primitive) {
-        let at = (p.at || 0) * 44100;
-        for (let i = 0; i < p.data.numberOfChannels; i++) {
+      );
+      let lastAt;
+      for (const p of this.primitive) {
+        let at = Math.round((p.at || 0) * 44100);
+        if (p.at === "next") {
+          at = lastAt || 0;
+        }
+        for (let i = 0; i < maxChannels; i++) {
           let channelData = this.compiledBuffer.getChannelData(i);
-          let currChannelData = p.data.getChannelData(i);
+          let currChannelData = p.data.getChannelData(i % p.data.numberOfChannels);
           currChannelData.forEach((q, k) => {
             channelData[at + k] += q;
           });
         }
+        lastAt = at + p.data.length;
       }
       this.compiled = true;
       return this.compiledBuffer;
@@ -3730,10 +3739,20 @@
     // clear previous state
     ErieGlobalState = undefined;
 
+    // sort queue to mark the last node for sequence end check
+    let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
+    q[0].isFirst = true;
+    q[q.length - 1].isLast = true;
+
+    // get the last tone's finish time
+    let endTime = q[q.length - 1].time + q[q.length - 1].duration;
+
+    // get the context
     let ctx = _ctx, offline = false;
     if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
       offline = true;
-      ctx = makeOfflineContext(bufferPrimitve.length);
+      ctx = makeOfflineContext(endTime);
+      bufferPrimitve.length = endTime;
     }
 
     // set audio context controls
@@ -3751,14 +3770,6 @@
         }
       });
     }
-
-    // sort queue to mark the last node for sequence end check
-    let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
-    q[0].isFirst = true;
-    q[q.length - 1].isLast = true;
-
-    // get the last tone's finish time
-    let endTime = q[q.length - 1].time + q[q.length - 1].duration;
 
     // filters
     let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
@@ -3794,154 +3805,167 @@
     sendToneStartEvent({ sid });
 
     // play as async promise
-    return new Promise((resolve, reject) => {
-      // get instrument
-      const inst = makeInstrument(ctx, config?.instrument_type, null, synthDefs, waveDefs, null, endTime);
-      inst.connect(panner);
-      let startTime;
-      // get the current time
-      let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
-      for (let sound of q) {
-        if (sound.isFirst) {
-          // set for the first value
-          if (inst?.constructor.name === OscillatorNode.name) {
-            inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-          } else if (inst?.constructor.name === ErieSynth.name) {
-            inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-            if (inst.type === FM && sound.modulation !== undefined) {
-              inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
-            } else if (inst.type === AM && sound.modulation !== undefined) {
-              inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
+    // get instrument
+    const inst = makeInstrument(ctx, config?.instrument_type, null, synthDefs, waveDefs, null, endTime);
+    inst.connect(panner);
+    let startTime;
+    // get the current time
+    let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+    for (let sound of q) {
+      if (sound.isFirst) {
+        // set for the first value
+        if (inst?.constructor.name === OscillatorNode.name) {
+          inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+        } else if (inst?.constructor.name === ErieSynth.name) {
+          inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          if (inst.type === FM && sound.modulation !== undefined) {
+            inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
+          } else if (inst.type === AM && sound.modulation !== undefined) {
+            inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
+          }
+          if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+            inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
+          }
+          inst.envelope.gain.cancelScheduledValues(ct + sound.time);
+          inst.envelope.gain.setValueAtTime(0, ct + sound.time);
+          inst.envelope.gain.linearRampToValueAtTime(1, ct + sound.time + (inst.attackTime || 0));
+          if (inst.decayTime) {
+            inst.envelope.gain.linearRampToValueAtTime(inst.sustain || 1, ct + sound.time + (inst.attackTime || 0) + (inst.decayTime || 0));
+          }
+        }
+
+        if (sound.detune && inst.detune) {
+          inst.detune.setValueAtTime(sound.detune || 0, ct + sound.time);
+        }
+
+        if (sound.loudness !== undefined) {
+          gain.gain.setValueAtTime(sound.loudness, ct + sound.time);
+        }
+        if (sound.pan !== undefined) {
+          panner.pan.setTargetAtTime(sound.pan, ct + sound.time, 0.35);
+        }
+        // play the first
+        startTime = ct + sound.time;
+      } else {
+        if (inst?.constructor.name === OscillatorNode.name) {
+          if (rampers.pitch) {
+            inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
+          } else {
+            inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          }
+        } else if (inst?.constructor.name === ErieSynth.name) {
+          if (rampers.pitch) {
+            inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
+          } else {
+            inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
+          }
+          if (inst.type === FM && sound.modulation !== undefined) {
+            if (rampers.modulation) {
+              inst.modulator.frequency[rampers.modulation]((inst.modulatorVolume / sound.modulation), ct + sound.time);
+            } else {
+              inst.modulator.frequency.linearRampToValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
             }
-            if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-              inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
+          } else if (inst.type === AM && sound.modulation !== undefined) {
+            if (rampers.modulation) {
+              inst.modulatorGain.gain[rampers.modulation]((sound.loudness || 1) * sound.modulation, ct + sound.time);
+            } else {
+              inst.modulatorGain.gain.linearRampToValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
             }
+          }
+          if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+            if (rampers.harmonicity) {
+              inst.modulator.frequency[rampers.harmonicity]((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
+            } else {
+              inst.modulator.frequency.linearRampToValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
+            }
+          }
+        }
+
+        if (sound.loudness !== undefined) {
+          if (rampers.loudness) {
+            gain.gain[rampers.loudness](
+              sound.loudness <= 0 ? 0.0000000001 : sound.loudness,
+              ct + sound.time
+            );
+          } else {
+            gain.gain.linearRampToValueAtTime(
+              sound.loudness,
+              ct + sound.time
+            );
+          }
+        }
+        if (sound.pan !== undefined) {
+          panner.pan.linearRampToValueAtTime(sound.pan, ct + sound.time);
+        }
+        if (sound.isLast) {
+          gain.gain.linearRampToValueAtTime(0, ct + sound.time + 0.15);
+          if (inst?.constructor.name === ErieSynth.name) {
             inst.envelope.gain.cancelScheduledValues(ct + sound.time);
-            inst.envelope.gain.setValueAtTime(0, ct + sound.time);
-            inst.envelope.gain.linearRampToValueAtTime(1, ct + sound.time + (inst.attackTime || 0));
-            if (inst.decayTime) {
-              inst.envelope.gain.linearRampToValueAtTime(inst.sustain || 1, ct + sound.time + (inst.attackTime || 0) + (inst.decayTime || 0));
-            }
-          }
-
-          if (sound.detune && inst.detune) {
-            inst.detune.setValueAtTime(sound.detune || 0, ct + sound.time);
-          }
-
-          if (sound.loudness !== undefined) {
-            gain.gain.setValueAtTime(sound.loudness, ct + sound.time);
-          }
-          if (sound.pan !== undefined) {
-            panner.pan.setTargetAtTime(sound.pan, ct + sound.time, 0.35);
-          }
-          // play the first
-          startTime = ct + sound.time;
-        } else {
-          if (inst?.constructor.name === OscillatorNode.name) {
-            if (rampers.pitch) {
-              inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
-            } else {
-              inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-            }
-          } else if (inst?.constructor.name === ErieSynth.name) {
-            if (rampers.pitch) {
-              inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
-            } else {
-              inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-            }
-            if (inst.type === FM && sound.modulation !== undefined) {
-              if (rampers.modulation) {
-                inst.modulator.frequency[rampers.modulation]((inst.modulatorVolume / sound.modulation), ct + sound.time);
-              } else {
-                inst.modulator.frequency.linearRampToValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
-              }
-            } else if (inst.type === AM && sound.modulation !== undefined) {
-              if (rampers.modulation) {
-                inst.modulatorGain.gain[rampers.modulation]((sound.loudness || 1) * sound.modulation, ct + sound.time);
-              } else {
-                inst.modulatorGain.gain.linearRampToValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
-              }
-            }
-            if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-              if (rampers.harmonicity) {
-                inst.modulator.frequency[rampers.harmonicity]((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
-              } else {
-                inst.modulator.frequency.linearRampToValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct + sound.time);
-              }
-            }
-          }
-
-          if (sound.loudness !== undefined) {
-            if (rampers.loudness) {
-              gain.gain[rampers.loudness](
-                sound.loudness <= 0 ? 0.0000000001 : sound.loudness,
-                ct + sound.time
-              );
-            } else {
-              gain.gain.linearRampToValueAtTime(
-                sound.loudness,
-                ct + sound.time
-              );
-            }
-          }
-          if (sound.pan !== undefined) {
-            panner.pan.linearRampToValueAtTime(sound.pan, ct + sound.time);
-          }
-          if (sound.isLast) {
-            gain.gain.linearRampToValueAtTime(0, ct + sound.time + 0.15);
-            if (inst?.constructor.name === ErieSynth.name) {
-              inst.envelope.gain.cancelScheduledValues(ct + sound.time);
-              inst.envelope.gain.setValueAtTime(1, ct + sound.time + (sound.duration));
-              inst.envelope.gain.linearRampToValueAtTime(
-                0,
-                ct + sound.time + (sound.duration || 0) + (inst.attackTime || 0) + (inst.releaseTime || 0)
-              );
-            }
-          }
-
-          if (sound.detune && inst.detune) {
-            if (rampers.detune) {
-              inst.detune[rampers.detune](sound.detune || 0, ct + sound.time);
-            } else {
-              inst.detune.linearRampToValueAtTime(sound.detune || 0, ct + sound.time);
-            }
+            inst.envelope.gain.setValueAtTime(1, ct + sound.time + (sound.duration));
+            inst.envelope.gain.linearRampToValueAtTime(
+              0,
+              ct + sound.time + (sound.duration || 0) + (inst.attackTime || 0) + (inst.releaseTime || 0)
+            );
           }
         }
 
-        for (const filterName of filters) {
-          let encoder = filterEncoders[filterName];
-          let finisher = filterFinishers[filterName];
-          if (encoder) {
-            encoder(filterNodes[filterName], sound, ct + sound.time, rampers);
-          }
-          if (finisher) {
-            finisher(filterNodes[filterName], sound, ct + sound.time, (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)), rampers);
+        if (sound.detune && inst.detune) {
+          if (rampers.detune) {
+            inst.detune[rampers.detune](sound.detune || 0, ct + sound.time);
+          } else {
+            inst.detune.linearRampToValueAtTime(sound.detune || 0, ct + sound.time);
           }
         }
       }
 
-      const tick = makeTick(ctx, config.tick, endTime);
+      for (const filterName of filters) {
+        let encoder = filterEncoders[filterName];
+        let finisher = filterFinishers[filterName];
+        if (encoder) {
+          encoder(filterNodes[filterName], sound, ct + sound.time, rampers);
+        }
+        if (finisher) {
+          finisher(filterNodes[filterName], sound, ct + sound.time, (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)), rampers);
+        }
+      }
+    }
+
+    const tick = makeTick(ctx, config.tick, endTime);
+
+
+    emitNotePlayEvent('tone', q[0]);
+    if (offline && bufferPrimitve) {
       if (tick) {
-        tick.start(startTime);
-        tick.stop(ct + endTime);
+        tick.start();
+        tick.stop(endTime);
       }
-
-      emitNotePlayEvent('tone', q[0]);
-      inst.start(startTime);
-      if (offline && bufferPrimitve) {
-        ctx.startRendering((rb) => {
-          bufferPrimitve.add(startTime, rb);
-        });
-      }
+      inst.start();
+      inst.stop(endTime);
+      let rb = await ctx.startRendering();
+      bufferPrimitve.add(0, rb);
       inst.onended = (e) => {
         setErieGlobalControl(undefined);
         ErieGlobalState = undefined;
         emitNoteStopEvent('tone', q[0]);
         sendToneFinishEvent({ sid });
-        resolve();
       };
-      inst.stop(ct + endTime);
-    });
+    } else {
+      return new Promise((resolve, reject) => {
+        if (tick) {
+          tick.start(startTime);
+          tick.stop(ct + endTime);
+        }
+        inst.start(startTime);
+        inst.stop(ct + endTime);
+        inst.onended = (e) => {
+          setErieGlobalControl(undefined);
+          ErieGlobalState = undefined;
+          emitNoteStopEvent('tone', q[0]);
+          sendToneFinishEvent({ sid });
+          resolve();
+        };
+      });
+    }
   }
 
   async function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
@@ -4043,96 +4067,97 @@
     panner.connect(gain);
 
     // play as async promise
-    return new Promise((resolve, reject) => {
-      // get the current time
-      // get discrete oscillator
-      let iType = sound.timbre || config?.instrument_type;
-      const inst = makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound);
+    // get the current time
+    // get discrete oscillator
+    let iType = sound.timbre || config?.instrument_type;
+    const inst = makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound);
 
-      inst.connect(panner);
+    inst.connect(panner);
 
-      // set auditory values
-      if (inst?.constructor.name === OscillatorNode.name) {
-        inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
-      } else if (inst?.constructor.name === ErieSynth.name) {
-        inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
-        if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
-          inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct);
-        } else if (inst.type === AM && sound.modulation !== undefined && sound.modulation > 0) {
-          inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct);
-        }
-        if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-          inst.modulator.frequency.cancelScheduledValues(ct);
-          inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct);
-        } else if (sound.harmonicity === undefined) {
-          inst.modulator.frequency.cancelScheduledValues(ct);
-          inst.modulator.frequency.setValueAtTime(sound.pitch, ct);
-        }
-
-        inst.envelope.gain.cancelScheduledValues(ct);
-        inst.envelope.gain.setValueAtTime(0, ct);
-        inst.envelope.gain.linearRampToValueAtTime(1, ct + (inst.attackTime || 0));
-        if (inst.decayTime) {
-          inst.envelope.gain.linearRampToValueAtTime(inst.sustain || 1, ct + sound.time + (inst.attackTime || 0) + (inst.decayTime || 0));
-        }
-        inst.envelope.gain.setValueAtTime(inst.sustain || 1, ct + (sound.duration));
-        inst.envelope.gain.linearRampToValueAtTime(
-          0,
-          ct + (sound.duration) + (inst.attackTime || 0) + (inst.releaseTime || 0)
-        );
+    // set auditory values
+    if (inst?.constructor.name === OscillatorNode.name) {
+      inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
+    } else if (inst?.constructor.name === ErieSynth.name) {
+      inst.frequency.setValueAtTime(sound.pitch || inst.carrierPitch || DefaultFrequency, ct);
+      if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
+        inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct);
+      } else if (inst.type === AM && sound.modulation !== undefined && sound.modulation > 0) {
+        inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct);
+      }
+      if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+        inst.modulator.frequency.cancelScheduledValues(ct);
+        inst.modulator.frequency.setValueAtTime((sound.pitch || inst.carrierPitch || DefaultFrequency) * sound.harmonicity, ct);
+      } else if (sound.harmonicity === undefined) {
+        inst.modulator.frequency.cancelScheduledValues(ct);
+        inst.modulator.frequency.setValueAtTime(sound.pitch, ct);
       }
 
-      if (sound.detune && inst.detune) {
-        inst.detune.setValueAtTime(sound.detune || 0, ct);
+      inst.envelope.gain.cancelScheduledValues(ct);
+      inst.envelope.gain.setValueAtTime(0, ct);
+      inst.envelope.gain.linearRampToValueAtTime(1, ct + (inst.attackTime || 0));
+      if (inst.decayTime) {
+        inst.envelope.gain.linearRampToValueAtTime(inst.sustain || 1, ct + sound.time + (inst.attackTime || 0) + (inst.decayTime || 0));
       }
+      inst.envelope.gain.setValueAtTime(inst.sustain || 1, ct + (sound.duration));
+      inst.envelope.gain.linearRampToValueAtTime(
+        0,
+        ct + (sound.duration) + (inst.attackTime || 0) + (inst.releaseTime || 0)
+      );
+    }
 
-      if (sound.loudness !== undefined) {
-        gain.gain.setValueAtTime(sound.loudness, ct);
+    if (sound.detune && inst.detune) {
+      inst.detune.setValueAtTime(sound.detune || 0, ct);
+    }
+
+    if (sound.loudness !== undefined) {
+      gain.gain.setValueAtTime(sound.loudness, ct);
+    }
+    if (sound.postReverb) {
+      gain.gain.setTargetAtTime(0, ct + (sound.duration) * 0.95, 0.015);
+      gain.gain.setTargetAtTime(0.45, ct + (sound.duration), 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.02, ct + (sound.duration + sound.postReverb) * 0.95);
+    } else {
+      sound.postReverb = 0;
+    }
+
+    for (const filterName of filters) {
+      let encoder = filterEncoders[filterName];
+      let finisher = filterFinishers[filterName];
+      if (encoder) {
+        encoder(filterNodes[filterName], sound, ct);
       }
-      if (sound.postReverb) {
-        gain.gain.setTargetAtTime(0, ct + (sound.duration) * 0.95, 0.015);
-        gain.gain.setTargetAtTime(0.45, ct + (sound.duration), 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.02, ct + (sound.duration + sound.postReverb) * 0.95);
-      } else {
-        sound.postReverb = 0;
+      if (finisher) {
+        finisher(filterNodes[filterName], sound, ct + sound.time, ct + (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)));
       }
+    }
 
-      for (const filterName of filters) {
-        let encoder = filterEncoders[filterName];
-        let finisher = filterFinishers[filterName];
-        if (encoder) {
-          encoder(filterNodes[filterName], sound, ct);
-        }
-        if (finisher) {
-          finisher(filterNodes[filterName], sound, ct + sound.time, ct + (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)));
-        }
-      }
+    gain.gain.setTargetAtTime(0, ct + (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)) * 0.95, 0.015);
 
-      gain.gain.setTargetAtTime(0, ct + (sound.duration + sound.postReverb + (inst.attackTime || 0) + (inst.releaseTime || 0)) * 0.95, 0.015);
+    if (sound.pan !== undefined) {
+      panner.pan.setValueAtTime(sound.pan, ct);
+    }
 
-      if (sound.pan !== undefined) {
-        panner.pan.setValueAtTime(sound.pan, ct);
-      }
-
-      // play & stop
-      inst.start(ct);
-      if (offline && bufferPrimitve) {
-        ctx.startRendering().then((rb) => {
-          bufferPrimitve.add(sound.time, rb);
-          resolve();
-        });
-      } else {
+    // play & stop
+    if (offline && bufferPrimitve) {
+      inst.start(0);
+      inst.stop(sound.duration + (sound.postReverb || 0));
+      let rb = await ctx.startRendering();
+      if (sound.time !== 'after_previous') bufferPrimitve.add(ct + sound.time, rb);
+      else bufferPrimitve.add('next', rb);
+    } else {
+      return new Promise((resolve, reject) => {
+        inst.start(ct);
         inst.onended = (_) => {
           resolve();
         };
         inst.stop(ct + sound.duration + sound.postReverb);
-      }
-      return;
-    });
+      });
+    }
+    return;
   }
 
 
-  async function playSingleSpeech(sound, config) {
+  async function playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction) {
     // clear previous state
     if (config?.subpart && ErieGlobalState === Stopped$1) return;
     if (!config?.subpart) ErieGlobalState = undefined;
@@ -4142,32 +4167,38 @@
     if (!config.subpart) {
       sendSpeechStartEvent({ sound, sid });
     }
-    return new Promise((resolve, reject) => {
-      let onstart = () => {
-        emitNotePlayEvent('speech', sound);
-      };
-      let onend = () => {
-        window.removeEventListener('keypress', stop);
-        setErieGlobalControl(undefined);
-        ErieGlobalState = undefined;
-        emitNoteStopEvent('speech', sound);
-        if (!config.subpart) {
-          sendSpeechFinishEvent({ sid });
-        }
-      };
 
-      if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
-        GoogleCloudTTSGenerator(sound, config);
-      } else {
-        if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
-          console.warn("Google Cloud TTS API can only be used on Node.js Server environment.");
-        }
-        WebSpeechGenerator(sound, config, onstart, onend, resolve);
+    let onstart = () => {
+      emitNotePlayEvent('speech', sound);
+    };
+    let onend = () => {
+      window.removeEventListener('keypress', stop);
+      setErieGlobalControl(undefined);
+      ErieGlobalState = undefined;
+      emitNoteStopEvent('speech', sound);
+      if (!config.subpart) {
+        sendSpeechFinishEvent({ sid });
       }
-    });
+    };
+
+    if (typeof window !== 'undefined' && bufferPrimitve && typeof ttsFetchFunction === 'function') {
+      let speechRendered = await ttsFetchFunction({ text: sound, config });
+      let ctx = new standardizedAudioContext.AudioContext();
+      bufferPrimitve.add('next', await ctx.decodeAudioData(speechRendered));
+    } else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+      await GoogleCloudTTSGenerator(sound, config);
+    } else {
+      if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+        console.warn("Google Cloud TTS API can only be used on Node.js Server environment.");
+      }
+      return new Promise((resolve, reject) => {
+        WebSpeechGenerator(sound, config, onstart, onend, resolve);
+      });
+    }
+    return;
   }
 
-  async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+  async function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve, ttsFetchFunction) {
     // clear previous state
     ErieGlobalState = undefined;
 
@@ -4178,12 +4209,12 @@
       let sid = genRid();
       if (sound.speech) {
         sendSpeechStartEvent({ sound, sid });
-        await playSingleSpeech(sound, config);
+        await playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction);
         sendSpeechFinishEvent({ sid });
       } else {
         sendToneStartEvent({ sid });
 
-        await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters);
+        await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
 
         sendToneFinishEvent({ sid });
       }
@@ -4865,7 +4896,7 @@
         setPlayerEvents(this, this.config);
         let queue = this.queue;
         this.playAt = i || 0;
-        let outputs = Array((j || this.queue.length) - i).fill({});
+        let outputs = Array((j || queue.length) - (i || 0)).fill({});
         // for pause & resume
         if (i !== undefined && j !== undefined) {
           queue = this.queue.slice(i, j);
@@ -4897,9 +4928,10 @@
       Object.assign(config, item.config);
       config.ramp = item.ramp;
       let bufferPrimitve;
-      if (options.pcm) bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
+      if (options?.pcm) bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
+      let ttsFetchFunction = options?.ttsFetchFunction;
       if (item?.type === TextType) {
-        await playSingleSpeech(item.text, config);
+        await playSingleSpeech(item.text, config, bufferPrimitve, ttsFetchFunction);
       } else if (item?.type === ToneType) {
         let ctx = makeContext();
         for (const inst of this.sampledInstruments) {
@@ -4923,7 +4955,7 @@
         } else if (!item.relative) {
           await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
         } else {
-          await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+          await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
         }
         ctx.close();
       } else if (item?.type === ToneSpeechSeries) {
@@ -4933,7 +4965,7 @@
             this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl);
           }
         }
-        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters);
+        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
         ctx.close();
       } else if (item?.type === ToneOverlaySeries) {
         let promises = [];
@@ -4949,7 +4981,7 @@
           } else if (!stream.relative) {
             promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
           } else {
-            promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters));
+            promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
           }
         }
         await Promise.all(promises);
@@ -5009,22 +5041,20 @@
       clearPlayerEvents();
     }
 
-    async getFullAudio(ttsFetch) {
+    async getFullAudio(ttsFetchFunction) {
       let output = [];
       let ctx = new AudioContext();
+
+      let options = { pcm: true, ttsFetchFunction };
       for (let i = 0; i < this.queue.length; i++) {
-        let t = this.queue[i].type;
-        if ([ToneType, ToneSeries, ToneOverlaySeries].includes(t)) {
-          let buffers = await this.play(i, i + 1, { pcm: true });
-          for (const b of buffers) {
-            if (b?.constructor.name === AudioPrimitiveBuffer?.name) {
-              output.push(b.compiledBuffer);
-            }
+        let buffers = await this.play(i, i + 1, options);
+        for (const b of buffers) {
+          if (b?.constructor.name === AudioPrimitiveBuffer?.name) {
+            output.push(b.compiledBuffer);
+          } else {
+            output.push(await ctx.decodeAudioData(b));
           }
-        } else if (t === TextType) {
-          let res = await ttsFetch(this.queue[i]);
-          output.push(await ctx.decodeAudioData(res));
-        } else ;
+        }
       }
 
       let merged = concatenateBuffers(output);
@@ -5596,7 +5626,7 @@
       }
 
       let oi = 0;
-      
+
       for (const stream of this.streams) {
         let _c = deepcopy(this.config || {});
         Object.assign(_c, stream.config || {});
