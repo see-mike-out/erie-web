@@ -10,8 +10,6 @@ export function applyTransforms(data, spec) {
       return enc.field;
     } else if (d === REPEAT_chn) {
       return enc.field;
-    } else if (!enc.aggregate) {
-      return enc.field;
     }
   }).filter((d) => d);
 

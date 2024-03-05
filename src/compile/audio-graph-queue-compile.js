@@ -34,8 +34,6 @@ export async function compileSingleLayerAuidoGraph(audio_spec, _data, config, ti
       return enc.field;
     } else if (d === REPEAT_chn) {
       return enc.field;
-    } else if (!enc.aggregate) {
-      return enc.field;
     }
   }).filter((d) => d).flat();
 

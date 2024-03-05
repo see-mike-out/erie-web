@@ -1,8 +1,8 @@
-import { makeInstrument } from "../player/audio-graph-player-proto";
+import { makeInstrument, makeOfflineContext } from "../player/audio-graph-player-proto";
 import { round } from "../util/audio-graph-util";
 
 export const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
-export function makeTick(ctx, def, duration) {
+export function makeTick(ctx, def, duration, bufferPrimitve) {
   // ticker definition;
   if (!def) return;
   else if (duration) {
@@ -46,4 +46,18 @@ export function makeTick(ctx, def, duration) {
     }
     return tickInst;
   }
+}
+
+
+export async function playTick(_ctx, def, duration, start, end, bufferPrimitve) {
+  let ctx = _ctx;
+  if (bufferPrimitve) ctx = makeOfflineContext(duration);
+  let tick = makeTick(ctx, def, duration, bufferPrimitve);
+  tick.start(start);
+  tick.stop(end);
+  if (bufferPrimitve) {
+    let rb = await ctx.startRendering();
+    bufferPrimitve.add(start, rb);
+  }
+  return;
 }

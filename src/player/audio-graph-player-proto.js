@@ -1,6 +1,6 @@
 import { determineNoteRange, MultiNoteInstruments, SingleNoteInstruments } from './audio-graph-instrument-sample';
 import { notifyStop } from '../util/audio-graph-speech';
-import { makeTick } from '../tick/audio-graph-time-tick';
+import { makeTick, playTick } from '../tick/audio-graph-time-tick';
 import { deepcopy, genRid } from '../util/audio-graph-util';
 import { AM, ErieSynth, FM, makeSynth } from './audio-graph-synth';
 import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
@@ -26,9 +26,16 @@ export function setCurrentTime(ctx) {
   return ctx.currentTime;
 }
 
+
+export const OscTypes = ['sine', 'sawtooth', 'square', 'triangle'];
+
 export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, sound, contEndTime) {
   if (!detail || detail === "default") {
     return ctx.createOscillator();
+  } else if (OscTypes.includes(detail)) {
+    let osc = ctx.createOscillator();
+    osc.type = detail;
+    return osc;
   } else if (NoiseTypes.includes(detail)) {
     let dur = contEndTime || sound.duration;
     if (sound.detune > 0) dur += dur * (sound.detune / 600);
@@ -100,10 +107,6 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
   setErieGlobalControl({ type: Tone, player: ctx });
-  // gain == loudness
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  gain.gain.value = 0;
 
   // sort queue to mark the last node for sequence end check
   let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
@@ -115,34 +118,46 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   let sid = genRid();
   sendToneStartEvent({ sid });
 
-  // return new Promise(async (resolve, reject) => {
-  // get the current time
-  let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+  // gain == loudness
+  // for timing
+  // let timingCtx = bufferPrimitve ? makeOfflineContext(endTime) : new AudioContext();
+  let timingCtx = new AudioContext();
+  const gain = timingCtx.createGain();
+  gain.connect(timingCtx.destination);
+  gain.gain.value = 0;
 
-  const tick = makeTick(ctx, config.tick, endTime);
+  return new Promise(async (resolve, reject) => {
+    // get the current time
+    let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+    // set and play sounds
+    for (let sound of q) {
+      if (ErieGlobalState === Stopped) {
+        // resolve();
+        break;
+      }
+      // get discrete oscillator
+      const inst = makeInstrument(timingCtx);
+      inst.connect(gain);
 
-  // set and play sounds
-  for (let sound of q) {
-    if (ErieGlobalState === Stopped) {
-      resolve();
-      break;
-    }
-    // get discrete oscillator
-    const inst = makeInstrument(ctx);
-    inst.connect(gain);
+      // play & stop
+      inst.start(ct + sound.time);
+      inst.stop(ct + sound.time + 0.01);
 
-    if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
-      ErieGlobalControl?.player?.cancel();
+      inst.onended = async () => {
+        if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
+          ErieGlobalControl?.player?.cancel();
+        }
+        await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+        if (sound.isLast) {
+          sendToneFinishEvent({ sid });
+          resolve();
+        }
+      };
     }
-    await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
-    if (sound.isLast) {
-      sendToneFinishEvent({ sid });
+    if (config.tick) {
+      playTick(ctx, config.tick, endTime, ct + 0.01, ct + endTime + 0.01, bufferPrimitve);
     }
-  }
-  if (tick) {
-    tick.start(ct + 0.01);
-    tick.stop(ct + endTime + 0.01);
-  }
+  });
 }
 
 export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveDefs, filters, bufferPrimitve) {
@@ -446,6 +461,7 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
   if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
     offline = true;
     ctx = makeOfflineContext(sound.duration);
+    ct = 0;
   }
   let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
   for (const filterName of filters) {
@@ -549,10 +565,10 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
 
   // play & stop
   if (offline && bufferPrimitve) {
-    inst.start(0);
+    inst.start();
     inst.stop(sound.duration + (sound.postReverb || 0))
     let rb = await ctx.startRendering();
-    if (sound.time !== 'after_previous') bufferPrimitve.add(ct + sound.time, rb);
+    if (sound.time !== 'after_previous') bufferPrimitve.add(sound.time, rb);
     else bufferPrimitve.add('next', rb);
   } else {
     return new Promise((resolve, reject) => {

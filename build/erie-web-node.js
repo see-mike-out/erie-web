@@ -688,7 +688,7 @@ const FM$1 = 'FM', AM$1 = 'AM';
 const SINE = 'sine', SQUARE = 'square', SAWTOOTH = 'sawtooth', TRIANGLE = 'triangle';
 
 const SynthTypes = [FM$1, AM$1];
-const OscTypes = [SINE, SQUARE, SAWTOOTH, TRIANGLE];
+const OscTypes$1 = [SINE, SQUARE, SAWTOOTH, TRIANGLE];
 
 let SynthTone$1 = class SynthTone {
   constructor(name) {
@@ -731,10 +731,10 @@ let SynthTone$1 = class SynthTone {
   }
 
   carrierType(t) {
-    if (OscTypes.includes(t)) {
+    if (OscTypes$1.includes(t)) {
       this._carrierType = t;
     } else {
-      throw new TypeError(`The type of a synth carrier must be either one of ${OscTypes.join(', ')}.`);
+      throw new TypeError(`The type of a synth carrier must be either one of ${OscTypes$1.join(', ')}.`);
     }
 
     return this;
@@ -761,10 +761,10 @@ let SynthTone$1 = class SynthTone {
   }
 
   modulatorType(t) {
-    if (OscTypes.includes(t)) {
+    if (OscTypes$1.includes(t)) {
       this._modulatorType = t;
     } else {
-      throw new TypeError(`The type of a synth modulator must be either one of ${OscTypes.join(', ')}.`);
+      throw new TypeError(`The type of a synth modulator must be either one of ${OscTypes$1.join(', ')}.`);
     }
 
     return this;
@@ -1205,10 +1205,10 @@ class Tick {
   }
 
   oscType(t) {
-    if (OscTypes.includes(t)) {
+    if (OscTypes$1.includes(t)) {
       this._oscType = t;
     } else {
-      throw new TypeError(`A tick oscillator type must be either one of ${OscTypes.join(', ')}.`);
+      throw new TypeError(`A tick oscillator type must be either one of ${OscTypes$1.join(', ')}.`);
     }
 
     return this;
@@ -1587,7 +1587,7 @@ class Channel {
           this._tick.interval = v;
         } else if (k === 'playAtTime0' && isInstanceOf(v, Boolean)) {
           this._tick.playAtTime0 = v;
-        } else if (k === 'oscType' && OscTypes.includes(v)) {
+        } else if (k === 'oscType' && OscTypes$1.includes(v)) {
           this._tick.playAtTime0 = v;
         } else if (k === 'pitch' && isInstanceOf(v, Number)) {
           this._tick.pitch = v;
@@ -2714,7 +2714,7 @@ function desc(a, b) {
 }
 
 const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
-function makeTick(ctx, def, duration) {
+function makeTick(ctx, def, duration, bufferPrimitve) {
   // ticker definition;
   if (!def) return;
   else if (duration) {
@@ -2758,6 +2758,20 @@ function makeTick(ctx, def, duration) {
     }
     return tickInst;
   }
+}
+
+
+async function playTick(_ctx, def, duration, start, end, bufferPrimitve) {
+  let ctx = _ctx;
+  if (bufferPrimitve) ctx = makeOfflineContext(duration);
+  let tick = makeTick(ctx, def, duration);
+  tick.start(start);
+  tick.stop(end);
+  if (bufferPrimitve) {
+    let rb = await ctx.startRendering();
+    bufferPrimitve.add(start, rb);
+  }
+  return;
 }
 
 const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 0.5, DefaultModGainFM = 10;
@@ -3620,9 +3634,16 @@ function setCurrentTime(ctx) {
   return ctx.currentTime;
 }
 
+
+const OscTypes = ['sine', 'sawtooth', 'square', 'triangle'];
+
 function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, sound, contEndTime) {
   if (!detail || detail === "default") {
     return ctx.createOscillator();
+  } else if (OscTypes.includes(detail)) {
+    let osc = ctx.createOscillator();
+    osc.type = detail;
+    return osc;
   } else if (NoiseTypes.includes(detail)) {
     let dur = contEndTime || sound.duration;
     if (sound.detune > 0) dur += dur * (sound.detune / 600);
@@ -3692,10 +3713,6 @@ async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, syn
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
   setErieGlobalControl({ type: Tone, player: ctx });
-  // gain == loudness
-  const gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  gain.gain.value = 0;
 
   // sort queue to mark the last node for sequence end check
   let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
@@ -3707,34 +3724,46 @@ async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, syn
   let sid = genRid();
   sendToneStartEvent({ sid });
 
-  // return new Promise(async (resolve, reject) => {
-  // get the current time
-  let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+  // gain == loudness
+  // for timing
+  // let timingCtx = bufferPrimitve ? makeOfflineContext(endTime) : new AudioContext();
+  let timingCtx = new standardizedAudioContext.AudioContext();
+  const gain = timingCtx.createGain();
+  gain.connect(timingCtx.destination);
+  gain.gain.value = 0;
 
-  const tick = makeTick(ctx, config.tick, endTime);
+  return new Promise(async (resolve, reject) => {
+    // get the current time
+    let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
+    // set and play sounds
+    for (let sound of q) {
+      if (ErieGlobalState === Stopped$1) {
+        // resolve();
+        break;
+      }
+      // get discrete oscillator
+      const inst = makeInstrument(timingCtx);
+      inst.connect(gain);
 
-  // set and play sounds
-  for (let sound of q) {
-    if (ErieGlobalState === Stopped$1) {
-      resolve();
-      break;
-    }
-    // get discrete oscillator
-    const inst = makeInstrument(ctx);
-    inst.connect(gain);
+      // play & stop
+      inst.start(ct + sound.time);
+      inst.stop(ct + sound.time + 0.01);
 
-    if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
-      ErieGlobalControl?.player?.cancel();
+      inst.onended = async () => {
+        if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
+          ErieGlobalControl?.player?.cancel();
+        }
+        await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+        if (sound.isLast) {
+          sendToneFinishEvent({ sid });
+          resolve();
+        }
+      };
     }
-    await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
-    if (sound.isLast) {
-      sendToneFinishEvent({ sid });
+    if (config.tick) {
+      playTick(ctx, config.tick, endTime, ct + 0.01, ct + endTime + 0.01, bufferPrimitve);
     }
-  }
-  if (tick) {
-    tick.start(ct + 0.01);
-    tick.stop(ct + endTime + 0.01);
-  }
+  });
 }
 
 async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveDefs, filters, bufferPrimitve) {
@@ -4038,6 +4067,7 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
   if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
     offline = true;
     ctx = makeOfflineContext(sound.duration);
+    ct = 0;
   }
   let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
   for (const filterName of filters) {
@@ -4141,10 +4171,10 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
 
   // play & stop
   if (offline && bufferPrimitve) {
-    inst.start(0);
+    inst.start();
     inst.stop(sound.duration + (sound.postReverb || 0));
     let rb = await ctx.startRendering();
-    if (sound.time !== 'after_previous') bufferPrimitve.add(ct + sound.time, rb);
+    if (sound.time !== 'after_previous') bufferPrimitve.add(sound.time, rb);
     else bufferPrimitve.add('next', rb);
   } else {
     return new Promise((resolve, reject) => {
@@ -6547,6 +6577,11 @@ function normalizeSingleSpec(spec, parent) {
     if (!normalized.transform) normalized.transform = [];
     normalized.transform.push({ aggregate: encoding_aggregates, groupby: Auto });
   }
+  if (normalized.transform.length > 0) {
+    normalized.transform.forEach((t) => {
+      if ((t.boxplot || t.quantile) && !t.groupby) t.groupby = Auto;
+    });
+  }
   // config
   if (spec.config) {
     let config = {};
@@ -6597,6 +6632,397 @@ function normalizeScaleConsistency(config, used_channels) {
   config.forceOverlayScaleConsistency = forceOverlayScaleConsistency;
   config.sequenceScaleConsistency = sequenceScaleConsistency;
   config.forceSequenceScaleConsistency = forceSequenceScaleConsistency;
+}
+
+function filterTable(table, filter) {
+  return table.ungroup().filter(`d => ${filter.replace(/datum\./gi, 'd.')}`).reify();
+}
+
+function makeIndexSortFn(key, order) {
+  return (a, b) => {
+    let det = order.indexOf(a[key]) - order.indexOf(b[key]);
+    if (det != 0) return det;
+    return 0;
+  }
+}
+
+function makeAscSortFn(key) {
+  return (a, b) => {
+    return asc(a[key], b[key]);
+  }
+}
+
+function makeDescSortFn(key) {
+  return (a, b) => {
+    return desc(a[key], b[key]);
+  }
+}
+
+const fromTidy$3 = aq__namespace.from;
+
+// Manipulation of Vega to work with AQ;
+function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth, _extent, _minsteps, _maxsteps, steps, _as) {
+  let method = cumulative ? 'cdf' : 'pdf';
+  _as = _as || ['value', 'density'];
+  let bandwidth = _bandwidth;
+  let values = [];
+  let domain = _extent;
+  let minsteps = steps || _minsteps || 25;
+  let maxsteps = steps || _maxsteps || 200;
+
+  if (groupby || groupby?.length > 0) {
+    let { groups, names } = aqPartition(table, groupby);
+    groups.forEach((group, i) => {
+      let g = group.array(field);
+      const density = vega.randomKDE(g, bandwidth)[method];
+      const scale = counts ? g.length : 1;
+      const local = domain || d3.extent(g);
+      let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
+      curve.forEach(v => {
+        const t = {
+          [_as[0]]: v[0],
+          [_as[1]]: v[1] * scale,
+        };
+        if (groupby) {
+          for (let j = 0; j < groupby.length; ++j) {
+            t[groupby[j]] = names[i][j];
+          }
+        }
+        values.push(t);
+      });
+    });
+    return fromTidy$3(values).groupby(groupby);
+  } else {
+    let g = table.array(field);
+    const density = vega.randomKDE(g, bandwidth)[method];
+    const scale = counts ? g.length : 1;
+    const local = domain || d3.extent(g);
+    let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
+    curve.forEach(v => {
+      const t = {
+        [_as[0]]: v[0],
+        [_as[1]]: v[1] * scale,
+      };
+      if (groupby) {
+        for (let j = 0; j < groupby.length; ++j) {
+          t[groupby[j]] = names[i][j];
+        }
+      }
+      values.push(t);
+    });
+    return fromTidy$3(values);
+  }
+}
+
+function aqPartition(table, groupby) {
+  let grouped_table = table.groupby(groupby);
+  let group_defs = grouped_table.groups();
+  let n_parts = group_defs.size;
+  let part_start = group_defs.rows;
+  let part_end = part_start.slice(1, n_parts);
+  part_end.push(table.numRows());
+  let partitions = grouped_table.partitions();
+  let tab_re = grouped_table.objects();
+  let groups = [], names = [];
+  partitions.forEach((p) => {
+    let g = fromTidy$3(tab_re.filter((d, i) => p.includes(i)));
+    groups.push(g);
+    names.push(groupby.map(gb => g.get(gb)));
+  });
+  return { groups, names };
+}
+
+function foldTable(table, fold_fields, by, exclude, new_names) {
+  let f = table.fold(fold_fields);
+  if (exclude) {
+    f = f.select(by, 'key', 'value');
+  }
+  if (new_names) {
+    let key = new_names[0] || "key";
+    let value = new_names[1] || "value";
+    f = f.rename({ key, value });
+  }
+  return f;
+}
+
+function doCalculate(table, cal, groupby) {
+  let eq = cal.calculate, name_as = cal.as;
+  eq = eq.replace(/datum\./gi, 'd.');
+  return table.groupby(groupby).derive({
+    [name_as]: eq
+  });
+}
+
+function doAggregate(table, aggregates, groupby) {
+  let rollups = getRollUps(aggregates);
+  return table.groupby(groupby).rollup(rollups);
+}
+
+function getRollUps(aggregates) {
+  let rollups = {};
+  for (const agg of aggregates) {
+    let name_as = agg.as, field = agg.field, method = agg.op;
+    if (method === "mean" || method === "average") {
+      rollups[name_as] = `d => op.mean(d['${field}'])`;
+    } else if (method === "valid") {
+      rollups[name_as] = `d => op.valid(d['${field}'])`;
+    } else if (method === "invalid") {
+      rollups[name_as] = `d => op.invalid(d['${field}'])`;
+    } else if (method === "max") {
+      rollups[name_as] = `d => op.max(d['${field}'])`;
+    } else if (method === "min") {
+      rollups[name_as] = `d => op.min(d['${field}'])`;
+    } else if (method === "distinct") {
+      rollups[name_as] = `d => op.distinct(d['${field}'])`;
+    } else if (method === "sum") {
+      rollups[name_as] = `d => op.sum(d['${field}'])`;
+    } else if (method === "product") {
+      rollups[name_as] = `d => op.product(d['${field}'])`;
+    } else if (method === "mode") {
+      rollups[name_as] = `d => op.mode(d['${field}'])`;
+    } else if (method === "median") {
+      rollups[name_as] = `d => op.median(d['${field}'])`;
+    } else if (method === "quantile") {
+      let p = agg.p || 0.5;
+      rollups[name_as] = `d => op.quantile(d['${field}'], ${p})`;
+    } else if (method === "stdev") {
+      rollups[name_as] = `d => op.stdev(d['${field}'])`;
+    } else if (method === "stdevp") {
+      rollups[name_as] = `d => op.stdevp(d['${field}'])`;
+    } else if (method === "variance") {
+      rollups[name_as] = `d => op.variance(d['${field}'])`;
+    } else if (method === "variancep") {
+      rollups[name_as] = `d => op.variancep(d['${field}'])`;
+    } else if (method === "count") {
+      rollups[name_as] = `d => op.count()`;
+    } else if (method === "corr") {
+      rollups[name_as] = `d => op.corr(d['${field[0]}'], d['${field[1]}'])`;
+    } else if (method === "covariance") {
+      rollups[name_as] = `d => op.covariance(d['${field[0]}'], d['${field[1]}'])`;
+    } else if (method === "covariancep") {
+      rollups[name_as] = `d => op.covariancep(d['${field[0]}'], d['${field[1]}'])`;
+    }
+  }
+  return rollups;
+}
+
+function createBin(col, transform) {
+  let is_nice = transform.nice;
+  if (is_nice === undefined) is_nice = true;
+  let maxbins = transform.maxbins || 10;
+  let step = transform.step;
+  let exact = transform.exact;
+  let binFunction = d3.bin(), buckets, binAssigner, equiBin;
+  if (is_nice && maxbins && !step) {
+    binFunction = binFunction.thresholds(maxbins);
+    buckets = binFunction(col);
+    equiBin = true;
+  } else if (step) {
+    maxbins = Math.ceil(d3.extent(col) / step);
+    binFunction = binFunction.thresholds(maxbins);
+    buckets = binFunction(col);
+    equiBin = true;
+  } else if (exact) {
+    binFunction = binFunction.thresholds(exact);
+    buckets = binFunction(col);
+    equiBin = false;
+  }
+  binAssigner = (d) => {
+    let ib = buckets.map(b => (b.includes(d) ? { x0: b.x0, x1: b.x1 } : undefined)).filter(b => b != undefined)?.[0];
+    return { start: ib?.x0, end: ib?.x1 };
+  };
+  let binned = col.map(binAssigner);
+  let start = binned.map(d => d.start), end = binned.map(d => d.end);
+  return { start, end, nBukcets: buckets.length, equiBin };
+}
+
+const fromTidy$2 = aq__namespace.from;
+
+function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
+  if (field) {
+    let extent = _extent, invalid = _invalid;
+    if (extent === undefined) extent = 1.5;
+    if (invalid === undefined) invalid = 'filter';
+    let table = _table.reify();
+    // 1. get basic stats: min, max, 1Q, median, 3Q;
+    if (invalid === 'filter') {
+      table = table.filter(`d => !op.is_nan(d['${field}'])`);
+    } else {
+      table = table.impute({ [field]: () => 0 });
+    }
+    if (groupby && groupby.length > 0) {
+      table = table.groupby(...groupby);
+    }
+    if (extent === "min-max") {
+      let rollup1 = { // median, q1, q3
+        median: `d => op.median(d['${field}'])`,
+        q1: `d => op.quantile(d['${field}'], 0.25)`,
+        q3: `d => op.quantile(d['${field}'], 0.75)`,
+        whisker_lower: `d => op.min(d['${field}'])`,
+        whisker_upper: `d => op.max(d['${field}'])`
+      }, rollup8 = { // get outliers
+        outlier_lower: `d => d['${field}'] < d.whisker_lower ? d['${field}'] : null`,
+        outlier_upper: `d => d['${field}'] > d.whisker_upper ? d['${field}'] : null`,
+        outlier: `d => (d['${field}'] < d.whisker_lower || d['${field}'] > d.whisker_upper) ? d['${field}'] : null`
+      };
+
+      // operate the values
+      table = table.derive(rollup1)
+        .derive(rollup8)
+        .select(...groupby, field, 'median', 'q1', 'q3', 'whisker_lower', 'whisker_upper', 'outlier_lower', 'outlier_upper', 'outlier');
+
+    } else if (typeof extent == 'number') {
+      let rollup1 = { // median, q1, q3
+        median: `d => op.median(d['${field}'])`,
+        q1: `d => op.quantile(d['${field}'], 0.25)`,
+        q3: `d => op.quantile(d['${field}'], 0.75)`
+      }, rollup2 = { // whisker boundary
+        whisker_lower_boundary: `d => d.q1 - op.abs(d.q3 - d.q1) * ${extent}`,
+        whisker_upper_boundary: `d => d.q3 + op.abs(d.q3 - d.q1) * ${extent}`
+      }, rollup3 = { // whisker operation 1
+        whisker_lower_diff: `d => d['${field}'] > d.whisker_lower_boundary ? op.abs(d['${field}'] - d.whisker_lower_boundary) : op.abs(op.max(d['${field}']))`,
+        whisker_upper_diff: `d => d['${field}'] < d.whisker_upper_boundary ? op.abs(d.whisker_upper_boundary - d['${field}']) : op.abs(op.max(d['${field}']))`
+      }, rollup4 = { // whisker operation 2
+        whisker_lower_value_check: `d => op.min(d.whisker_lower_diff)`,
+        whisker_upper_value_check: `d => op.min(d.whisker_upper_diff)`
+      }, rollup5 = { // whisker value marking
+        is_whisker_lower: `d => d.whisker_lower_value_check == d.whisker_lower_diff`,
+        is_whisker_upper: `d => d.whisker_upper_value_check == d.whisker_upper_diff`
+      }, rollup6 = { // get whisker value 1
+        whisker_lower_propa: `d => d.is_whisker_lower ? d['${field}'] : - Math.Infinity`,
+        whisker_upper_propa: `d => d.is_whisker_upper ? d['${field}'] : Math.Infinity`
+      }, rollup7 = { // get whisker value (propagation to all the fields)
+        whisker_lower: `d => op.max(d.whisker_lower_propa)`,
+        whisker_upper: `d => op.min(d.whisker_upper_propa)`
+      }, rollup8 = { // get outliers
+        outlier_lower: `d => d['${field}'] < d.whisker_lower ? d['${field}'] : null`,
+        outlier_upper: `d => d['${field}'] > d.whisker_upper ? d['${field}'] : null`,
+        outlier: `d => (d['${field}'] < d.whisker_lower || d['${field}'] > d.whisker_upper) ? d['${field}'] : null`
+      };
+
+      // operate the values
+      table = table.derive(rollup1)
+        .derive(rollup2)
+        .derive(rollup3)
+        .derive(rollup4)
+        .derive(rollup5)
+        .derive(rollup6)
+        .derive(rollup7)
+        .derive(rollup8)
+        .select(...groupby, field, 'median', 'q1', 'q3', 'whisker_lower', 'whisker_upper', 'outlier_lower', 'outlier_upper', 'outlier');
+    }
+    // clear the output - statistics
+    let output_columns = ['whisker_lower', 'q1', 'median', 'q3', 'whisker_upper'];
+    let rollup_clear = {};
+    output_columns.forEach((c) => {
+      if (!c.startsWith('outlier')) {
+        rollup_clear[c] = `d => op.mean(d['${c}'])`;
+      }
+    });
+    let role_assigner = `(d) => 'point'`;
+    let order_assigner = `(d) => op.indexof(${JSON.stringify(output_columns)}, d.key)`;
+    let group_name_assigner = `(d) => ${groupby.map(k => `d['${k}']`).join(` + '_' + `)}`;
+    let table_stats = table
+      .rollup(rollup_clear)
+      .fold([...output_columns])
+      .derive({ role: role_assigner, order: order_assigner, group_name: group_name_assigner });
+    let records_stats = table_stats.objects();
+
+    // clear the output - outliers
+    let rank_assigner = `(d) => op.rank()`;
+    let table_outliers = table.filter(d => d.outlier != null)
+      .orderby('outlier')
+      .derive({ rank: rank_assigner, group_name: group_name_assigner });
+    let records_outliers = table_outliers.objects();
+    let outlier_counter_lower = {}, outlier_counter_upper = {};
+    for (const outlier of records_outliers) {
+      let o = {};
+      for (const gkey of groupby) {
+        o[gkey] = outlier[gkey];
+      }
+      o.key = 'outlier';
+      o.group_name = outlier.group_name;
+      o.role = 'outlier';
+      o.value = outlier.outlier;
+      if (outlier.outlier_lower) {
+        if (outlier_counter_lower[outlier.group_name] === undefined) outlier_counter_lower[outlier.group_name] = 0;
+        outlier_counter_lower[outlier.group_name] += 1;
+        o.order = - outlier_counter_lower[outlier.group_name];
+      }
+      if (outlier.outlier_upper) {
+        if (outlier_counter_upper[outlier.group_name] === undefined) outlier_counter_upper[outlier.group_name] = 0;
+        outlier_counter_upper[outlier.group_name] += 1;
+        o.order = output_columns.length + outlier_counter_upper[outlier.group_name];
+      }      records_stats.push(o);
+    }
+
+    // match the data type
+    table = fromTidy$2(records_stats).orderby([...groupby, 'order']).groupby(groupby);
+
+    return table.reify();
+  } else {
+    console.warn("No field was provided for the box plot.");
+    return _table;
+  }
+}
+
+const fromTidy$1 = aq__namespace.from;
+
+function generateQuantiles(_table, field, _n, _step, groupby, _as) {
+  if (field) {
+    let table = _table.reify();
+    let n, step;
+    if (_n !== undefined) {
+      n = _n;
+      step = 1 / n;
+    } else if (_step !== undefined && 0 < _step && _step < 1) {
+      n = Math.round(1 / _step);
+      step = 1 / n;
+    }
+    if (!n) {
+      n = 25;
+      step = 1 / 25;
+    }
+    let asName = [];
+    if (_as) {
+      asName = _as;
+    }
+    if (!asName[0]) {
+      asName[0] = 'probability';
+    }
+    if (!asName[1]) {
+      asName[1] = 'value';
+    }
+    let p_names = [];
+    let quantile_rollups = {};
+    let bumper = step / 2;
+    for (let i = 0; i < n; i++) {
+      let q = round((bumper + i * step), -5);
+      p_names.push('q_' + (q).toString());
+      quantile_rollups['q_' + (q).toString()] = `d => op.quantile(d['${field}'], ${q})`;
+    }
+    for (const g of groupby) {
+      quantile_rollups[g] = `d => op.mode(d['${g}'])`;
+    }
+    if (groupby && groupby.length > 0) table = table.groupby(groupby);
+    table = table.rollup(quantile_rollups);
+    table = table.fold(p_names);
+
+    // cleaning
+    let records = table.objects();
+    let new_records = records.map((d) => {
+      let o = {};
+      for (const g of groupby) {
+        o[g] = d[g];
+      }
+      o[asName[0]] = parseFloat(d.key.split("_")[1]);
+      o[asName[1]] = round(d.value, -5);
+      return o;
+    });
+    return fromTidy$1(new_records);
+  } else {
+    return _table;
+  }
 }
 
 const fromTidy = aq__namespace.from, escape = aq__namespace.escape, aqTable = aq__namespace.table;
@@ -6674,115 +7100,27 @@ function transformData(data, transforms, dimensions) {
       else if (transform.filter) {
         table = filterTable(table, transform.filter);
       }
+      // boxplot
+      else if (transform.boxplot) {
+        let groupby = transform.groupby || [];
+        if (groupby === Auto) {
+          groupby = dimensions.filter((d) => table.columnNames().includes(d));
+        }
+        table = makeBoxPlotTable(table, transform.boxplot, transform.extent, transform.invalid, groupby);
+      }
+      // quantiles
+      else if (transform.quantile) {
+        let groupby = transform.groupby || [];
+        if (groupby === Auto) {
+          groupby = dimensions.filter((d) => table.columnNames().includes(d));
+        }
+        table = generateQuantiles(table, transform.quantile, transform.n, transform.step, groupby, transform.as);
+      }
     }
   }
   let output = table.objects();
   output.tableInfo = tableInfo;
   return output;
-}
-
-function createBin(col, transform) {
-  let is_nice = transform.nice;
-  if (is_nice === undefined) is_nice = true;
-  let maxbins = transform.maxbins || 10;
-  let step = transform.step;
-  let exact = transform.exact;
-  let binFunction = d3.bin(), buckets, binAssigner, equiBin;
-  if (is_nice && maxbins && !step) {
-    binFunction = binFunction.thresholds(maxbins);
-    buckets = binFunction(col);
-    equiBin = true;
-  } else if (step) {
-    maxbins = Math.ceil(d3.extent(col) / step);
-    binFunction = binFunction.thresholds(maxbins);
-    buckets = binFunction(col);
-    equiBin = true;
-  } else if (exact) {
-    binFunction = binFunction.thresholds(exact);
-    buckets = binFunction(col);
-    equiBin = false;
-  }
-  binAssigner = (d) => {
-    let ib = buckets.map(b => (b.includes(d) ? { x0: b.x0, x1: b.x1 } : undefined)).filter(b => b != undefined)?.[0];
-    return { start: ib?.x0, end: ib?.x1 };
-  };
-  let binned = col.map(binAssigner);
-  let start = binned.map(d => d.start), end = binned.map(d => d.end);
-  return { start, end, nBukcets: buckets.length, equiBin };
-}
-
-function doAggregate(table, aggregates, groupby) {
-  let rollups = getRollUps(aggregates);
-  return table.groupby(groupby).rollup(rollups);
-}
-
-function getRollUps(aggregates) {
-  let rollups = {};
-  for (const agg of aggregates) {
-    let name_as = agg.as, field = agg.field, method = agg.op;
-    if (method === "mean" || method === "average") {
-      rollups[name_as] = `d => op.mean(d['${field}'])`;
-    } else if (method === "valid") {
-      rollups[name_as] = `d => op.valid(d['${field}'])`;
-    } else if (method === "invalid") {
-      rollups[name_as] = `d => op.invalid(d['${field}'])`;
-    } else if (method === "max") {
-      rollups[name_as] = `d => op.max(d['${field}'])`;
-    } else if (method === "min") {
-      rollups[name_as] = `d => op.min(d['${field}'])`;
-    } else if (method === "distinct") {
-      rollups[name_as] = `d => op.distinct(d['${field}'])`;
-    } else if (method === "sum") {
-      rollups[name_as] = `d => op.sum(d['${field}'])`;
-    } else if (method === "product") {
-      rollups[name_as] = `d => op.product(d['${field}'])`;
-    } else if (method === "mode") {
-      rollups[name_as] = `d => op.mode(d['${field}'])`;
-    } else if (method === "median") {
-      rollups[name_as] = `d => op.median(d['${field}'])`;
-    } else if (method === "quantile") {
-      let p = agg.p || 0.5;
-      rollups[name_as] = `d => op.quantile(d['${field}'], ${p})`;
-    } else if (method === "stdev") {
-      rollups[name_as] = `d => op.stdev(d['${field}'])`;
-    } else if (method === "stdevp") {
-      rollups[name_as] = `d => op.stdevp(d['${field}'])`;
-    } else if (method === "variance") {
-      rollups[name_as] = `d => op.variance(d['${field}'])`;
-    } else if (method === "variancep") {
-      rollups[name_as] = `d => op.variancep(d['${field}'])`;
-    } else if (method === "count") {
-      rollups[name_as] = `d => op.count()`;
-    } else if (method === "corr") {
-      rollups[name_as] = `d => op.corr(d['${field[0]}'], d['${field[1]}'])`;
-    } else if (method === "covariance") {
-      rollups[name_as] = `d => op.covariance(d['${field[0]}'], d['${field[1]}'])`;
-    } else if (method === "covariancep") {
-      rollups[name_as] = `d => op.covariancep(d['${field[0]}'], d['${field[1]}'])`;
-    }
-  }
-  return rollups;
-}
-
-function doCalculate(table, cal, groupby) {
-  let eq = cal.calculate, name_as = cal.as;
-  eq = eq.replace(/datum\./gi, 'd.');
-  return table.groupby(groupby).derive({
-    [name_as]: eq
-  });
-}
-
-function foldTable(table, fold_fields, by, exclude, new_names) {
-  let f = table.fold(fold_fields);
-  if (exclude) {
-    f = f.select(by, 'key', 'value');
-  }
-  if (new_names) {
-    let key = new_names[0] || "key";
-    let value = new_names[1] || "value";
-    f = f.rename({ key, value });
-  }
-  return f;
 }
 
 
@@ -6814,103 +7152,6 @@ function orderArray(data, orders) {
   return outcome || data;
 }
 
-function makeIndexSortFn(key, order) {
-  return (a, b) => {
-    let det = order.indexOf(a[key]) - order.indexOf(b[key]);
-    if (det != 0) return det;
-    return 0;
-  }
-}
-
-function makeAscSortFn(key) {
-  return (a, b) => {
-    return asc(a[key], b[key]);
-  }
-}
-
-
-function makeDescSortFn(key) {
-  return (a, b) => {
-    return desc(a[key], b[key]);
-  }
-}
-
-// Manipulation of Vega to work with AQ;
-function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth, _extent, _minsteps, _maxsteps, steps, _as) {
-  let method = cumulative ? 'cdf' : 'pdf';
-  _as = _as || ['value', 'density'];
-  let bandwidth = _bandwidth;
-  let values = [];
-  let domain = _extent;
-  let minsteps = steps || _minsteps || 25;
-  let maxsteps = steps || _maxsteps || 200;
-
-  if (groupby || groupby?.length > 0) {
-    let { groups, names } = aqPartition(table, groupby);
-    groups.forEach((group, i) => {
-      let g = group.array(field);
-      const density = vega.randomKDE(g, bandwidth)[method];
-      const scale = counts ? g.length : 1;
-      const local = domain || d3.extent(g);
-      let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
-      curve.forEach(v => {
-        const t = {
-          [_as[0]]: v[0],
-          [_as[1]]: v[1] * scale,
-        };
-        if (groupby) {
-          for (let j = 0; j < groupby.length; ++j) {
-            t[groupby[j]] = names[i][j];
-          }
-        }
-        values.push(t);
-      });
-    });
-    return fromTidy(values).groupby(groupby);
-  } else {
-    let g = table.array(field);
-    const density = vega.randomKDE(g, bandwidth)[method];
-    const scale = counts ? g.length : 1;
-    const local = domain || d3.extent(g);
-    let curve = vega.sampleCurve(density, local, minsteps, maxsteps);
-    curve.forEach(v => {
-      const t = {
-        [_as[0]]: v[0],
-        [_as[1]]: v[1] * scale,
-      };
-      if (groupby) {
-        for (let j = 0; j < groupby.length; ++j) {
-          t[groupby[j]] = names[i][j];
-        }
-      }
-      values.push(t);
-    });
-    return fromTidy(values);
-  }
-}
-
-function aqPartition(table, groupby) {
-  let grouped_table = table.groupby(groupby);
-  let group_defs = grouped_table.groups();
-  let n_parts = group_defs.size;
-  let part_start = group_defs.rows;
-  let part_end = part_start.slice(1, n_parts);
-  part_end.push(table.numRows());
-  let partitions = grouped_table.partitions();
-  let tab_re = grouped_table.objects();
-  let groups = [], names = [];
-  partitions.forEach((p) => {
-    let g = fromTidy(tab_re.filter((d, i) => p.includes(i)));
-    groups.push(g);
-    names.push(groupby.map(gb => g.get(gb)));
-  });
-  return { groups, names };
-}
-
-function filterTable(table, filter) {
-  return table.ungroup().filter(`d => ${filter.replace(/datum\./gi, 'd.')}`).reify();
-}
-
 async function compileSingleLayerAuidoGraph(audio_spec, _data, config, tickDef, common_scales) {
   let layer_spec = {
     name: audio_spec.name,
@@ -6932,8 +7173,6 @@ async function compileSingleLayerAuidoGraph(audio_spec, _data, config, tickDef, 
     if ([NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
     } else if (d === REPEAT_chn) {
-      return enc.field;
-    } else if (!enc.aggregate) {
       return enc.field;
     }
   }).filter((d) => d).flat();
@@ -7299,8 +7538,6 @@ function applyTransforms(data, spec) {
     if ([NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
     } else if (d === REPEAT_chn) {
-      return enc.field;
-    } else if (!enc.aggregate) {
       return enc.field;
     }
   }).filter((d) => d);
