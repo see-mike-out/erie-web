@@ -3238,6 +3238,8 @@
   function DistortionEncoder(filter, sound, startTime) {
     if (sound.others.distortion !== undefined) {
       filter.distortion.curve = makeDistortionCurve(sound.others.distortion);
+    } else {
+      filter.distortion.curve = makeDistortionCurve(100);
     }
   }
 
@@ -4084,6 +4086,7 @@
     for (const filterName of filters) {
       let filter = filterNodes[filterName];
       if (filter) {
+        console.log(".");
         filter.connect(destination);
         filter.initialize(ct, sound.duration);
         destination = filter.destination;
@@ -8707,7 +8710,7 @@
     });
   }
 
-  async function compileAuidoGraph(audio_spec, options) {
+  async function compileAudioGraph(audio_spec, options) {
     let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec);
     // 1. load datasets first! && filling missing data type
     let loaded_datasets = {};
@@ -9028,7 +9031,7 @@
   exports.WaveTone = WaveTone;
   exports.WebSpeechGenerator = WebSpeechGenerator;
   exports.bufferToArrayBuffer = bufferToArrayBuffer;
-  exports.compileAuidoGraph = compileAuidoGraph;
+  exports.compileAudioGraph = compileAudioGraph;
   exports.concatenateBuffers = concatenateBuffers;
   exports.generatePCMCode = generatePCMCode;
   exports.makeWaveFromBuffer = makeWaveFromBuffer;
