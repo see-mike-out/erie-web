@@ -34,6 +34,8 @@ function makeDistortionCurve(amount) {
 export function DistortionEncoder(filter, sound, startTime) {
   if (sound.others.distortion !== undefined) {
     filter.distortion.curve = makeDistortionCurve(sound.others.distortion);
+  } else {
+    filter.distortion.curve = makeDistortionCurve(100);
   }
 }
 

@@ -480,6 +480,7 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
   for (const filterName of filters) {
     let filter = filterNodes[filterName];
     if (filter) {
+      console.log(".")
       filter.connect(destination);
       filter.initialize(ct, sound.duration);
       destination = filter.destination;

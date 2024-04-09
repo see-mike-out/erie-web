@@ -19,7 +19,7 @@ import { DurationChannel, LoudnessChannel, ModulationChannel, PanChannel, PitchC
 import { Tick } from './src/classes/erie-tick';
 import { Config } from './src/classes/erie-config';
 import { ErieFilters, registerFilter } from './src/classes/erie-audio-filter';
-import { compileAuidoGraph, readyRecording } from './src/audio-graph';
+import { compileAudioGraph, readyRecording } from './src/audio-graph';
 import { setSampleBaseUrl, ErieSampleBaseUrl } from './src/base';
 import { generatePCMCode } from './src/pulse/audio-control-pulse-generator';
 import { GoogleCloudTTSGenerator } from "./src/player/audio-graph-google-tts-generator";
@@ -67,7 +67,7 @@ export {
   Config,
   ErieFilters,
   registerFilter,
-  compileAuidoGraph,
+  compileAudioGraph,
   readyRecording,
   setSampleBaseUrl,
   ErieSampleBaseUrl,
