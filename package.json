@@ -26,7 +26,6 @@
   "license": "MIT",
   "devDependencies": {
     "@google-cloud/text-to-speech": "^5.1.0",
-    "esm": "^3.2.25",
     "esm-wallaby": "^3.2.29",
     "vitest": "^1.3.1"
   },
