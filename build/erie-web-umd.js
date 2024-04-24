@@ -3623,11 +3623,11 @@
   }
 
   function makeContext() {
-    return new standardizedAudioContext.AudioContext();
+    return new AudioContext();
   }
   const SampleRate = 44100, BufferChannels = 2;
   function makeOfflineContext(length) {
-    return new standardizedAudioContext.OfflineAudioContext(BufferChannels, SampleRate * length, SampleRate);
+    return new OfflineAudioContext(BufferChannels, SampleRate * length, SampleRate);
   }
 
   function setCurrentTime(ctx) {
@@ -3652,6 +3652,7 @@
       let note = determineNoteRange(sound.pitch || DefaultFrequency, {});
       let sample = instSamples[detail]['C' + note.octave];
       let source = ctx.createBufferSource();
+      console.log(sample,source);
       source.buffer = sample;
       source.detune.value = note.detune;
       return source;
@@ -3727,7 +3728,7 @@
     // gain == loudness
     // for timing
     // let timingCtx = bufferPrimitve ? makeOfflineContext(endTime) : new AudioContext();
-    let timingCtx = new standardizedAudioContext.AudioContext();
+    let timingCtx = new AudioContext();
     const gain = timingCtx.createGain();
     gain.connect(timingCtx.destination);
     gain.gain.value = 0;
@@ -4216,7 +4217,7 @@
 
     if (typeof window !== 'undefined' && bufferPrimitve && typeof ttsFetchFunction === 'function') {
       let speechRendered = await ttsFetchFunction({ text: sound, config });
-      let ctx = new standardizedAudioContext.AudioContext();
+      let ctx = new AudioContext();
       bufferPrimitve.add('next', await ctx.decodeAudioData(speechRendered));
     } else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
       await GoogleCloudTTSGenerator(sound, config);
