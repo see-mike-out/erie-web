@@ -6575,7 +6575,7 @@
       if (!normalized.transform) normalized.transform = [];
       normalized.transform.push({ aggregate: encoding_aggregates, groupby: Auto });
     }
-    if (normalized.transform.length > 0) {
+    if (normalized.transform?.length > 0) {
       normalized.transform.forEach((t) => {
         if ((t.boxplot || t.quantile) && !t.groupby) t.groupby = Auto;
       });
