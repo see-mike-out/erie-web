@@ -58,7 +58,7 @@ export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_sp
         if (properties?.domain?.length == 2) {
           if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound v0="domain.min" v1="domain.max" duration="0.6">`;
         } else if (properties?.domain?.length > 2) {
-          if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound ${properties.domain.map((_, i) => 'domain[' + i + ']')} duration="${properties.domain * 0.3}">`;
+          if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound values="${properties.domain.map((_, i) => 'domain[' + i + ']')}" duration="${properties.domain.length * 0.3}">`;
         }
       } else {
         if (properties?.domain?.length == 2) {

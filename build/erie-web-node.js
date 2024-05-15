@@ -2902,7 +2902,7 @@ class ErieSynth {
     // Connect the nodes
     this.modulator.connect(this.modulatorGain.gain);
     this.carrier.connect(this.modulatorGain);
-    this.modulatorGain.connect(this.envelope); 
+    this.modulatorGain.connect(this.envelope);
   }
 
   connect(node) {
@@ -2935,6 +2935,16 @@ class ErieSynthFrequency {
   setTargetAtTime(value, time) {
     this.synther.carrier.frequency.setTargetAtTime(value, time);
   }
+  linearRampToValueAtTime(value, endTime) {
+    this.synther.carrier.frequency.linearRampToValueAtTime(value, endTime);
+  }
+  exponentialRampToValueAtTime(value, endTime) {
+    this.synther.carrier.frequency.exponentialRampToValueAtTime(value, endTime);
+  }
+  setValueCurveAtTime(values, startTime, duration) {
+    this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
+  }
+
 }
 
 const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
@@ -3305,7 +3315,7 @@ const TIME_chn = "time",
 
 // default caps
 const MIN_TIME = 0, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH = 3000,
-  MAX_DETUNE = -1200, MIN_DETUNE = 1200,
+  MAX_DETUNE = 1200, MIN_DETUNE = -1200,
   MIN_LOUD = 0, MAX_LOUD = 10,
   MIN_PAN = -1, MAX_PAN = 1,
   MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5,
@@ -3648,13 +3658,12 @@ function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, sound, co
     return osc;
   } else if (NoiseTypes.includes(detail)) {
     let dur = contEndTime || sound.duration;
-    if (sound.detune > 0) dur += dur * (sound.detune / 600);
+    if (sound?.detune > 0) dur += dur * (sound?.detune / 600);
     return makeNoiseNode(ctx, detail, dur * 1.1);
   } else if (MultiNoteInstruments.includes(detail)) {
     let note = determineNoteRange(sound.pitch || DefaultFrequency, {});
     let sample = instSamples[detail]['C' + note.octave];
     let source = ctx.createBufferSource();
-    console.log(sample,source);
     source.buffer = sample;
     source.detune.value = note.detune;
     return source;
@@ -3769,7 +3778,7 @@ async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, syn
   });
 }
 
-async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveDefs, filters, bufferPrimitve) {
+async function playAbsoluteContinuousTones(_ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
   // clear previous state
   ErieGlobalState = undefined;
 
@@ -3840,7 +3849,7 @@ async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveD
 
   // play as async promise
   // get instrument
-  const inst = makeInstrument(ctx, config?.instrument_type, null, synthDefs, waveDefs, null, endTime);
+  const inst = makeInstrument(ctx, config?.instrument_type, instSamples, synthDefs, waveDefs, q[0], endTime);
   inst.connect(panner);
   let startTime;
   // get the current time
@@ -3852,7 +3861,7 @@ async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveD
         inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
       } else if (inst?.constructor.name === ErieSynth.name) {
         inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-        if (inst.type === FM && sound.modulation !== undefined) {
+        if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
           inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
         } else if (inst.type === AM && sound.modulation !== undefined) {
           inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
@@ -3893,7 +3902,7 @@ async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveD
         } else {
           inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
         }
-        if (inst.type === FM && sound.modulation !== undefined) {
+        if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
           if (rampers.modulation) {
             inst.modulator.frequency[rampers.modulation]((inst.modulatorVolume / sound.modulation), ct + sound.time);
           } else {
@@ -3932,6 +3941,7 @@ async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveD
         panner.pan.linearRampToValueAtTime(sound.pan, ct + sound.time);
       }
       if (sound.isLast) {
+        gain.gain.linearRampToValueAtTime((sound.loudness !== undefined ? sound.loudness : 1), ct + sound.time + 0.05);
         gain.gain.linearRampToValueAtTime(0, ct + sound.time + 0.15);
         if (inst?.constructor.name === ErieSynth.name) {
           inst.envelope.gain.cancelScheduledValues(ct + sound.time);
@@ -4089,7 +4099,6 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
   for (const filterName of filters) {
     let filter = filterNodes[filterName];
     if (filter) {
-      console.log(".");
       filter.connect(destination);
       filter.initialize(ct, sound.duration);
       destination = filter.destination;
@@ -4987,7 +4996,8 @@ class AudioGraphQueue {
         }
       }
       if (item.continued) {
-        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.synths, this.waves, item.filters, bufferPrimitve);
+        config.instrument_type = item.instrument_type;
+        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else if (!item.relative) {
         await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else {
@@ -5013,7 +5023,8 @@ class AudioGraphQueue {
       }
       for (let stream of item.overlays) {
         if (stream.continued) {
-          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters, bufferPrimitve));
+          config.instrument_type = stream.instrument_type;
+          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else if (!stream.relative) {
           promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else {
@@ -5379,6 +5390,18 @@ function parseDescriptionKeywords(exprSeg) {
         } else {
           output.value = { literal: value };
         }
+      } else if (ps[0] === "values") {
+        let valueItems = value.split(",").map(d => d.trim());
+        output.value = [];
+        valueItems.forEach(item => {
+          if (descriptionKeywords.includes(item)) {
+            output.value.push({ keyword: item });
+          } else if (item.match(/domain\[[0-9]+\]/g)) {
+            output.value.push({ keyword: item });
+          } else {
+            output.value.push({ literal: item });
+          }
+        });
       } else if (ps[0].match(/v[0-9]+/g)?.length == 1) {
         if (!output.value) output.value = [];
         let vi = parseInt(ps[0].substring(1));
@@ -5455,7 +5478,7 @@ function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_spec, con
         if (properties?.domain?.length == 2) {
           if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound v0="domain.min" v1="domain.max" duration="0.6">`;
         } else if (properties?.domain?.length > 2) {
-          if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound ${properties.domain.map((_, i) => 'domain[' + i + ']')} duration="${properties.domain * 0.3}">`;
+          if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound values="${properties.domain.map((_, i) => 'domain[' + i + ']')}" duration="${properties.domain.length * 0.3}">`;
         }
       } else {
         if (properties?.domain?.length == 2) {
@@ -6526,6 +6549,8 @@ function normalizeSingleSpec(spec, parent) {
         enc.hasTapSpeed = true;
       } else if (channel === TAPSPD_chn && spec.encoding[TAPCNT_chn]) {
         enc.hasTapCount = true;
+      } else if (channel === PITCH_chn && o_enc.roundToNote) {
+        enc.roundToNote = true;
       }
       // add to a scale 
       let scaleId = 'scale-' + genRid();
@@ -6539,6 +6564,9 @@ function normalizeSingleSpec(spec, parent) {
         streamID: [normalized.id],
         parentType: parent,
       };
+      if (enc.roundToNote) {
+        scaleDef.roundToNote = true;
+      }
       enc.scale.id = scaleId;
       scaleDefinitions.push(scaleDef);
       normalized.encoding[channel] = enc;
@@ -8640,6 +8668,9 @@ async function makeScales(scaleHash, normalized, loaded_datasets, config) {
         }
         if (encoding[cname].formatType) {
           scaleInfo[scaleId].formatType = encoding[cname].formatType;
+        }
+        if (encoding[cname].roundToNote) {
+          scaleInfo[scaleId].roundToNote = encoding[cname].roundToNote;
         }
       }
     } else if (stream.overlay) {

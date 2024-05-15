@@ -27,7 +27,7 @@ export const TIME_chn = "time",
 export const
   MIN_TIME = 0, MAX_TIME = 5,
   MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH = 3000,
-  MAX_DETUNE = -1200, MIN_DETUNE = 1200,
+  MAX_DETUNE = 1200, MIN_DETUNE = -1200,
   MIN_LOUD = 0, MAX_LOUD = 10,
   MIN_PAN = -1, MAX_PAN = 1,
   MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5,

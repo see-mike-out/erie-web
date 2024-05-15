@@ -166,6 +166,9 @@ export async function makeScales(scaleHash, normalized, loaded_datasets, config)
         if (encoding[cname].formatType) {
           scaleInfo[scaleId].formatType = encoding[cname].formatType
         }
+        if (encoding[cname].roundToNote) {
+          scaleInfo[scaleId].roundToNote = encoding[cname].roundToNote
+        }
       }
     } else if (stream.overlay) {
       for (const overlay of stream.overlay) {

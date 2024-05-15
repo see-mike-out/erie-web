@@ -194,6 +194,18 @@ function parseDescriptionKeywords(exprSeg) {
         } else {
           output.value = { literal: value };
         }
+      } else if (ps[0] === "values") {
+        let valueItems = value.split(",").map(d => d.trim());
+        output.value = [];
+        valueItems.forEach(item => {
+          if (descriptionKeywords.includes(item)) {
+            output.value.push({ keyword: item });
+          } else if (item.match(/domain\[[0-9]+\]/g)) {
+            output.value.push({ keyword: item });
+          } else {
+            output.value.push({ literal: item });
+          }
+        });
       } else if (ps[0].match(/v[0-9]+/g)?.length == 1) {
         if (!output.value) output.value = [];
         let vi = parseInt(ps[0].substring(1));

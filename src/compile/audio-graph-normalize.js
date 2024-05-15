@@ -1,4 +1,4 @@
-import { OVERLAY, QUANT, REPEAT_chn, SEQUENCE, SIM_TIMING, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TAPCNT_chn, TAPSPD_chn, TIME2_chn, TIME_chn, RampMethods } from "../scale/audio-graph-scale-constant";
+import { OVERLAY, QUANT, REPEAT_chn, SEQUENCE, SIM_TIMING, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TAPCNT_chn, TAPSPD_chn, TIME2_chn, TIME_chn, RampMethods, PITCH_chn } from "../scale/audio-graph-scale-constant";
 import { toHashedObject } from "../util/audio-graph-format-util";
 import { jType } from "../util/audio-graph-typing-util";
 import { deepcopy, genRid, unique } from "../util/audio-graph-util";
@@ -366,6 +366,8 @@ function normalizeSingleSpec(spec, parent) {
         enc.hasTapSpeed = true;
       } else if (channel === TAPSPD_chn && spec.encoding[TAPCNT_chn]) {
         enc.hasTapCount = true;
+      } else if (channel === PITCH_chn && o_enc.roundToNote) {
+        enc.roundToNote = true;
       }
       // add to a scale 
       let scaleId = 'scale-' + genRid();
@@ -379,6 +381,9 @@ function normalizeSingleSpec(spec, parent) {
         streamID: [normalized.id],
         parentType: parent,
       };
+      if (enc.roundToNote) {
+        scaleDef.roundToNote = true;
+      }
       enc.scale.id = scaleId;
       scaleDefinitions.push(scaleDef);
       normalized.encoding[channel] = enc;

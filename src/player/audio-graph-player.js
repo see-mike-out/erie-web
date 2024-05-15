@@ -270,7 +270,8 @@ export class AudioGraphQueue {
         }
       }
       if (item.continued) {
-        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.synths, this.waves, item.filters, bufferPrimitve);
+        config.instrument_type = item.instrument_type;
+        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else if (!item.relative) {
         await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else {
@@ -296,7 +297,8 @@ export class AudioGraphQueue {
       }
       for (let stream of item.overlays) {
         if (stream.continued) {
-          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.synths, this.waves, stream.filters, bufferPrimitve));
+          config.instrument_type = stream.instrument_type;
+          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else if (!stream.relative) {
           promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else {

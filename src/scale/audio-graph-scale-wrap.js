@@ -64,7 +64,7 @@ export function getAudioScales(channel, encoding, values, beat, data) {
     }
   }
   if (_scale) {
-    let scale
+    let scale;
     if (channel === PITCH_chn && encoding.roundToNote) {
       scale = (d) => { return roundToNoteScale(_scale(d)); }
     } else if (TapChannels.includes(channel)) {

@@ -38,13 +38,12 @@ export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, so
     return osc;
   } else if (NoiseTypes.includes(detail)) {
     let dur = contEndTime || sound.duration;
-    if (sound.detune > 0) dur += dur * (sound.detune / 600);
+    if (sound?.detune > 0) dur += dur * (sound?.detune / 600);
     return makeNoiseNode(ctx, detail, dur * 1.1);
   } else if (MultiNoteInstruments.includes(detail)) {
     let note = determineNoteRange(sound.pitch || DefaultFrequency, {});
     let sample = instSamples[detail]['C' + note.octave];
     let source = ctx.createBufferSource();
-    console.log(sample,source)
     source.buffer = sample;
     source.detune.value = note.detune;
     return source;
@@ -161,7 +160,7 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   });
 }
 
-export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs, waveDefs, filters, bufferPrimitve) {
+export async function playAbsoluteContinuousTones(_ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
   // clear previous state
   ErieGlobalState = undefined;
 
@@ -232,7 +231,7 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs
 
   // play as async promise
   // get instrument
-  const inst = makeInstrument(ctx, config?.instrument_type, null, synthDefs, waveDefs, null, endTime);
+  const inst = makeInstrument(ctx, config?.instrument_type, instSamples, synthDefs, waveDefs, q[0], endTime);
   inst.connect(panner);
   let startTime;
   // get the current time
@@ -244,7 +243,7 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs
         inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
       } else if (inst?.constructor.name === ErieSynth.name) {
         inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-        if (inst.type === FM && sound.modulation !== undefined) {
+        if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
           inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
         } else if (inst.type === AM && sound.modulation !== undefined) {
           inst.modulatorGain.gain.setValueAtTime((sound.loudness || 1) * sound.modulation, ct + sound.time);
@@ -285,7 +284,7 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs
         } else {
           inst.frequency.linearRampToValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
         }
-        if (inst.type === FM && sound.modulation !== undefined) {
+        if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
           if (rampers.modulation) {
             inst.modulator.frequency[rampers.modulation]((inst.modulatorVolume / sound.modulation), ct + sound.time);
           } else {
@@ -324,6 +323,7 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, synthDefs
         panner.pan.linearRampToValueAtTime(sound.pan, ct + sound.time);
       }
       if (sound.isLast) {
+        gain.gain.linearRampToValueAtTime((sound.loudness !== undefined ? sound.loudness : 1), ct + sound.time + 0.05);
         gain.gain.linearRampToValueAtTime(0, ct + sound.time + 0.15);
         if (inst?.constructor.name === ErieSynth.name) {
           inst.envelope.gain.cancelScheduledValues(ct + sound.time);
@@ -481,7 +481,6 @@ async function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs,
   for (const filterName of filters) {
     let filter = filterNodes[filterName];
     if (filter) {
-      console.log(".")
       filter.connect(destination);
       filter.initialize(ct, sound.duration);
       destination = filter.destination;

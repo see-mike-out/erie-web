@@ -126,7 +126,7 @@ export class ErieSynth {
     // Connect the nodes
     this.modulator.connect(this.modulatorGain.gain);
     this.carrier.connect(this.modulatorGain);
-    this.modulatorGain.connect(this.envelope); 
+    this.modulatorGain.connect(this.envelope);
   }
 
   connect(node) {
@@ -159,6 +159,16 @@ export class ErieSynthFrequency {
   setTargetAtTime(value, time) {
     this.synther.carrier.frequency.setTargetAtTime(value, time);
   }
+  linearRampToValueAtTime(value, endTime) {
+    this.synther.carrier.frequency.linearRampToValueAtTime(value, endTime);
+  }
+  exponentialRampToValueAtTime(value, endTime) {
+    this.synther.carrier.frequency.exponentialRampToValueAtTime(value, endTime);
+  }
+  setValueCurveAtTime(values, startTime, duration) {
+    this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
+  }
+
 }
 
 // inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
