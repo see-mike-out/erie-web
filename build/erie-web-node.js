@@ -52,13 +52,13 @@ function isArrayOf(o, c) {
 
 class Datasets {
   constructor() {
-    this.datsets = [];
+    this.datasets = [];
   }
   add(ds) {
     if (!ds.constructor == Dataset) {
       throw new Error(`Wrong dataset object ${ds.constructor.name}}`);
     }
-    this.datsets.push(ds.clone());
+    this.datasets.push(ds.clone());
 
     return this;
   }
@@ -6213,7 +6213,7 @@ async function normalizeSpecification(_spec) {
     used_encodings.push(...Object.keys(normalized.encoding));
   } else {
     let new_data_name;
-    if (spec.data && !spec.data.name) {
+    if (spec.data && !spec.data.name && spec.data.type !== "unset" && spec.data.values) {
       new_data_name = "data__" + (datasets.length + 1);
       datasets.push({
         name: new_data_name,
@@ -6224,7 +6224,7 @@ async function normalizeSpecification(_spec) {
       // (needs verification)
       let overlay = [];
       let h_data, h_data_name;
-      if (spec.data && !spec.data.name) {
+      if (spec.data && !spec.data.name && spec.data.type !== "unset" && spec.data.values) {
         h_data = deepcopy(spec.data);
         h_data_name = `data__${(datasets.length + 1)}`;
         datasets.push({ name: h_data_name, ...h_data });
@@ -7544,6 +7544,8 @@ async function getDataWrap(dataDef, loaded_datasets, datasets) {
 async function getData(data_spec) {
   if (data_spec?.values) {
     return data_spec.values;
+  } else if (data_spec?.data?.values) {
+    return data_spec.data.values;
   } else if (data_spec?.csv) {
     return d3.csvParse(data_spec?.csv);
   } else if (data_spec?.tsv) {
