@@ -51,6 +51,8 @@ Erie.setSampleBaseUrl(...);
 
 [Link](https://see-mike-out.github.io/erie-documentation)
 
+[Presentation video](https://www.youtube.com/watch?v=yqyQyT8MULk)
+
 ## Making a contribution
 
 Erie is an open-source project, and waiting for your feedback!
@@ -67,6 +69,9 @@ npm run build
 - Open for pull/merge requests!
 - Leave an issue for suggestions or bugs!
 - Get on the board (let's work together)!
+
+
+
 
 ## License
 
