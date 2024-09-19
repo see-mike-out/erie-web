@@ -14,7 +14,7 @@ Erie is a declarative grammar for data sonification, and this JavaScript library
 - [Arquero](https://uwdata.github.io/arquero/) v5.2.0
 - [Moment](https://momentjs.com/) 2.29.4
 
-#### 
+####
 
 ### On browser (Vanilla JS)
 
@@ -38,7 +38,6 @@ import * as Erie from "erie-web";
 // ex) Erie.compileAuidoGraph
 ```
 
-
 ### To use audio sample files for musical instruments
 
 #### On Browser
@@ -52,6 +51,10 @@ Erie.setSampleBaseUrl(...);
 [Link](https://see-mike-out.github.io/erie-documentation)
 
 [Presentation video](https://www.youtube.com/watch?v=yqyQyT8MULk)
+
+## Playground & examples
+
+To test/use/play with Erie online, please visit this online editor/gallery [link](https://see-mike-out.github.io/erie-editor).
 
 ## Making a contribution
 
@@ -70,15 +73,14 @@ npm run build
 - Leave an issue for suggestions or bugs!
 - Get on the board (let's work together)!
 
-
-
-
 ## License
 
 MIT
 
 ## Cite
+
 Software
+
 ```
 @misc{erie
   title = {Erie},
@@ -89,6 +91,7 @@ Software
 ```
 
 Paper (will be updated)
+
 ```
 @inproceedings{kim:2024erie
   title = {Erie: a Declarative Grammar for Data Sonification},
