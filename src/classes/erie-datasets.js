@@ -3,13 +3,13 @@ import { isInstanceOf } from "./erie-util";
 
 export class Datasets {
   constructor() {
-    this.datsets = [];
+    this.datasets = [];
   }
   add(ds) {
     if (!ds.constructor == Dataset) {
       throw new Error(`Wrong dataset object ${ds.constructor.name}}`);
     }
-    this.datsets.push(ds.clone());
+    this.datasets.push(ds.clone());
 
     return this;
   }

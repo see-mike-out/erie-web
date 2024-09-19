@@ -29,7 +29,7 @@ export async function normalizeSpecification(_spec) {
     used_encodings.push(...Object.keys(normalized.encoding));
   } else {
     let new_data_name;
-    if (spec.data && !spec.data.name) {
+    if (spec.data && !spec.data.name && spec.data.type !== "unset" && spec.data.values) {
       new_data_name = "data__" + (datasets.length + 1)
       datasets.push({
         name: new_data_name,
@@ -40,7 +40,7 @@ export async function normalizeSpecification(_spec) {
       // (needs verification)
       let overlay = [];
       let h_data, h_data_name;
-      if (spec.data && !spec.data.name) {
+      if (spec.data && !spec.data.name && spec.data.type !== "unset" && spec.data.values) {
         h_data = deepcopy(spec.data);
         h_data_name = `data__${(datasets.length + 1)}`;
         datasets.push({ name: h_data_name, ...h_data });

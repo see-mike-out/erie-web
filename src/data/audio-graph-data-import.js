@@ -20,6 +20,8 @@ export async function getDataWrap(dataDef, loaded_datasets, datasets) {
 export async function getData(data_spec) {
   if (data_spec?.values) {
     return data_spec.values;
+  } else if (data_spec?.data?.values) {
+    return data_spec.data.values;
   } else if (data_spec?.csv) {
     return csvParse(data_spec?.csv);
   } else if (data_spec?.tsv) {
