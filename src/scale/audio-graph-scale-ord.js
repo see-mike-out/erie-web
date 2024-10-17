@@ -1,5 +1,5 @@
 import { ascending, descending, scaleOrdinal } from "d3";
-import { firstDefined, unique, deepcopy } from "../util/audio-graph-util";
+import { getFirstDefined, unique, deepcopy } from "../util/audio-graph-util";
 import { ChannelCaps, ChannelThresholds, PITCH_chn, TIMBRE_chn, NEG } from "./audio-graph-scale-constant";
 import { NomPalletes, repeatPallete } from "./audio-graph-palletes";
 import { jType } from "../util/audio-graph-typing-util";
@@ -53,7 +53,7 @@ export function makeOrdinalScaleFunction(channel, encoding, values, info) {
     scaleOutRange = [rangeMin !== undefined ? rangeMin : CHN_MIN, rangeMax !== undefined ? rangeMax : CHN_MAX];
   } else if (!rangeProvided && !maxDistinct) {
     let p = QuantPreferredRange[channel];
-    scaleOutRange = [firstDefined(rangeMin, p[0], CHN_MIN), firstDefined(rangeMax, p[1], CHN_MAX)];
+    scaleOutRange = [getFirstDefined(rangeMin, p[0], CHN_MIN), getFirstDefined(rangeMax, p[1], CHN_MAX)];
   }
   // match the count
   if (scaleOutRange && !rangeProvided) {

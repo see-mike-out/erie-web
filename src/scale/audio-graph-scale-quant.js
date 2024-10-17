@@ -1,6 +1,6 @@
 import { noteToFreq } from "../util/audio-graph-scale-util";
 import { jType } from "../util/audio-graph-typing-util";
-import { deepcopy, firstDefined } from "../util/audio-graph-util";
+import { deepcopy, getFirstDefined } from "../util/audio-graph-util";
 import { QuantPreferredRange } from "./audio-graph-palletes";
 import { ChannelThresholds, ChannelCaps, LOG, SYMLOG, SQRT, POW, PITCH_chn, NEG, POS, PAN_chn, TIMBRE_chn } from "./audio-graph-scale-constant";
 import { scaleLinear, scaleSymlog, scaleLog, scaleSqrt, scalePow } from "d3";
@@ -59,7 +59,7 @@ export function makeQuantitativeScaleFunction(channel, encoding, values, info) {
     range = [rangeMin !== undefined ? rangeMin : CHN_MIN, rangeMax !== undefined ? rangeMax : CHN_MAX];
   } else if (!rangeProvided && !maxDistinct) {
     let p = QuantPreferredRange[channel] || QuantPreferredRange[extraChannelType];
-    range = [firstDefined(rangeMin, p[0], CHN_MIN), firstDefined(rangeMax, p[1], CHN_MAX)];
+    range = [getFirstDefined(rangeMin, p[0], CHN_MIN), getFirstDefined(rangeMax, p[1], CHN_MAX)];
   }
   if ((channel === PAN_chn || extraChannelType === PAN_chn) && !rangeProvided && domain.length == 3) {
     range.splice(1, 0, 0);

@@ -1,3 +1,4 @@
+// remove this eventually
 // types
 export const NOM = "nominal", ORD = "ordinal", QUANT = "quantitative", TMP = "temporal", STATIC = "static";
 // polarity

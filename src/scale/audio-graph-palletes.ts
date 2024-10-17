@@ -1,7 +1,22 @@
 import { noteToFreq } from "../util/audio-graph-scale-util";
-import { DUR_chn, LOUDNESS_chn, PAN_chn, PITCH_chn, POST_REVERB_chn, TAPCNT_chn, TAPSPD_chn, TIMBRE_chn, TIME_chn } from "./audio-graph-scale-constant";
+import {
+  ChannelName,
+  DUR_chn,
+  LOUDNESS_chn,
+  PAN_chn,
+  PITCH_chn,
+  POST_REVERB_chn,
+  TAPCNT_chn,
+  TAPSPD_chn,
+  TIMBRE_chn,
+  TIME_chn
+} from "../types/encoding";
 
-export const QuantPreferredRange = {
+export type PalleteSet = {
+  [key in ChannelName]?: any[]
+}
+
+export const QuantPreferredRange: PalleteSet = {
   [TIME_chn]: [0, 5],
   [PITCH_chn]: [200, 1000],
   [LOUDNESS_chn]: [0, 1],
@@ -12,7 +27,7 @@ export const QuantPreferredRange = {
   [TAPSPD_chn]: [0, 5]
 };
 
-export const NomPalletes = {
+export const NomPalletes: PalleteSet = {
   [PITCH_chn]: [
     'C3', 'C4', 'C5', 'C6',
     'G3', 'G4', 'G5', 'G6',
@@ -31,7 +46,7 @@ export const NomPalletes = {
   [TIMBRE_chn]: ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"]
 }
 
-export function repeatPallete(pallete, len) {
+export function repeatPallete(pallete: any[], len: number): any[] {
   let pLen = pallete?.length;
   if (pLen >= len) {
     return pallete.slice(0, len);

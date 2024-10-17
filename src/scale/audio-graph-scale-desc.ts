@@ -5,11 +5,12 @@ import { DEF_LEGEND_DUR, DEF_SPEECH_RATE, NOM, ORD, QUANT, SKIP, NONSKIP, STATIC
 import { jType } from "../util/audio-graph-typing-util";
 import { unique } from "../util/audio-graph-util";
 import { compileDescriptionMarkup } from "./audio-graph-scale-desc-parser";
+import { TimeUnitUnits, TU_SEC } from "../types/time";
 
 export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_spec, config, beat) {
   let properties = scale.properties;
   let channel = properties.channel, field = properties.field, encodingType = properties.encodingType;
-  let timeUnit = config?.timeUnit?.unit || 'seconds';
+  let timeUnit: TimeUnitUnits = config?.timeUnit?.unit || TU_SEC;
 
   if (properties?.descriptionDetail === SKIP || properties?.descriptionDetail === null) {
     return null;
