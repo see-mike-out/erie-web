@@ -1,5 +1,7 @@
 # Erie: a declarative grammar for data sonification (for web)
 
+**Migration to Typescript is ongoing.**
+
 ## Introduction
 
 Erie is a declarative grammar for data sonification, and this JavaScript library is built for web environments using Web Audio API and Web Speech API.
