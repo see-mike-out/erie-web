@@ -6,8 +6,9 @@ import { jType } from "../util/audio-graph-typing-util";
 import { unique } from "../util/audio-graph-util";
 import { compileDescriptionMarkup } from "./audio-graph-scale-desc-parser";
 import { TimeUnitUnits, TU_SEC } from "../types/time";
+import { ParsedScaleFunction } from "../types";
 
-export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_spec, config, beat) {
+export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataInfo, tickDef, tone_spec, config, beat) {
   let properties = scale.properties;
   let channel = properties.channel, field = properties.field, encodingType = properties.encodingType;
   let timeUnit: TimeUnitUnits = config?.timeUnit?.unit || TU_SEC;
@@ -27,7 +28,7 @@ export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_sp
   }
 
   let speechRate = config.speechRate || DEF_SPEECH_RATE;
-  let title = encoding?.scale.title || listString(unique(properties.field), ", ", false);
+  let title = encoding?.scale.title || listString(unique(properties.field ?? []), ", ", false);
 
   if (channel === TIME_chn) {
     if (!customExpression) expression = `The <title> is mapped to <channel>. `;
@@ -58,17 +59,17 @@ export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_sp
       if (tone_spec.continued) {
         if (properties?.domain?.length == 2) {
           if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound v0="domain.min" v1="domain.max" duration="0.6">`;
-        } else if (properties?.domain?.length > 2) {
+        } else if ((properties?.domain?.length ?? 0) > 2) {
           if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound values="${properties.domain.map((_, i) => 'domain[' + i + ']')}" duration="${properties.domain.length * 0.3}">`;
         }
       } else {
         if (properties?.domain?.length == 2) {
           if (!customExpression) expression += `The minimum value <domain.min> is mapped to <sound value="domain.min" duration="0.3">, and `;
           if (!customExpression) expression += `the maximum value <domain.max> is mapped to <sound value="domain.max" duration="0.3">.`;
-        } else if (properties?.domain?.length > 2) {
+        } else if ((properties?.domain?.length ?? 0) > 2) {
           if (!customExpression) {
             expression += `<title> values are mapped as`
-            for (let i = 0; i < properties.domain.length; i++) {
+            for (let i = 0; i < (properties.domain?.length ?? 0); i++) {
               expression += `<domain[${i}]> <sound value="domain[${i}]" duration="0.3">`;
             }
           }
@@ -90,7 +91,7 @@ export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_sp
       }
     } else if (encodingType === ORD || encodingType === NOM) {
       if (!customExpression) expression += `The <title> is mapped to <channel>. `;
-      let domainCount = properties.domain.length;
+      let domainCount = properties.domain?.length ?? 0;
       if (domainCount <= 6 || properties.playAllDescription) {
         for (let i = 0; i < domainCount; i++) {
           if (!customExpression) expression += `The value <domain[${i}]> is <sound value="domain[${i}]" duration="0.3">. `;
@@ -104,13 +105,19 @@ export function makeScaleDescription(scale, encoding, dataInfo, tickDef, tone_sp
     } else if (encodingType === STATIC) {
       if (properties.conditions) {
         for (const cond of properties.conditions) {
-          if (jType(cond.test) === 'Array') {
-            if (!customExpression) expression += `The values of <list item="${cond.test.join(',')}" join=", "> are mapped to <sound value="${cond.test[0]}" duration="0.3>. `;
-          } else if (cond.test?.not && jType(cond.test.not) === 'Array') {
-            if (!customExpression) expression += `The values that are not <list item="${cond.test.not.join(',')}" join=", "> are mapped to <sound value="${cond.test.not[0]}" duration="0.3>. `;
-          } else if (cond.test && cond.name) {
-            let d = cond.test[0] || cond.test.not?.[0];
+          if (cond.test && cond.name) {
+            let d: any;
+            if (cond.test instanceof Array) {
+              d = cond.test[0]
+            } else if (cond.test instanceof Object && cond.test?.not && cond.test.not instanceof Array) {
+              cond.test.not?.[0];
+            }
             if (!customExpression && d !== undefined) expression += `${cond.name} values are mapped to <sound value="${d}" duration="0.3>. `;
+          } else if (cond.test instanceof Array) {
+            if (!customExpression) expression += `The values of <list item="${cond.test.join(',')}" join=", "> are mapped to <sound value="${cond.test[0]}" duration="0.3>. `;
+          } else if (
+            cond.test instanceof Object && cond.test?.not && cond.test.not instanceof Array) {
+            if (!customExpression) expression += `The values that are not <list item="${cond.test.not.join(',')}" join=", "> are mapped to <sound value="${cond.test.not[0]}" duration="0.3>. `;
           }
         }
       }

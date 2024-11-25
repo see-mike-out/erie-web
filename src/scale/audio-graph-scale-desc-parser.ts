@@ -12,12 +12,10 @@
 // => return DescriptionMarkupQueueItem[] (playable Queue)
 
 import { format, timeFormat } from "d3";
-import { listString } from "../util/audio-graph-format-util";
-import { jType } from "../util/audio-graph-typing-util";
-import { TIME_chn } from "../types/encoding";
-import { TimeUnitUnits } from "../types/time";
+import { jType, listString } from "../util";
+import { TimeUnitUnits, TIME_chn, ParsedScaleFunction, ParsedScaleProperties } from "../types";
 
-// constants and types
+// *** constants and types ***
 
 // keywords used in the markup
 const DescKeySound = 'sound',
@@ -103,16 +101,17 @@ export interface ParsedDescMarkup {
 // overall formatting to determine parsability of a markup expression
 const exprRegex = /(\<[^\<\>]+\>|[^\<\>]+)/g;
 // parsing each semgent of a markup element <...>
-const descSegmentRegex = /(([a-zA-Z0-9\.]+=\"[^\"]+\")|[a-zA-Z\.0-9\[\]]+)/g; 
+const descSegmentRegex = /(([a-zA-Z0-9\.]+=\"[^\"]+\")|[a-zA-Z\.0-9\[\]]+)/g;
 
 
 // markup compiler (generating queue items)
-export function compileDescriptionMarkup(expression: string, channel: string, scale, speechRate: number, timeUnit: TimeUnitUnits): DescriptionMarkupQueueItem[] {
+// note: what is scale?
+export function compileDescriptionMarkup(expression: string, channel: string, scale: ParsedScaleFunction, speechRate: number, timeUnit: TimeUnitUnits): DescriptionMarkupQueueItem[] {
   if (expression.length == 0 || !expression) return [];
   let exprParsed: ParsedDescMarkup[] | null = parseDescriptionMarkup(expression);
   if (exprParsed != null) {
 
-    let scaleProps = scale.properties;
+    let scaleProps = scale.properties ?? {};
     let preQueue: DescriptionMarkupQueueItem[] = [];
     for (const seg of exprParsed) {
       if (seg.type === "text") {
@@ -209,39 +208,39 @@ export function compileDescriptionMarkup(expression: string, channel: string, sc
   return [];
 }
 
-function getLKvalues(item: KeyedDescItem, channel: string, scaleProps, timeUnit: TimeUnitUnits): string | number | undefined {
+function getLKvalues(item: KeyedDescItem, channel: string, scaleProps: ParsedScaleProperties, timeUnit: TimeUnitUnits): string | number | undefined {
   if (item?.literal) return item.literal;
   else if (item?.keyword) return getKeywordValues(item.keyword, channel, scaleProps, timeUnit);
   else return undefined;
 }
 
-function getKeywordValues(keyword: string, channel: string, scaleProps, timeUnit: TimeUnitUnits): string | number | undefined {
+function getKeywordValues(keyword: string, channel: string, scaleProps: ParsedScaleProperties, timeUnit: TimeUnitUnits): string | number | undefined {
   if (keyword === DescKeyDomain) {
-    return scaleProps.domain.join(", ");
+    return scaleProps.domain?.join(", ") ?? "";
   } else if (keyword === DescKeyDomainMin) {
-    return Math.min(...scaleProps.domain);
+    return Math.min(...(scaleProps.domain ?? []));
   } else if (keyword === DescKeyDomainMax) {
-    return Math.max(...scaleProps.domain);
+    return Math.max(...(scaleProps.domain ?? []));
   } else if (keyword.match(DescKeyDomainNumberedRegex) != null) {
     let i = parseInt((<string[]>keyword.match(DescKeyDomainNumberedRegex))[0]);
-    return scaleProps.domain[i];
+    return scaleProps.domain?.[i] ?? "";
   } else if (keyword === DescKeyDomainLength) {
-    return scaleProps.domain.length;
+    return scaleProps.domain?.length ?? 0;
   } if (keyword === DescKeyRange) {
-    return scaleProps.range.join(", ");
+    return scaleProps.range?.join(", ") ?? "";
   } else if (keyword === DescKeyRangeLength) {
     if (channel === TIME_chn) return scaleProps.length;
-    else return Math.max(...scaleProps.range) - Math.min(...scaleProps.range);
+    else return Math.max(...(scaleProps.range ?? [])) - Math.min(...(scaleProps.range ?? []));
   } else if (keyword === DescKeyChannel) {
     return channel;
   } else if (keyword === DescKeyField) {
-    return scaleProps.field.join(", ");
+    return scaleProps.field?.join(", ") ?? "";
   } else if (keyword === DescKeyTitle) {
-    return scaleProps.title;
+    return scaleProps.title ?? "";
   } else if (keyword === DescKeyAggregate) {
-    return scaleProps.aggregate;
+    return scaleProps.aggregate ?? "";
   } else if (keyword === DescKeyTimeUnit) {
-    return timeUnit;
+    return timeUnit ?? "";
   }
 }
 
