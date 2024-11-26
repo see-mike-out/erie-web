@@ -1,12 +1,12 @@
-import { NOM, ORD, REPEAT_chn, TMP } from "../scale/audio-graph-scale-constant";
+import { NOM, NormalizedSingleStream, ORD, REPEAT_chn, TMP } from "../types";
 import { unique } from "../util/audio-graph-util";
 import { transformData } from "./audio-graph-data-transform";
 
-export function applyTransforms(data, spec) {
+export function applyTransforms(data: any[], spec: NormalizedSingleStream) {
   // transformations
   let forced_dimensions = Object.keys(spec.encoding).map((d) => {
     let enc = spec.encoding[d];
-    if ([NOM, ORD, TMP].includes(enc.type)) {
+    if ('type' in enc && enc.type && [NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
     } else if (d === REPEAT_chn) {
       return enc.field;

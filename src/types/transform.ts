@@ -99,6 +99,10 @@ export interface CalculateObject {
    * new field name
    */
   as: string;
+  /**
+   * group the resulting calculations by a field(s)
+   */
+  groupby?: string[] | typeof Auto;
 }
 
 // Transform: Density
@@ -142,7 +146,7 @@ export interface DensityObject {
   /**
    * the resulting field name
    */
-  as?: string[];
+  as?: [string, string];
 }
 
 // Transform: Filter
@@ -173,13 +177,32 @@ export interface FoldObject {
   as?: [string, string];
 }
 
+// Transform: Boxplot
+export interface BoxplotObject {
+  boxplot: string,
+  extent?: number | 'min-max',
+  invalid?: 'filter' | undefined,
+  groupby?: string[] | typeof Auto;
+}
+
+// Transform: Quantile
+export interface QuantileObject {
+  quantile: string,
+  n: number,
+  step: number,
+  as?: [string, string],
+  groupby?: string[] | typeof Auto
+}
+
 // Transform: Generalized
 export type TransformItem = AggregateObject
   | BinObject
   | CalculateObject
   | DensityObject
   | FilterObject
-  | FoldObject;
+  | FoldObject
+  | BoxplotObject
+  | QuantileObject;
 
 export type TransformList = Array<TransformItem>
 

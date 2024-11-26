@@ -1,7 +1,13 @@
 import * as aq from "arquero";
+import { AqTableType, RecordObject } from "../types";
 const fromTidy = aq.from;
 
-export function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
+export function makeBoxPlotTable(
+  _table: AqTableType,
+  field: string,
+  _extent: number | 'min-max' | undefined,
+  _invalid: 'filter' | undefined,
+  groupby?: string[]): ReturnType<typeof aq.table> {
   if (field) {
     let extent = _extent, invalid = _invalid;
     if (extent === undefined) extent = 1.5;
@@ -32,7 +38,7 @@ export function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
       // operate the values
       table = table.derive(rollup1)
         .derive(rollup8)
-        .select(...groupby, field, 'median', 'q1', 'q3', 'whisker_lower', 'whisker_upper', 'outlier_lower', 'outlier_upper', 'outlier');
+        .select(...(groupby || []), field, 'median', 'q1', 'q3', 'whisker_lower', 'whisker_upper', 'outlier_lower', 'outlier_upper', 'outlier');
 
     } else if (typeof extent == 'number') {
       let rollup1 = { // median, q1, q3
@@ -72,11 +78,11 @@ export function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
         .derive(rollup6)
         .derive(rollup7)
         .derive(rollup8)
-        .select(...groupby, field, 'median', 'q1', 'q3', 'whisker_lower', 'whisker_upper', 'outlier_lower', 'outlier_upper', 'outlier');
+        .select(...(groupby || []), field, 'median', 'q1', 'q3', 'whisker_lower', 'whisker_upper', 'outlier_lower', 'outlier_upper', 'outlier');
     }
     // clear the output - statistics
     let output_columns = ['whisker_lower', 'q1', 'median', 'q3', 'whisker_upper'];
-    let rollup_clear = {};
+    let rollup_clear: RecordObject = {};
     output_columns.forEach((c) => {
       if (!c.startsWith('outlier')) {
         rollup_clear[c] = `d => op.mean(d['${c}'])`
@@ -84,7 +90,7 @@ export function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
     });
     let role_assigner = `(d) => 'point'`;
     let order_assigner = `(d) => op.indexof(${JSON.stringify(output_columns)}, d.key)`;
-    let group_name_assigner = `(d) => ${groupby.map(k => `d['${k}']`).join(` + '_' + `)}`;
+    let group_name_assigner = `(d) => ${(groupby || []).map(k => `d['${k}']`).join(` + '_' + `)}`;
     let table_stats = table
       .rollup(rollup_clear)
       .fold([...output_columns])
@@ -93,18 +99,18 @@ export function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
 
     // clear the output - outliers
     let rank_assigner = `(d) => op.rank()`;
-    let table_outliers = table.filter(d => d.outlier != null)
+    let table_outliers = table.filter((d: RecordObject) => d.outlier != null)
       .orderby('outlier')
       .derive({ rank: rank_assigner, group_name: group_name_assigner });
-    let records_outliers = table_outliers.objects();
-    let outlier_counter_lower = {}, outlier_counter_upper = {};
+    let records_outliers: RecordObject[] = table_outliers.objects();
+    let outlier_counter_lower: RecordObject = {}, outlier_counter_upper: RecordObject = {};
     for (const outlier of records_outliers) {
-      let o = {};
-      for (const gkey of groupby) {
+      let o: RecordObject = {};
+      for (const gkey of (groupby || [])) {
         o[gkey] = outlier[gkey];
       }
       o.key = 'outlier';
-      o.group_name = outlier.group_name;
+      o.group_name = outlier.group_name as string;
       o.role = 'outlier'
       o.value = outlier.outlier;
       if (outlier.outlier_lower) {
@@ -121,7 +127,7 @@ export function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
     }
 
     // match the data type
-    table = fromTidy(records_stats).orderby([...groupby, 'order']).groupby(groupby);
+    table = fromTidy(records_stats).orderby([...(groupby || []), 'order']).groupby(groupby || []);
 
     return table.reify();
   } else {

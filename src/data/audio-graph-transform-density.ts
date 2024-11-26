@@ -1,20 +1,35 @@
 import { extent } from "d3";
-import { randomKDE } from 'vega';
-import { sampleCurve } from 'vega';
+// import { randomKDE } from 'vega-statistics';
+// import { sampleCurve } from 'vega-statistics';
+import * as vega from "vega-statistics";
 import * as aq from "arquero";
+import { AqTableType } from "../types";
 const fromTidy = aq.from;
+// this is from custom typing
+const randomKDE = vega.randomKDE, sampleCurve = vega.sampleCurve;
 
 // Manipulation of Vega to work with AQ;
-export function getKernelDensity(table, field, groupby, cumulative, counts, _bandwidth, _extent, _minsteps, _maxsteps, steps, _as) {
-  let method = cumulative ? 'cdf' : 'pdf';
-  _as = _as || ['value', 'density'];
+export function getKernelDensity(
+  table: AqTableType,
+  field: string,
+  groupby: string[] | undefined,
+  cumulative: boolean | undefined,
+  counts: boolean | undefined,
+  _bandwidth: number | undefined,
+  _extent: number[] | undefined,
+  _minsteps: number | undefined,
+  _maxsteps: number | undefined,
+  steps: number | undefined,
+  _as: [string, string] | undefined): AqTableType {
+  let method: 'cdf' | 'pdf' = cumulative ? 'cdf' : 'pdf';
+  let asName: [string, string] = _as ? [_as[0] ?? 'value', _as[1] ?? 'density'] : ['value', 'density'];
   let bandwidth = _bandwidth;
-  let values = [];
+  let values: any[] = [];
   let domain = _extent;
   let minsteps = steps || _minsteps || 25;
   let maxsteps = steps || _maxsteps || 200;
 
-  if (groupby || groupby?.length > 0) {
+  if (groupby && groupby?.length > 0) {
     let { groups, names } = aqPartition(table, groupby);
     groups.forEach((group, i) => {
       let g = group.array(field);
@@ -22,10 +37,10 @@ export function getKernelDensity(table, field, groupby, cumulative, counts, _ban
       const scale = counts ? g.length : 1;
       const local = domain || extent(g);
       let curve = sampleCurve(density, local, minsteps, maxsteps);
-      curve.forEach(v => {
+      curve.forEach((v: [number, number]) => {
         const t = {
-          [_as[0]]: v[0],
-          [_as[1]]: v[1] * scale,
+          [asName[0]]: v[0],
+          [asName[1]]: v[1] * scale,
         };
         if (groupby) {
           for (let j = 0; j < groupby.length; ++j) {
@@ -42,23 +57,20 @@ export function getKernelDensity(table, field, groupby, cumulative, counts, _ban
     const scale = counts ? g.length : 1;
     const local = domain || extent(g);
     let curve = sampleCurve(density, local, minsteps, maxsteps);
-    curve.forEach(v => {
+    curve.forEach((v: [number, number]) => {
       const t = {
-        [_as[0]]: v[0],
-        [_as[1]]: v[1] * scale,
+        [asName[0]]: v[0],
+        [asName[1]]: v[1] * scale,
       };
-      if (groupby) {
-        for (let j = 0; j < groupby.length; ++j) {
-          t[groupby[j]] = names[i][j];
-        }
-      }
       values.push(t);
     });
     return fromTidy(values);
   }
 }
 
-function aqPartition(table, groupby) {
+function aqPartition(table: AqTableType, groupby: string[]): {
+  groups: AqTableType[], names: any[]
+} {
   let grouped_table = table.groupby(groupby);
   let group_defs = grouped_table.groups();
   let n_parts = group_defs.size;
@@ -67,11 +79,11 @@ function aqPartition(table, groupby) {
   part_end.push(table.numRows());
   let partitions = grouped_table.partitions();
   let tab_re = grouped_table.objects();
-  let groups = [], names = [];
+  let groups: AqTableType[] = [], names: any[] = [];
   partitions.forEach((p) => {
     let g = fromTidy(tab_re.filter((d, i) => p.includes(i)));
     groups.push(g);
-    names.push(groupby.map(gb => g.get(gb)));
+    names.push(groupby.map((gb) => g.get(gb)));
   });
   return { groups, names };
 }

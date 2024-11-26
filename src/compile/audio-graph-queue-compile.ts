@@ -9,7 +9,9 @@ import {
   REPEAT_chn, ScaleDescriptionOrder, TIMBRE_chn, TIME2_chn, TIME_chn, TapChannels, SEQUENCE,
   REL,
   TickObject,
-  ParsedScaleFunction
+  ParsedScaleFunction,
+  DataOrderingItem,
+  InternalData
 } from "../types";
 import { BeforeAll, PlayAt, makeScaleDescription } from "../scale/audio-graph-scale-desc";
 import { Def_Tick_Duration, Def_Tick_Duration_Beat, Def_Tick_Interval, Def_Tick_Interval_Beat } from '../tick/audio-graph-time-tick';
@@ -37,16 +39,16 @@ export async function compileSingleLayerAuidoGraph(
   }
 
   // transformations
-  let forced_dimensions = Object.keys(layer_spec.encoding).map((d) => {
+  let forced_dimensions: string[] = Object.keys(layer_spec.encoding).map((d) => {
     let enc = layer_spec.encoding[d];
     if (enc.type && [NOM, ORD, TMP].includes(enc.type)) {
       return enc.field;
     } else if (d === REPEAT_chn) {
       return enc.field;
     }
-  }).filter((d) => d).flat();
+  }).filter((d) => d !== undefined).flat();
 
-  let data: any[]; //todo: fix to arquero table
+  let data: InternalData; 
   if (audio_spec.common_transform) {
     data = transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions);
   } else {
@@ -68,13 +70,19 @@ export async function compileSingleLayerAuidoGraph(
   let is_repeated = encoding[REPEAT_chn] !== undefined;
   let has_repeat_speech = is_repeated && encoding[REPEAT_chn].speech;
   if (has_repeat_speech === undefined) has_repeat_speech = true;
-  let repeat_field = is_repeated ? encoding[REPEAT_chn].field : undefined;
-  if (repeat_field && jType(repeat_field) !== 'Array') repeat_field = [repeat_field];
-  let repeat_direction = encoding[REPEAT_chn]?.by;
+  if (encoding[REPEAT_chn].field === undefined) {
+    console.error("Repeat field must be provided.")
+  }
+  let _rf: string | string[] = encoding[REPEAT_chn].field as string | string[];
+  if (typeof _rf === 'string') _rf = [_rf];
+  let repeat_field: string[] = _rf;
+  let _rd: string | string[] | undefined = encoding[REPEAT_chn]?.by;
+  let repeat_direction: string[] = [];
   if (is_repeated) {
-    if (repeat_direction === undefined) repeat_direction = SEQUENCE;
-    if (jType(repeat_direction) !== 'Array') repeat_direction = [repeat_direction];
-    if (repeat_field.length !== repeat_direction.length) {
+    if (_rd === undefined) _rd = [SEQUENCE];
+    else if (typeof _rd === 'string') _rd = [_rd];
+    repeat_direction = _rd;
+    if (repeat_field?.length !== repeat_direction.length) {
       if (repeat_direction.length == 1) {
         repeat_direction = repeat_field.map(() => repeat_direction[0]);
       } else {
@@ -84,30 +92,31 @@ export async function compileSingleLayerAuidoGraph(
   }
 
   // data sort
-  let data_order = [];
-  if (TIME_chn in encoding && encoding[TIME_chn].scale?.order) {
+  let data_order: DataOrderingItem[] = [];
+  if (TIME_chn in encoding && encoding[TIME_chn].field && encoding[TIME_chn].scale?.order) {
     data_order.push({
       key: encoding[TIME_chn].field, order: [encoding[TIME_chn].scale?.order]
     });
-  } else if (TIME_chn in encoding && encoding[TIME_chn].scale?.sort) {
+  } else if (TIME_chn in encoding && encoding[TIME_chn].field && 'sort' in (encoding[TIME_chn]?.scale ?? {}) && encoding[TIME_chn].scale?.sort) {
     data_order.push({
       key: encoding[TIME_chn].field, sort: encoding[TIME_chn].scale?.sort
     });
-  } else if (TIME_chn in encoding) {
+  } else if (TIME_chn in encoding && encoding[TIME_chn].field) {
+    let f = encoding[TIME_chn].field
     data_order.push({
-      key: encoding[TIME_chn].field, order: unique(data.map(d => d[encoding[TIME_chn].field])).toSorted(asc)
+      key: f, order: unique(data.map(d => d[f])).toSorted(asc)
     });
   }
 
-  if (is_repeated && encoding[REPEAT_chn].scale?.order) {
+  if (is_repeated && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.order) {
     data_order.push({
-      key: repeat_field, order: encoding[REPEAT_chn].scale?.order
+      key: repeat_field[0], order: encoding[REPEAT_chn].scale?.order
     });
-  } else if (is_repeated && encoding[REPEAT_chn].scale?.sort) {
+  } else if (is_repeated && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.sort) {
     data_order.push({
-      key: repeat_field, sort: encoding[REPEAT_chn].scale?.sort
+      key: repeat_field[0], sort: encoding[REPEAT_chn].scale?.sort
     });
-  } else if (is_repeated) {
+  } else if (is_repeated && (repeat_field instanceof Array)) {
     repeat_field.toReversed().forEach((key) => {
       let order = unique(data.map(d => d[key])).toSorted(asc);
       data_order.push({

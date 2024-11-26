@@ -1,4 +1,6 @@
-export function foldTable(table, fold_fields, by, exclude, new_names) {
+import { AqTableType } from "../types";
+
+export function foldTable(table: AqTableType, fold_fields: string[], by: string, exclude: boolean | undefined, new_names: [string, string] | undefined): AqTableType {
   let f = table.fold(fold_fields);
   if (exclude) {
     f = f.select(by, 'key', 'value');

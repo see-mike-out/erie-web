@@ -68,6 +68,9 @@ export type SingleTapPosType = typeof Start
   | typeof Middle
   | typeof End;
 
+// sort
+export type SortValues = 'ascending' | 'asc' | 'descending' | 'desc' | true | false;
+
 
 // sacle object
 export const KeyDomain = 'domain',
@@ -82,6 +85,7 @@ export const KeyDomain = 'domain',
   KeyBand = 'band',
   KeyTiming = 'timing',
   KeyOrder = 'order',
+  KeySort = 'sort',
   KeyType = 'type',
   KeySingleTappingPosition = 'singleTappingPosition';
 
@@ -91,6 +95,7 @@ export type ScaleType = {
   [KeyDomain]?: any[],
   [KeyRange]?: any[],
   [KeyOrder]?: any[],
+  [KeySort]?: SortValues,
   [KeyPolarity]?: PolarityType,
   [KeyMaxDistinct]?: boolean,
   [KeyTimes]?: number,
