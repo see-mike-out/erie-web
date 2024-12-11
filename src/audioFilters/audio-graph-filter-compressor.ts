@@ -1,6 +1,6 @@
 import { AudioContext, DynamicsCompressorNode, IAudioNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types/internal/stream";
+import { Glyph } from "../types";
 
 export class DefaultDynamicCompressor extends AudioFilterPrototype {
   filter: DynamicsCompressorNode<AudioContext>;

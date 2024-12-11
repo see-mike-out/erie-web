@@ -1,6 +1,6 @@
 import { AudioContext, GainNode, IAudioNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types/internal/stream";
+import { Glyph } from "../types";
 
 export class GainerFilter extends AudioFilterPrototype {
   attackTime: number;

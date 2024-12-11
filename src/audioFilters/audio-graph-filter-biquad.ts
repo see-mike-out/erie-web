@@ -2,7 +2,7 @@
 
 import { AudioContext, BiquadFilterNode, IAudioNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types/internal/stream";
+import { Glyph } from "../types";
 
 export class BiquadFilter extends AudioFilterPrototype {
   filter: BiquadFilterNode<AudioContext>;

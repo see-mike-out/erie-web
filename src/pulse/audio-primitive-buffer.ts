@@ -1,9 +1,16 @@
-import { AudioContext } from "standardized-audio-context";
+import { AudioBuffer, AudioContext } from "standardized-audio-context";
+import { BufferDataItem } from "../types";
 
 const SampleRate = 44100, BufferChannels = 2;
 
 export class AudioPrimitiveBuffer {
-  constructor(length, sampleRate) {
+  length: number;
+  sampleRate: number;
+  compiled: boolean;
+  compiledBuffer?: AudioBuffer;
+  primitive: Array<BufferDataItem>;
+
+  constructor(length: number, sampleRate: number) {
     // in seconds
     this.length = length;
     this.sampleRate = sampleRate || SampleRate;
@@ -12,7 +19,7 @@ export class AudioPrimitiveBuffer {
     this.primitive = [];
   }
 
-  add(at, data) {
+  add(at: number | "next", data: AudioBuffer) {
     this.primitive.push({ at, data });
   }
 
@@ -30,10 +37,7 @@ export class AudioPrimitiveBuffer {
     );
     let lastAt;
     for (const p of this.primitive) {
-      let at = Math.round((p.at || 0) * 44100);
-      if (p.at === "next") {
-        at = lastAt || 0;
-      }
+      let at: number = p.at === "next" ? (lastAt || 0) : Math.round((p.at || 0) * 44100);
       for (let i = 0; i < maxChannels; i++) {
         let channelData = this.compiledBuffer.getChannelData(i);
         let currChannelData = p.data.getChannelData(i % p.data.numberOfChannels);
@@ -49,7 +53,7 @@ export class AudioPrimitiveBuffer {
 }
 
 
-export function concatenateBuffers(buffers) {
+export function concatenateBuffers(buffers: AudioBuffer[]) {
   let totalLength = buffers.map((d) => d?.length || 0).reduce((a, c) => a + c, 0);
   let ctx = new AudioContext();
   let totalBuffer = ctx.createBuffer(2, totalLength, ctx.sampleRate);
@@ -57,9 +61,7 @@ export function concatenateBuffers(buffers) {
   for (const buffer of buffers) {
     for (let i = 0; i < 2; i++) {
       let channelData = totalBuffer.getChannelData(i);
-      let currChannelData;
-      if (buffer.numberOfChannels == 1) currChannelData = buffer.getChannelData(0);
-      else if (buffer.numberOfChannels == 2) currChannelData = buffer.getChannelData(1);
+      let currChannelData = buffer.numberOfChannels == 1 ? buffer.getChannelData(0) : buffer.getChannelData(i);
       for (let j = 0; j < buffer.length; j++) {
         channelData[view + j] = currChannelData[j];
       }

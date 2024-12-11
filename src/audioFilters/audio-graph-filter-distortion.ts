@@ -1,6 +1,6 @@
 import { AudioContext, IAudioNode, WaveShaperNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types/internal/stream";
+import { Glyph } from "../types";
 
 export class DistortionFilter extends AudioFilterPrototype {
   filter: WaveShaperNode<AudioContext>;

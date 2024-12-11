@@ -1,6 +1,8 @@
 // The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
 
-export async function makeWaveFromBuffer(buffer, ext) {
+import { AudioBuffer } from "standardized-audio-context";
+
+export async function makeWaveFromBuffer(buffer: AudioBuffer, ext: string) {
   let nChannels = buffer.numberOfChannels,
     samples = buffer.length,
     sampleRate = buffer.sampleRate,
@@ -45,7 +47,7 @@ export async function makeWaveFromBuffer(buffer, ext) {
   }
 
   // create Blob
-  let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
+  let waveBlob = new Blob([waveBuffer as unknown as DataView<ArrayBufferLike>], { type: "audio/wav" });
   if (ext === '$raw') {
     return waveBuffer;
   } else if (ext) {
@@ -54,13 +56,13 @@ export async function makeWaveFromBuffer(buffer, ext) {
   else return waveBlob;
 }
 
-function setUint16(view, data, viewPos) {
+function setUint16(view: DataView, data: number, viewPos: number) {
   view.setUint16(viewPos, data, true);
   viewPos += 2;
   return viewPos;
 }
 
-function setUint32(view, data, viewPos) {
+function setUint32(view: DataView, data: number, viewPos: number) {
   view.setUint32(viewPos, data, true);
   viewPos += 4;
   return viewPos;
