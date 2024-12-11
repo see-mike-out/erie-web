@@ -1,141 +1,148 @@
 // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
 
-export class BiquadFilter {
-  constructor(ctx) {
+import { AudioContext, BiquadFilterNode, IAudioNode } from "standardized-audio-context";
+import { AudioFilterPrototype } from "./audio-graph-filter-class";
+import { Glyph } from "../types/internal/stream";
+
+export class BiquadFilter extends AudioFilterPrototype {
+  filter: BiquadFilterNode<AudioContext>;
+  destination: BiquadFilterNode<AudioContext>;
+  useGain: boolean;
+
+  constructor(ctx: AudioContext) {
+    super(ctx);
     this.ctx = ctx;
     this.filter = ctx.createBiquadFilter();
     this.destination = this.filter;
+    this.useGain = false;
   }
-  initialize(time) {
+  initialize(time: number) {
     this.filter.gain.setValueAtTime(1, time);
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.filter.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.filter.disconnect(node);
   }
 }
 
 export class LowpassBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'lowpass';
     this.destination = this.filter;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
-
 export class HighpassBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'highpass';
     this.destination = this.filter;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
-
 export class BandpassBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'bandpass';
     this.destination = this.filter;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
-
 export class LowshelfBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'lowshelf';
     this.destination = this.filter;
     this.useGain = true;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
 export class HighshelfBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'highshelf';
     this.destination = this.filter;
     this.useGain = true;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
 export class PeakingBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'peaking';
     this.destination = this.filter;
     this.useGain = true;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
 export class NotchBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'notch';
     this.destination = this.filter;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
 export class AllpassBiquadFilter extends BiquadFilter {
-  constructor(ctx) {
+  constructor(ctx: AudioContext) {
     super(ctx);
     this.filter.type = 'allpass';
     this.destination = this.filter;
   }
-  connect(node) {
+  connect(node: IAudioNode<AudioContext>) {
     this.destination.connect(node);
   }
-  disconnect(node) {
+  disconnect(node: IAudioNode<AudioContext>) {
     this.destination.disconnect(node);
   }
 }
 
-export function BiquadEncoder(filter, sound, startTime) {
+export function BiquadEncoder(filter: BiquadFilter, sound: Glyph, startTime: number) {
   if (filter.useGain) {
     if (startTime > 0) filter.filter.gain.linearRampToValueAtTime((sound?.others?.biquadGain || 1), startTime);
     else filter.filter.gain.setValueAtTime((sound?.others?.biquadGain || 1), startTime);
@@ -154,7 +161,7 @@ export function BiquadEncoder(filter, sound, startTime) {
   }
 }
 
-export function BiquadFinisher(filter, sound, startTime, duration) {
+export function BiquadFinisher(filter: BiquadFilter, sound: Glyph, startTime: number, duration: number) {
   if (filter.useGain) {
     filter.filter.gain.setValueAtTime((sound?.others.biquadGain || 1), startTime + duration);
   }
