@@ -1,4 +1,3 @@
-// todo: scale/scaleProps <- what are you?
 // todo: check DescriptionMarkupQueueItem complies with a QueueItem
 
 // WORKFLOW

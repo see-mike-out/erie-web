@@ -7,4 +7,5 @@ export type TickDefinition = {
   pitch: number;
   oscType: OscType;
   loudness: number;
+  description?: string;
 };

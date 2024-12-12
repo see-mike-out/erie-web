@@ -11,7 +11,9 @@ import {
   TickObject,
   ParsedScaleFunction,
   DataOrderingItem,
-  InternalData
+  InternalData,
+  RecordObject,
+  ScaleCollection
 } from "../types";
 import { BeforeAll, PlayAt, makeScaleDescription } from "../scale/audio-graph-scale-desc";
 import { Def_Tick_Duration, Def_Tick_Duration_Beat, Def_Tick_Interval, Def_Tick_Interval_Beat } from '../tick/audio-graph-time-tick';
@@ -23,7 +25,7 @@ export async function compileSingleLayerAuidoGraph(
   _data: any[],
   config: ConfigInterface,
   tickDef: { [key: string]: TickObject },
-  common_scales: { [key: string]: ParsedScaleFunction }) {
+  common_scales: ScaleCollection) {
   let layer_spec = {
     name: audio_spec.name,
     encoding: audio_spec.encoding,
@@ -48,7 +50,7 @@ export async function compileSingleLayerAuidoGraph(
     }
   }).filter((d) => d !== undefined).flat();
 
-  let data: InternalData; 
+  let data: InternalData;
   if (audio_spec.common_transform) {
     data = transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions);
   } else {
@@ -149,14 +151,18 @@ export async function compileSingleLayerAuidoGraph(
   }
 
   // get scales
-  let scales = {};
+  let scales: {
+    [key: string]: ParsedScaleFunction
+  } = {};
   for (const channel in encoding) {
     let enc = encoding[channel];
-    scales[channel] = common_scales[enc.scale.id];
+    if (enc.scale?.id) {
+      scales[channel] = common_scales[enc.scale.id];
+    }
   }
 
   // relativity
-  let relative_stream = encoding[TIME_chn].scale.timing === REL || scales.time?.properties?.timing === REL;
+  let relative_stream = encoding[TIME_chn].scale?.timing === REL || scales.time?.properties?.timing === REL;
 
   // ramping
   let ramp = {};
@@ -165,7 +171,7 @@ export async function compileSingleLayerAuidoGraph(
   }
 
   // tick
-  let hasTick = encoding[TIME_chn].tick !== undefined, tick;
+  let hasTick = encoding[TIME_chn].tick !== undefined, tick: TickObject | undefined;
   if (hasTick) {
     let tickItem = encoding[TIME_chn].tick;
     if (tickItem.name && tickDef[tickItem.name]) {

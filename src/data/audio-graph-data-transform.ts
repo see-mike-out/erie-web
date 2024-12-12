@@ -1,4 +1,4 @@
-import { AqTableType, Auto, DataOrderingItem, InternalData, RecordObject, TransformList } from "../types";
+import { AqTableType, Auto, DataOrderingItem, InternalData, RecordObject, TableInfoObject, TransformList } from "../types";
 import * as aq from "arquero";
 import { makeAscSortFn, makeDescSortFn, makeIndexSortFn } from "./audio-graph-data-sort"
 import { createBin } from "./audio-graph-transform-bin";
@@ -15,7 +15,7 @@ const fromTidy = aq.from, op = aq.op, escape = aq.escape, aqTable = aq.table;
 
 export function transformData(data: any[], transforms: TransformList, dimensions: string[]): InternalData {
   let table: AqTableType = fromTidy(data);
-  let tableInfo: RecordObject = {};
+  let tableInfo: TableInfoObject = {};
   if (transforms?.constructor.name === "Array" && transforms.length > 0) {
     for (const transform of transforms) {
       // bin

@@ -1,14 +1,25 @@
 import { scaleLinear } from "d3";
-import { TextType, ToneSeries, ToneType } from "../player/audio-graph-player";
+// import { TextType, ToneSeries, ToneType } from "../player/audio-graph-player";
 import { listString } from "../util/audio-graph-format-util";
-import { DEF_LEGEND_DUR, DEF_SPEECH_RATE, NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP, TapChannels } from "./audio-graph-scale-constant";
+// import { DEF_LEGEND_DUR, DEF_SPEECH_RATE, NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP, TapChannels } from "./audio-graph-scale-constant";
 import { jType } from "../util/audio-graph-typing-util";
 import { unique } from "../util/audio-graph-util";
 import { compileDescriptionMarkup } from "./audio-graph-scale-desc-parser";
 import { TimeUnitUnits, TU_SEC } from "../types/time";
-import { ParsedScaleFunction } from "../types";
+import {
+  TextType, ToneSeries, ToneType,
+  ParsedScaleFunction, DEF_LEGEND_DUR, DEF_SPEECH_RATE, NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP, TapChannels, TickDefinition, ConfigInterface, NormalizedEncoding, RecordObject, ToneObject, NormalizedEncodingItem, BeatObject,
+  ParsedScaleDescription,
+  Glyph
+} from "../types";
 
-export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataInfo, tickDef, tone_spec, config, beat) {
+export function makeScaleDescription(scale: ParsedScaleFunction,
+  encoding: NormalizedEncodingItem,
+  dataInfo: RecordObject | undefined,
+  tickDef: TickDefinition | undefined,
+  tone_spec: ToneObject,
+  config: ConfigInterface,
+  beat: BeatObject) {
   let properties = scale.properties;
   let channel = properties.channel, field = properties.field, encodingType = properties.encodingType;
   let timeUnit: TimeUnitUnits = config?.timeUnit?.unit || TU_SEC;
@@ -17,9 +28,10 @@ export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataI
     return null;
   }
 
-  let expression = '', customExpression = false;
+  let expression: string | undefined = '', customExpression = false;
+  let speechRate = config.speechRate || DEF_SPEECH_RATE;
 
-  if (jType(properties?.descriptionDetail) === 'String' && properties?.descriptionDetail !== NONSKIP) {
+  if (typeof properties?.descriptionDetail === 'string' && properties?.descriptionDetail !== NONSKIP) {
     expression = properties?.descriptionDetail;
     customExpression = true;
     return [{
@@ -27,8 +39,7 @@ export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataI
     }]
   }
 
-  let speechRate = config.speechRate || DEF_SPEECH_RATE;
-  let title = encoding?.scale.title || listString(unique(properties.field ?? []), ", ", false);
+  let title = encoding?.scale?.title || listString(unique(properties.field ?? []), ", ", false);
 
   if (channel === TIME_chn) {
     if (!customExpression) expression = `The <title> is mapped to <channel>. `;
@@ -37,8 +48,7 @@ export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataI
       if (!customExpression) expression += `The duration of the stream is <range.length> <timeUnit>. `
     }
     if (properties.binned) {
-      let binInfo = encoding.binned;
-      if (binInfo.equiBin) {
+      if (encoding.field && encoding.field in dataInfo?.bin && dataInfo?.bin?.[encoding.field]?.equiBin) {
         if (!customExpression) expression += `Each sound represents a equally sized bin bucket. `
       } else {
         if (!customExpression) expression += `The length of each sound represents the corresponding bin bucket size. `
@@ -60,7 +70,7 @@ export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataI
         if (properties?.domain?.length == 2) {
           if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound v0="domain.min" v1="domain.max" duration="0.6">`;
         } else if ((properties?.domain?.length ?? 0) > 2) {
-          if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound values="${properties.domain.map((_, i) => 'domain[' + i + ']')}" duration="${properties.domain.length * 0.3}">`;
+          if (!customExpression) expression += `The domains values from <domain.min> to <domain.max> are mapped to <sound values="${properties.domain?.map((_, i) => 'domain[' + i + ']')}" duration="${(properties.domain?.length ?? 0) * 0.3}">`;
         }
       } else {
         if (properties?.domain?.length == 2) {
@@ -125,24 +135,26 @@ export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataI
   }
 
   let parsedExprDesc = compileDescriptionMarkup(expression, channel, scale, speechRate, timeUnit);
-  let descList = [];
+  let descList: ParsedScaleDescription[] = [];
   for (const pDesc of parsedExprDesc) {
     if (pDesc.type === TextType) {
       descList.push({
         type: TextType,
+        channel,
         speech: pDesc.text,
         speechRate: pDesc.speechRate || speechRate
       });
     } else if (pDesc.type === 'sound') {
       if (pDesc.continuous) {
-        let sounds = makeConinuousAudioLegend(channel, pDesc.value, scale, pDesc.duration);
+        let sounds: Glyph[] = makeConinuousAudioLegend(channel, pDesc.value as any[], scale, pDesc.duration);
         descList.push({
           type: ToneSeries, channel, sounds, instrument_type: tone_spec?.type || "default", continued: true
         });
       } else {
-        let sound = makeSingleDiscAudioLegend(channel, pDesc.value, scale, pDesc.duration);
+        let sound: Glyph = makeSingleDiscAudioLegend(channel, pDesc.value, scale, pDesc.duration);
         descList.push({
           type: ToneType,
+          channel,
           sound,
           instrument_type: tone_spec?.type || "default"
         });
@@ -152,12 +164,12 @@ export function makeScaleDescription(scale: ParsedScaleFunction, encoding, dataI
   return descList;
 }
 
-function makeConinuousAudioLegend(channel, domain, scale, duration) {
+function makeConinuousAudioLegend(channel: string, domain: any[], scale: ParsedScaleFunction, duration: number): Glyph[] {
   let min = Math.min(...domain), max = Math.max(...domain);
-  let normalizer = (d) => (d - min) / (max - min) * duration;
+  let normalizer = (d: number) => (d - min) / (max - min) * duration;
 
   let timing = scaleLinear().domain(domain).range(domain.map(normalizer));
-  let sounds = [];
+  let sounds: Glyph[] = [];
   let i = 0;
   for (const d of domain) {
     sounds.push({
@@ -170,8 +182,8 @@ function makeConinuousAudioLegend(channel, domain, scale, duration) {
   return sounds;
 }
 
-function makeSingleDiscAudioLegend(channel, value, scale, duration) {
-  let sound = {
+function makeSingleDiscAudioLegend(channel: string, value: any, scale: ParsedScaleFunction, duration: number): Glyph {
+  let sound: Glyph = {
     start: 0,
     [channel]: scale(value),
   };

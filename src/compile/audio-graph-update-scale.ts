@@ -2,6 +2,7 @@ import { applyTransforms } from "../data/audio-graph-apply-transform";
 import { STATIC, TIME_chn, TMP } from "../scale/audio-graph-scale-constant";
 import { getAudioScales } from "../scale/audio-graph-scale-wrap";
 import { makeBeatFunction, makeBeatRounder } from "../scale/audio-graph-time-convert";
+import { BeatObject } from "../types";
 import { detectType, jType } from "../util/audio-graph-typing-util";
 import { deepcopy } from "../util/audio-graph-util";
 
@@ -122,7 +123,7 @@ export async function makeScales(scaleHash, normalized, loaded_datasets, config)
   Object.keys(scaleInfo).forEach((scaleId) => {
     scaleInfo[scaleId].collected = [];
   });
-  let beat;
+  let beat: BeatObject | undefined;
   if (config?.timeUnit) {
     if (config.timeUnit.unit === 'beat') {
       beat = {
