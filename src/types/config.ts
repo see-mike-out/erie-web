@@ -16,3 +16,10 @@ export interface ConfigInterface {
 export type ScaleConsistencyRecord = {
   [key: string]: boolean
 }
+
+export const ForceRepeatScale = 'forceRepeatScale',
+  PlayAt = 'playScaleAt',
+  BeforeAll = 'beforeAll',
+  BeforeThis = 'beforeThis',
+  AfterAll = 'afterAll',
+  AfterThis = 'afterThis';

@@ -1,9 +1,4 @@
 import { ConfigInterface, ScaleConsistencyRecord } from "../types";
-import {
-  jType
-} from "../util";
-
-
 
 export function normalizeScaleConsistency(config: ConfigInterface, used_channels: string[]) {
   let overlayScaleConsistency: ScaleConsistencyRecord = {},

@@ -1,4 +1,4 @@
-import { noteToFreq } from "../util/audio-graph-scale-util";
+import { noteToFreq } from "../util";
 import {
   ChannelName,
   DUR_chn,
@@ -10,7 +10,7 @@ import {
   TAPSPD_chn,
   TIMBRE_chn,
   TIME_chn
-} from "../types/encoding";
+} from "../types";
 
 export type PalleteSet = {
   [key in ChannelName]?: any[]

@@ -11,90 +11,34 @@
 // => return DescriptionMarkupQueueItem[] (playable Queue)
 
 import { format, timeFormat } from "d3";
-import { jType, listString } from "../util";
-import { TimeUnitUnits, TIME_chn, ParsedScaleFunction, ParsedScaleProperties } from "../types";
-
-// *** constants and types ***
-
-// keywords used in the markup
-const DescKeySound = 'sound',
-  DescKeyList = 'list',
-  DescKeyDomain = 'domain',
-  DescKeyDomainMin = 'domain.min',
-  DescKeyDomainMax = 'domain.max',
-  DescKeyDomainLength = 'domain.length',
-  DescKeyChannel = 'channel',
-  DescKeyField = 'field',
-  DescKeyAggregate = 'aggregate',
-  DescKeyTitle = 'title',
-  DescKeyRange = 'range',
-  DescKeyRangeMin = 'range.min',
-  DescKeyRangeMax = 'range.max',
-  DescKeyRangeLength = 'range.length',
-  DescKeyTimeUnit = 'timeUnit';
-
-const DescKeyDomainNumberedRegex = /domain\[[0-9]+\]/g;
-
-type DescKeyDomainNumbered = `domain[${number}]`;
-
-const descriptionKeywords = [
-  DescKeySound,
-  DescKeyList,
+import { listString } from "../util";
+import {
+  TimeUnitUnits,
+  TIME_chn,
+  ParsedScaleFunction,
+  ParsedScaleProperties,
+  DescriptionMarkupQueueItem,
+  KeyedDescItem,
   DescKeyDomain,
   DescKeyDomainMin,
   DescKeyDomainMax,
+  DescKeyDomainNumberedRegex,
   DescKeyDomainLength,
+  DescKeyRange,
+  DescKeyRangeLength,
   DescKeyChannel,
   DescKeyField,
-  DescKeyAggregate,
   DescKeyTitle,
-  DescKeyRange,
-  DescKeyRangeMin,
-  DescKeyRangeMax,
-  DescKeyRangeLength,
-  DescKeyTimeUnit
-];
+  DescKeyAggregate,
+  DescKeyTimeUnit,
+  ParsedDescMarkup,
+  descriptionKeywords,
+  M_Text,
+  DescriptionMarkupQueueTextItem,
+  DescriptionMarkupQueueSoundItem,
+  M_Sound
+} from "../types";
 
-type DescItemKey = typeof descriptionKeywords[number] | DescKeyDomainNumbered;
-
-
-// output type
-const M_Text = 'text',
-  M_Sound = 'sound';
-
-// output format (queue, used as a list)
-export interface DescriptionMarkupQueueItem {
-  type: typeof M_Text | typeof M_Sound;
-  text?: string;
-  speechRate?: number;
-  continuous?: boolean;
-  value?: string | number | undefined | Array<string | number | undefined>;
-  duration?: number;
-}
-
-// intermediate format (right after parsed)
-const K_Text = 'text',
-  K_Keyword = 'keyword';
-
-// keyword and literal
-type KeyedDescItem = {
-  keyword?: string;
-  literal?: string;
-}
-
-export interface ParsedDescMarkup {
-  type: typeof K_Text | typeof K_Keyword,
-  text?: string,
-  key?: DescItemKey,
-  duration?: number,
-  first?: number,
-  last?: number,
-  item?: KeyedDescItem[],
-  value?: KeyedDescItem | KeyedDescItem[],
-  join?: KeyedDescItem,
-  and?: KeyedDescItem,
-  speechRate?: number
-}
 
 // regex for parsing
 // overall formatting to determine parsability of a markup expression
@@ -105,7 +49,13 @@ const descSegmentRegex = /(([a-zA-Z0-9\.]+=\"[^\"]+\")|[a-zA-Z\.0-9\[\]]+)/g;
 
 // markup compiler (generating queue items)
 // note: what is scale?
-export function compileDescriptionMarkup(expression: string, channel: string, scale: ParsedScaleFunction, speechRate: number, timeUnit: TimeUnitUnits): DescriptionMarkupQueueItem[] {
+export function compileDescriptionMarkup(
+  expression: string,
+  channel: string,
+  scale: ParsedScaleFunction,
+  speechRate: number,
+  timeUnit: TimeUnitUnits
+): DescriptionMarkupQueueItem[] {
   if (expression.length == 0 || !expression) return [];
   let exprParsed: ParsedDescMarkup[] | null = parseDescriptionMarkup(expression);
   if (exprParsed != null) {
@@ -113,18 +63,23 @@ export function compileDescriptionMarkup(expression: string, channel: string, sc
     let scaleProps = scale.properties ?? {};
     let preQueue: DescriptionMarkupQueueItem[] = [];
     for (const seg of exprParsed) {
-      if (seg.type === "text") {
-        let item: DescriptionMarkupQueueItem = {
-          type: 'text',
+      if (seg.type === M_Text) {
+        let item: DescriptionMarkupQueueTextItem = {
+          type: M_Text,
           text: seg.text,
           speechRate
         }
         preQueue.push(item);
       } else {
         // implicit: seg.type === "keyword"
-        if (seg.key === "sound") {
-          let item: DescriptionMarkupQueueItem = { type: 'sound' };
-          if (jType(seg.value) === "Array") {
+        if (seg.key === M_Sound) {
+          let item: DescriptionMarkupQueueSoundItem = {
+            type: M_Sound,
+            continuous: false,
+            value: undefined,
+            duration: 0
+          };
+          if (seg.value instanceof Array) {
             // <sound v0="X0" vN="XN" duration="D">
             item.continuous = true;
             item.value = (<KeyedDescItem[]>seg.value)?.map((v) => getLKvalues(v, channel, scaleProps, timeUnit));
@@ -159,7 +114,7 @@ export function compileDescriptionMarkup(expression: string, channel: string, sc
             else if (scaleProps.formatType === "datetime") formatter = timeFormat(scaleProps.format);
           }
           if (elements instanceof Array) {
-            elements = elements.map((d) => jType(d) === 'Number' ? formatter(d) : d);
+            elements = elements.map((d) => typeof d === 'number' ? formatter(d) : d);
 
             let first = seg.first;
             let last = seg.last;
@@ -196,8 +151,10 @@ export function compileDescriptionMarkup(expression: string, channel: string, sc
     // flatten (merging text outputs)
     let queue: DescriptionMarkupQueueItem[] = [];
     for (const item of preQueue) {
-      if (queue.length > 0 && queue[queue.length - 1].type === 'text' && item.type === 'text' && item.text) {
-        queue[queue.length - 1].text += (item.text.startsWith(".") ? "" : " ") + item.text.trim();
+      if (queue.length > 0
+        && queue[queue.length - 1].type === M_Text
+        && item.type === M_Text && item.text) {
+        (queue[queue.length - 1] as DescriptionMarkupQueueTextItem).text += (item.text.startsWith(".") ? "" : " ") + item.text.trim();
       } else {
         queue.push(item);
       }
@@ -207,13 +164,23 @@ export function compileDescriptionMarkup(expression: string, channel: string, sc
   return [];
 }
 
-function getLKvalues(item: KeyedDescItem, channel: string, scaleProps: ParsedScaleProperties, timeUnit: TimeUnitUnits): string | number | undefined {
+function getLKvalues(
+  item: KeyedDescItem,
+  channel: string,
+  scaleProps: ParsedScaleProperties,
+  timeUnit: TimeUnitUnits
+): string | number | undefined {
   if (item?.literal) return item.literal;
   else if (item?.keyword) return getKeywordValues(item.keyword, channel, scaleProps, timeUnit);
   else return undefined;
 }
 
-function getKeywordValues(keyword: string, channel: string, scaleProps: ParsedScaleProperties, timeUnit: TimeUnitUnits): string | number | undefined {
+function getKeywordValues(
+  keyword: string,
+  channel: string,
+  scaleProps: ParsedScaleProperties,
+  timeUnit: TimeUnitUnits
+): string | number | undefined {
   if (keyword === DescKeyDomain) {
     return scaleProps.domain?.join(", ") ?? "";
   } else if (keyword === DescKeyDomainMin) {
@@ -244,7 +211,9 @@ function getKeywordValues(keyword: string, channel: string, scaleProps: ParsedSc
 }
 
 // markup parser
-export function parseDescriptionMarkup(expression: string): ParsedDescMarkup[] | null {
+export function parseDescriptionMarkup(
+  expression: string
+): ParsedDescMarkup[] | null {
   // for each chunk of an expression;
   let expr = expression.trim(), hasPeriodAtTheEnd = false;
   if (expr.endsWith(".")) {
@@ -281,7 +250,9 @@ export function parseDescriptionMarkup(expression: string): ParsedDescMarkup[] |
 
 
 // keyword parser (atomic)
-function parseDescriptionKeywords(exprSeg: string): ParsedDescMarkup | null {
+function parseDescriptionKeywords(
+  exprSeg: string
+): ParsedDescMarkup | null {
   // for keyworded expressions <...>
   // match if it fits the format
   let parsed = exprSeg.match(descSegmentRegex);
@@ -356,7 +327,9 @@ function parseDescriptionKeywords(exprSeg: string): ParsedDescMarkup | null {
 }
 
 // sort out literal and keyworded values
-function determineKLValue(value: string): KeyedDescItem {
+function determineKLValue(
+  value: string
+): KeyedDescItem {
   if (descriptionKeywords.includes(value)) {
     // the value is a keyword
     return { keyword: value };

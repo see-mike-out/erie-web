@@ -2,6 +2,8 @@ import { RecordObject } from "../generic";
 import { DatasetSpecItem } from "../spec";
 import * as aq from "arquero";
 
+export type LoadedDatasets = { [key: string]: any[] };
+
 export type ParsedDatasetObject = DatasetSpecItem;
 
 export type TableInfoObject = {

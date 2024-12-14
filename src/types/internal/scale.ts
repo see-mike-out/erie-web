@@ -1,4 +1,4 @@
-import { ABS, Condition, EncodingType, REL, ScaleType, SIM } from "../encoding";
+import { ABS, Condition, EncodingType, FormatType, REL, ScaleType, SIM } from "../encoding";
 import { OVERLAY, SEQUENCE } from "../stream";
 import { Glyph, QueueItemTypes, TextType, ToneSeries } from "./stream";
 import { BeatObject } from "./time";
@@ -41,11 +41,17 @@ export type ParsedScaleDefinition = {
   parentId?: string,
   roundToNote?: boolean,
   hasTime2?: string[],
-  isRepeated?: string[]
+  isRepeated?: string[],
+  collected?: string[],
+  data?: any[],
+  values?: any[] | undefined,
+  value?: any | undefined,
+  format?: string | undefined,
+  formatType?: FormatType | undefined,
 };
 
 export type ScaleCollection = {
-  __beat: BeatObject
+  __beat?: BeatObject
 } & {
   [key: string]: ParsedScaleFunction
 };

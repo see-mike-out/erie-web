@@ -1,9 +1,28 @@
-import { asc, unique } from "../util/audio-graph-util";
+import { asc, unique, round, listString, jType, detectType } from "../util";
 import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
-import { listString } from "../util/audio-graph-format-util";
-import { jType, detectType } from "../util/audio-graph-typing-util";
-import { round } from "../util/audio-graph-util";
-import { DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, DUR_chn, MAX_TAPPING_DUR, NOM, ORD, PITCH_chn, POS, QUANT, SINGLE_TAP_MIDDLE, STATIC, SpeechChannels, TAPCNT_chn, TAPSPD_chn, TMP, TapChannels, TimeChannels } from "./audio-graph-scale-constant";
+
+import {
+  DEF_TAPPING_DUR_BEAT,
+  DEF_TAP_DUR,
+  DEF_TAP_DUR_BEAT,
+  DEF_TAP_PAUSE_RATE,
+  DUR_chn,
+  MAX_TAPPING_DUR,
+  NOM,
+  ORD,
+  PITCH_chn,
+  POS,
+  QUANT,
+  SINGLE_TAP_MIDDLE,
+  STATIC,
+  SpeechChannels,
+  TAPCNT_chn,
+  TAPSPD_chn,
+  TMP,
+  TapChannels,
+  TimeChannels
+} from "../types";
+
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";

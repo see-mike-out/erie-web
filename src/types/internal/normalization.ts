@@ -66,7 +66,7 @@ export type NormalizedEncoding = {
   [key: string]: NormalizedEncodingItem
 }
 export type NormalizedEncodingItem = {
-  field: string | undefined,
+  field: string | string[] | undefined,
   original_field?: string | undefined,
   type?: EncodingType | undefined,
   ramp?: RampType | undefined,

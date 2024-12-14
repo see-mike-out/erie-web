@@ -1,21 +1,28 @@
 import { scaleLinear } from "d3";
-// import { TextType, ToneSeries, ToneType } from "../player/audio-graph-player";
-import { listString } from "../util/audio-graph-format-util";
-// import { DEF_LEGEND_DUR, DEF_SPEECH_RATE, NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP, TapChannels } from "./audio-graph-scale-constant";
-import { jType } from "../util/audio-graph-typing-util";
-import { unique } from "../util/audio-graph-util";
+import { listString, unique } from "../util";
 import { compileDescriptionMarkup } from "./audio-graph-scale-desc-parser";
-import { TimeUnitUnits, TU_SEC } from "../types/time";
 import {
   TextType, ToneSeries, ToneType,
-  ParsedScaleFunction, DEF_LEGEND_DUR, DEF_SPEECH_RATE, NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP, TapChannels, TickDefinition, ConfigInterface, NormalizedEncoding, RecordObject, ToneObject, NormalizedEncodingItem, BeatObject,
+  ParsedScaleFunction,
+  DEF_SPEECH_RATE,
+  NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP,
+  TickDefinition,
+  ConfigInterface,
+  ToneObject,
+  NormalizedEncodingItem,
+  BeatObject,
   ParsedScaleDescription,
-  Glyph
+  Glyph,
+  M_Sound,
+  M_Text,
+  TableInfoObject,
+  TimeUnitUnits,
+  TU_SEC
 } from "../types";
 
 export function makeScaleDescription(scale: ParsedScaleFunction,
   encoding: NormalizedEncodingItem,
-  dataInfo: RecordObject | undefined,
+  dataInfo: TableInfoObject | undefined,
   tickDef: TickDefinition | undefined,
   tone_spec: ToneObject,
   config: ConfigInterface,
@@ -48,7 +55,7 @@ export function makeScaleDescription(scale: ParsedScaleFunction,
       if (!customExpression) expression += `The duration of the stream is <range.length> <timeUnit>. `
     }
     if (properties.binned) {
-      if (encoding.field && encoding.field in dataInfo?.bin && dataInfo?.bin?.[encoding.field]?.equiBin) {
+      if (dataInfo?.bin && encoding.field && encoding.field in dataInfo?.bin && dataInfo?.bin?.[encoding.field]?.equiBin) {
         if (!customExpression) expression += `Each sound represents a equally sized bin bucket. `
       } else {
         if (!customExpression) expression += `The length of each sound represents the corresponding bin bucket size. `
@@ -137,14 +144,14 @@ export function makeScaleDescription(scale: ParsedScaleFunction,
   let parsedExprDesc = compileDescriptionMarkup(expression, channel, scale, speechRate, timeUnit);
   let descList: ParsedScaleDescription[] = [];
   for (const pDesc of parsedExprDesc) {
-    if (pDesc.type === TextType) {
+    if (pDesc.type === M_Text) {
       descList.push({
         type: TextType,
         channel,
         speech: pDesc.text,
         speechRate: pDesc.speechRate || speechRate
       });
-    } else if (pDesc.type === 'sound') {
+    } else if (pDesc.type === M_Sound) {
       if (pDesc.continuous) {
         let sounds: Glyph[] = makeConinuousAudioLegend(channel, pDesc.value as any[], scale, pDesc.duration);
         descList.push({
@@ -193,10 +200,3 @@ function makeSingleDiscAudioLegend(channel: string, value: any, scale: ParsedSca
 
   return sound;
 }
-
-export const ForceRepeatScale = 'forceRepeatScale',
-  PlayAt = 'playScaleAt',
-  BeforeAll = 'beforeAll',
-  BeforeThis = 'beforeThis',
-  AfterAll = 'afterAll',
-  AfterThis = 'afterThis';

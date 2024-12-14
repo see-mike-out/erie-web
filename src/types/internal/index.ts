@@ -1,3 +1,4 @@
+// Types relating to compiling
 export * from "./scale";
 export * from "./normalization"
 export * from "./data";

@@ -1,8 +1,10 @@
-import { noteToFreq } from "../util/audio-graph-scale-util";
+import { noteToFreq } from "../util";
 import { jType } from "../util/audio-graph-typing-util";
-import { PITCH_chn } from "./audio-graph-scale-constant";
+import { PITCH_chn } from "../types";
 
-export function makeFieldedScaleFunction(channel, encoding, values, info, data) {
+export function makeFieldedScaleFunction(
+  channel: string | string[],
+  encoding, values, info, data) {
   let scaleProperties = {
     channel,
   }
@@ -11,7 +13,7 @@ export function makeFieldedScaleFunction(channel, encoding, values, info, data) 
   let encKey = encoding.field[0];
   for (const datum of data) {
     let r = datum[findKey];
-    if ((channel === PITCH_chn) && jType(r) !== "Number") {
+    if ((channel === PITCH_chn) && typeof r !== 'number') {
       r = noteToFreq(r);
     }
     mapper[datum[encKey]] = r;

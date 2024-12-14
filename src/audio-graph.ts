@@ -6,7 +6,7 @@ import { getData } from "./data/audio-graph-data-import";
 import { toHashedObject } from './util/audio-graph-format-util';
 import { tidyUpScaleDefinitions, getChannelType, makeScales } from './compile/audio-graph-update-scale';
 import { TopLevelSpec } from './types/spec';
-import { ConfigInterface } from './types';
+import { ConfigInterface, LoadedDatasets } from './types';
 
 // global event
 let isRecorded = false;
@@ -20,7 +20,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   // at here
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec);
   // 1. load datasets first! && filling missing data type
-  let loaded_datasets: { [key: string]: any[] } = {};
+  let loaded_datasets: LoadedDatasets = {};
   let scalesToRemove = [];
   for (const stream of normalized) {
     if (stream.stream) {

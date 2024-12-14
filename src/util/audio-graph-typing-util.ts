@@ -1,4 +1,4 @@
-import { ORD, QUANT } from "../types/encoding";
+import { EncodingType, ORD, QUANT } from "../types/encoding";
 
 export function isJSON(d: string) {
   try {
@@ -23,7 +23,7 @@ export function jType(v: any): string {
   return v?.constructor.name;
 }
 
-export function detectType(values: any[]): string {
+export function detectType(values: any[]): EncodingType {
   if (values.every((d) => d?.constructor.name === "Number")) return QUANT;
   else return ORD;
 }
