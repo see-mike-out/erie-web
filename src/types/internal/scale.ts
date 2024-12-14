@@ -2,6 +2,7 @@ import { ABS, Condition, EncodingType, REL, ScaleType, SIM } from "../encoding";
 import { OVERLAY, SEQUENCE } from "../stream";
 import { Glyph, QueueItemTypes, TextType, ToneSeries } from "./stream";
 import { BeatObject } from "./time";
+
 export type ParsedScaleProperties = {
   channel: string,
   encodingType: EncodingType,

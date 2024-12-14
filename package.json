@@ -8,7 +8,8 @@
   "jsdelivr": "build/erie-web.min.js",
   "scripts": {
     "test": "vitest",
-    "build": "rollup main.js --file build/erie-web.js --format iife && rollup main.js --file build/erie-web.min.js --format iife --compact && rollup main.js --file build/erie-web-node.js --format cjs && rollup main.js --file build/erie-web-node.min.js --format cjs --compact && rollup main.js --file build/erie-web-umd.js --format umd --name \"Erie\" && rollup main.js --file build/erie-web-umd.min.js --format umd --name \"Erie\" --compact"
+    "build": "tsc && terser dist/**/*.js --compress --mangle --output dist",
+    "build2": "rollup main.js --file build/erie-web.js --format iife && rollup main.js --file build/erie-web.min.js --format iife --compact && rollup main.js --file build/erie-web-node.js --format cjs && rollup main.js --file build/erie-web-node.min.js --format cjs --compact && rollup main.js --file build/erie-web-umd.js --format umd --name \"Erie\" && rollup main.js --file build/erie-web-umd.min.js --format umd --name \"Erie\" --compact"
   },
   "repository": {
     "type": "git",
