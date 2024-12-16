@@ -1,7 +1,6 @@
-import { asc, unique, round, listString, jType, detectType } from "../util";
-import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
-
+import { asc, unique, round, listString, jType, detectType, deepcopy } from "../util";
 import {
+  BeatObject,
   DEF_TAPPING_DUR_BEAT,
   DEF_TAP_DUR,
   DEF_TAP_DUR_BEAT,
@@ -9,10 +8,16 @@ import {
   DUR_chn,
   MAX_TAPPING_DUR,
   NOM,
+  NormalizedEncoding,
+  NormalizedEncodingItem,
   ORD,
   PITCH_chn,
   POS,
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  PuaseMarker,
   QUANT,
+  RecordObject,
   SINGLE_TAP_MIDDLE,
   STATIC,
   SpeechChannels,
@@ -23,16 +28,26 @@ import {
   TimeChannels
 } from "../types";
 
+import { makeFieldedScaleFunction } from "./audio-graph-scale-field";
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
+
+import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
+
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
 import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
 import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 import { makeTimeChannelScale } from "./audio-graph-scale-time";
-import { makeFieldedScaleFunction } from "./audio-graph-scale-field";
 
-export function getAudioScales(channel, encoding, values, beat, data) {
+
+export function getAudioScales(
+  channel: string,
+  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  values: any[],
+  beat: BeatObject | undefined,
+  data: any[]
+): ParsedScaleFunction | null {
   // extract default information
   let polarity = encoding.scale?.polarity || POS;
   let maxDistinct = encoding.scale?.maxDistinct;
@@ -42,27 +57,26 @@ export function getAudioScales(channel, encoding, values, beat, data) {
   let zero = encoding.scale?.zero !== undefined ? encoding.scale?.zero : false;
   let domainMax, domainMin;
   // check on this
-  if (jType(channel) !== "Array" && values) {
-    let domainSorted = values.toSorted(asc);
-    domainMax = domainSorted[domainSorted.length - 1];
-    domainMin = domainSorted[0];
-  } else if (values) {
+  // if (channel instanceof Array && values) {
+  //   let domainSorted = values.toSorted(asc);
+  //   domainMax = domainSorted[domainSorted.length - 1];
+  //   domainMin = domainSorted[0];
+  // } else
+  if (values) {
     let domainSorted = values[0].concat(values[1]).toSorted(asc);
     domainMax = domainSorted[domainSorted.length - 1];
     domainMin = domainSorted[0];
-    // legacy (keep until stable)
-    // domainMax = Math.max(Math.max(...values[0]), Math.max(...values[1]));
-    // domainMin = Math.min(Math.min(...values[0]), Math.min(...values[1]));
   }
 
   let nice = encoding.scale?.nice;
-  let info = { polarity, maxDistinct, times, zero, domainMax, domainMin, nice };
+  let info: RecordObject = { polarity, maxDistinct, times, zero, domainMax, domainMin, nice };
   // outcome scale function
-  let _scale;
+  let _scale!: ParsedScaleFunction;
   let scaleType = getScaleType(channel, encoding, values);
 
   // get scale functions
   if (scaleType.fieldRange) {
+    // [todo] (need to fix the inidividual functions)
     _scale = makeFieldedScaleFunction(channel, encoding, values, info, data);
   } else if (scaleType.isTime) {
     // time scales
@@ -82,25 +96,32 @@ export function getAudioScales(channel, encoding, values, beat, data) {
       _scale = makeStaticScaleFunction(channel, encoding, values, info);
     }
   }
+  // once got the initial scale function;
+  // do some custom edits depending on the channel types
   if (_scale) {
-    let scale;
+    let scale!: ParsedScaleFunction;
     if (channel === PITCH_chn && encoding.roundToNote) {
-      scale = (d) => { return roundToNoteScale(_scale(d)); }
+      // 1. pitch channel with round-to-note feature
+      scale = (d: any) => { return roundToNoteScale(_scale(d)); }
     } else if (TapChannels.includes(channel)) {
-      let pause = { rate: encoding.scale?.pauseRate !== undefined ? encoding.scale?.pauseRate : DEF_TAP_PAUSE_RATE };
+      // 2. if it is a tapping channel, convert it to actual tapping patterns
+      let pause: PuaseMarker = { rate: encoding.scale?.pauseRate !== undefined ? encoding.scale?.pauseRate : DEF_TAP_PAUSE_RATE };
       if (encoding.scale?.pauseLength) pause = { length: encoding.scale?.pauseLength };
       if (channel === TAPCNT_chn) {
-        scale = (d) => ({
+        // tapping count
+        scale = (d: any) => ({
           value: _scale(d),
           tapLength: encoding.scale?.band,
           pause,
           beat
         });
       } else if (channel === TAPSPD_chn) {
+        // tapping speed
         let tapSpeedValues = values.map((d) => _scale(d));
         let tapBand = encoding.scale?.band || (beat ? DEF_TAP_DUR_BEAT : DEF_TAP_DUR)
         let maxTapSpeed = round(Math.max(...tapSpeedValues) * tapBand, 0);
         let tappingUnit = tapBand / (maxTapSpeed + (maxTapSpeed - 1) * (pause.rate !== undefined ? pause.rate : DEF_TAP_PAUSE_RATE));
+        // physical limit for maximum tapping per unit
         let maxTappingLength = encoding.scale?.maxTappingLength !== undefined ? encoding.scale?.maxTappingLength : (beat ? DEF_TAPPING_DUR_BEAT : MAX_TAPPING_DUR);
         if (tappingUnit > maxTappingLength) tappingUnit = maxTappingLength;
         tappingUnit = round(tappingUnit, -2);
@@ -113,15 +134,18 @@ export function getAudioScales(channel, encoding, values, beat, data) {
         });
       }
     } else if (channel === DUR_chn && beat) {
-      scale = (d) => beat.converter(_scale(d));
+      // 3. if it is duration channel and "beat" unit was used --> convert to the beats
+      // note: time channel is separate converted, so no further edit is needed here.
+      scale = (d: any) => beat.converter(_scale(d));
     } else {
+      // 4. default cases (no edits)
       scale = _scale;
     }
+    // assign scale properties
     if (scale.properties) {
       Object.assign(scale.properties, scaleType);
     } else if (_scale.properties) {
-      scale.properties = {}
-      Object.assign(scale.properties, _scale.properties);
+      scale.properties = deepcopy(_scale.properties)
       Object.assign(scale.properties, scaleType);
     }
     if (encoding.scale?.description || encoding.scale?.description === undefined) {
@@ -132,7 +156,7 @@ export function getAudioScales(channel, encoding, values, beat, data) {
     if (encoding.scale?.title) {
       scale.properties.title = encoding.scale?.title;
     } else {
-      scale.properties.title = listString(unique(scale.properties.field), ", ", false);
+      scale.properties.title = listString(unique(scale.properties.field || []), ", ", false);
     }
 
     if (encoding.format) {
@@ -155,7 +179,11 @@ export function getAudioScales(channel, encoding, values, beat, data) {
   // add scale description
 }
 
-function getScaleType(channel, encoding, values) {
+function getScaleType(
+  channel: string,
+  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  values: any[]
+) {
   let isTime = TimeChannels.includes(channel) || TimeChannels.includes(channel[0]);
   let isSpeech = SpeechChannels.includes(channel);
   let encodingType = encoding.type;
@@ -166,6 +194,9 @@ function getScaleType(channel, encoding, values) {
   let field = encoding.original_field || encoding.field;
   let binned = encoding.binned;
   let aggregate = encoding.aggregate;
-  let fieldRange = encoding.scale?.range?.field || null;
+  let fieldRange: string | null = null;
+  if (encoding.scale?.range instanceof Object && 'field' in encoding.scale?.range && encoding.scale?.range?.field) {
+    fieldRange = encoding.scale?.range?.field;
+  }
   return { isTime, isSpeech, encodingType, field, binned, aggregate, fieldRange };
 }

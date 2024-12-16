@@ -1,4 +1,4 @@
-import { ABS, Condition, EncodingType, FormatType, REL, ScaleType, SIM } from "../encoding";
+import { ABS, Condition, EncodingType, FormatType, NEG, POS, REL, ScaleType, SIM, SortValues } from "../encoding";
 import { OVERLAY, SEQUENCE } from "../stream";
 import { Glyph, QueueItemTypes, TextType, ToneSeries } from "./stream";
 import { BeatObject } from "./time";
@@ -11,14 +11,18 @@ export type ParsedScaleProperties = {
   length?: number,
   field?: string[],
   aggregate?: string,
-  descriptionDetail?: string,
+  descriptionDetail?: string | null,
   title?: string,
   format?: string,
   formatType?: 'number' | 'datetime' | 'time',
   binned?: boolean,
   playAllDescription?: boolean,
   conditions?: Condition,
-  timing?: typeof ABS | typeof REL | typeof SIM
+  timing?: typeof ABS | typeof REL | typeof SIM,
+  rangeProvided?: boolean,
+  times?: number,
+  polarity?: typeof POS | typeof NEG,
+  sort?: SortValues
 };
 
 export interface ParsedScaleFunction {

@@ -1,20 +1,37 @@
 import { ascending, descending, scaleOrdinal } from "d3";
-import { getFirstDefined, unique, deepcopy } from "../util/audio-graph-util";
-import { ChannelCaps, ChannelThresholds, PITCH_chn, TIMBRE_chn, NEG } from "./audio-graph-scale-constant";
-import { NomPalletes, repeatPallete } from "./audio-graph-palletes";
-import { jType } from "../util/audio-graph-typing-util";
+import { ChannelCaps, ChannelThresholds, PITCH_chn, TIMBRE_chn, NEG, RecordObject, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, POS } from "../types";
+import { jType, getFirstDefined, unique, deepcopy, noteToFreq } from "../util";
+import { NomPalletes, repeatPallete, QuantPreferredRange } from "./audio-graph-palletes";
 import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
 
-export function makeOrdinalScaleFunction(channel, encoding, values, info) {
+export function makeOrdinalScaleFunction(
+  channel: string,
+  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  values: any[],
+  info: RecordObject,
+): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
-  let extraChannelType = FilterExtraChannelTypes[channel]?.type;
-  const CHN_MAX = ChannelThresholds[channel]?.max || ChannelThresholds[extraChannelType]?.max,
-    CHN_MIN = ChannelThresholds[channel]?.min || ChannelThresholds[extraChannelType]?.min;
-  const CHN_CAP_MAX = ChannelCaps[channel]?.max || ChannelCaps[extraChannelType]?.max,
-    CHN_CAP_MIN = ChannelCaps[channel]?.min || ChannelCaps[extraChannelType]?.min;
+  let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;
+
+  // thresholds
+  const CHN_MAX
+    = ChannelThresholds[channel as keyof typeof ChannelThresholds]?.max
+    || ChannelThresholds[extraChannelType as keyof typeof ChannelThresholds]?.max,
+    CHN_MIN
+      = ChannelThresholds[channel as keyof typeof ChannelThresholds]?.min
+      || ChannelThresholds[extraChannelType as keyof typeof ChannelThresholds]?.min;
+
+  const CHN_CAP_MAX
+    = ChannelCaps[channel as keyof typeof ChannelCaps]?.max
+    || ChannelCaps[extraChannelType as keyof typeof ChannelCaps]?.max,
+    CHN_CAP_MIN
+      = ChannelCaps[channel as keyof typeof ChannelCaps]?.min
+      || ChannelCaps[extraChannelType as keyof typeof ChannelCaps]?.min;
+
   let scaleDef = encoding?.scale;
-  let scaleProperties = {
+  let scaleProperties: ParsedScaleProperties = {
     channel,
+    encodingType: encoding.type,
     polarity,
   }
 
@@ -34,8 +51,8 @@ export function makeOrdinalScaleFunction(channel, encoding, values, info) {
   }
   scaleProperties.domain = domain;
 
-  // range
-  let range = deepcopy(scaleDef?.range || null);
+  // range (fielded range is already treated)
+  let range = deepcopy(scaleDef?.range || null) as any[];
   let rangeProvided = scaleDef?.range !== undefined;
   if (times && !rangeProvided) {
     range = domain.map(d => d * times);
@@ -45,22 +62,22 @@ export function makeOrdinalScaleFunction(channel, encoding, values, info) {
   let rangeMin = scaleDef?.rangeMin, rangeMax = scaleDef?.rangeMax;
   // for timbre (not recommnded), skips the below transformations
   if (channel === TIMBRE_chn || extraChannelType === TIMBRE_chn) {
-    range = repeatPallete(NomPalletes[TIMBRE_chn], domain.length);
+    range = repeatPallete(NomPalletes[TIMBRE_chn as keyof typeof NomPalletes] as any[], domain.length);
     rangeProvided = true;
   }
-  let scaleOutRange;
+  let scaleOutRange!: [number, number];
   if (!rangeProvided && maxDistinct) {
     scaleOutRange = [rangeMin !== undefined ? rangeMin : CHN_MIN, rangeMax !== undefined ? rangeMax : CHN_MAX];
   } else if (!rangeProvided && !maxDistinct) {
-    let p = QuantPreferredRange[channel];
-    scaleOutRange = [getFirstDefined(rangeMin, p[0], CHN_MIN), getFirstDefined(rangeMax, p[1], CHN_MAX)];
+    let p = QuantPreferredRange[channel as keyof typeof QuantPreferredRange];
+    if (p) scaleOutRange = [getFirstDefined(rangeMin, p[0], CHN_MIN), getFirstDefined(rangeMax, p[1], CHN_MAX)];
   }
   // match the count
   if (scaleOutRange && !rangeProvided) {
     range = divideOrdScale(scaleOutRange, domain.length);
   }
   // note for pitch  -> freq 
-  if ((channel === PITCH_chn || extraChannelType === PITCH_chn) && !range.every(d => jType(d) === "Number")) {
+  if ((channel === PITCH_chn || extraChannelType === PITCH_chn) && !range.every((d: any) => typeof d === "number")) {
     range = range.map(noteToFreq);
   }
   range = range.map((d, i) => {
@@ -90,14 +107,15 @@ export function makeOrdinalScaleFunction(channel, encoding, values, info) {
   scaleProperties.range = range;
 
   // make the scale function
-  let scaleFunction = scaleOrdinal().domain(domain).range(range);
+  //@ts-ignore
+  let scaleFunction: ParsedScaleFunction = scaleOrdinal().domain(domain).range(range);
   scaleFunction.properties = scaleProperties;
   return scaleFunction;
 }
 
-function divideOrdScale(biRange, len) {
+function divideOrdScale(biRange: [number, number], len: number): any[] {
   if (len < 1) return [];
-  else if (len == 1) return (biRange[0] + biRange[1]) / 2
+  else if (len == 1) return [(biRange[0] + biRange[1]) / 2]
   let rLen = len;
   let max = biRange[1];
   let min = biRange[0];

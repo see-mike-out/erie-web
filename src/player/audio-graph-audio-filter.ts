@@ -2,7 +2,7 @@ import { AllpassBiquadFilter, BandpassBiquadFilter, BiquadEncoder, BiquadFinishe
 import { CompressorEncoder, CompressorFinisher, DefaultDynamicCompressor } from "../audioFilters/audio-graph-filter-compressor";
 import { DistortionEncoder, DistortionFilter, DistortionFinisher } from "../audioFilters/audio-graph-filter-distortion";
 import { GainerFilter, GainerEncoder, GainerFinisher } from "../audioFilters/audio-graph-filter-gainer";
-import { DETUNE_chn, LOUDNESS_chn, PITCH_chn } from "../scale/audio-graph-scale-constant";
+import { DETUNE_chn, LOUDNESS_chn, PITCH_chn } from "../types";
 
 export const PresetFilters = {
   'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },

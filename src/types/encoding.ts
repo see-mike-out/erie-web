@@ -75,6 +75,8 @@ export type SortValues = 'ascending' | 'asc' | 'descending' | 'desc' | true | fa
 // sacle object
 export const KeyDomain = 'domain',
   KeyRange = 'range',
+  KeyRangeMin = 'rangeMin',
+  KeyRangeMax = 'rangeMax',
   KeyPolarity = 'polarity',
   KeyMaxDistinct = 'maxDistinct',
   KeyTimes = 'times',
@@ -87,13 +89,21 @@ export const KeyDomain = 'domain',
   KeyOrder = 'order',
   KeySort = 'sort',
   KeyType = 'type',
-  KeySingleTappingPosition = 'singleTappingPosition';
+  KeySingleTappingPosition = 'singleTappingPosition',
+  KeyNice = 'nice',
+  KeyPauseRate = 'pauseRate',
+  KeyPauseLength = 'pauseLength',
+  KeyMaxTappingLength = 'maxTappingLength';
+
+export type FieldedRange = { field: string };
 
 export type ScaleType = {
   id?: string,
   [KeyType]?: ScaleTransformType,
   [KeyDomain]?: any[],
-  [KeyRange]?: any[],
+  [KeyRangeMin]?: any,
+  [KeyRangeMax]?: any,
+  [KeyRange]?: any[] | FieldedRange,
   [KeyOrder]?: any[],
   [KeySort]?: SortValues,
   [KeyPolarity]?: PolarityType,
@@ -105,7 +115,11 @@ export type ScaleType = {
   [KeyLength]?: number,
   [KeyBand]?: number,
   [KeyTiming]?: TimingType,
-  [KeySingleTappingPosition]?: SingleTapPosType
+  [KeySingleTappingPosition]?: SingleTapPosType,
+  [KeyNice]?: boolean,
+  [KeyPauseRate]?: number,
+  [KeyPauseLength]?: number
+  [KeyMaxTappingLength]?: number
 }
 
 // conditions
@@ -284,7 +298,7 @@ export const
 export const defaultTapLength = 0.2;
 
 export const ChannelThresholds = {
-  [TIME_chn]: { min: 0 },
+  [TIME_chn]: { max: null, min: 0 },
   [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
   [DETUNE_chn]: { max: MAX_DETUNE, min: MIN_DETUNE },
   [LOUDNESS_chn]: { max: MAX_LOUD, min: MIN_LOUD },

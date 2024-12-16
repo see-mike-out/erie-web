@@ -1,5 +1,5 @@
 import { ConfigInterface } from "../config"
-import { Condition, EncodingType, FormatType, RampType, ScaleType, TickObject } from "../encoding"
+import { Condition, EncodingType, FormatType, RampType, ScaleType, SortValues, TickObject } from "../encoding"
 import { SampledToneObject } from "../sampling"
 import { DatasetSpecItem, DataSpec3, SingleStreamSpec } from "../spec"
 import { SynthObject } from "../synth"
@@ -83,7 +83,8 @@ export type NormalizedEncodingItem = {
   roundToNote?: boolean,
   hasTapSpeed?: boolean | undefined,
   hasTapCount?: boolean | undefined,
-  by?: string[] | undefined
+  by?: string[] | undefined,
+  sort?: SortValues
 }
 
 export type ExtendedSingleSpec = SingleStreamSpec & {

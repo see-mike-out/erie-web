@@ -416,7 +416,7 @@ export class Channel {
       o.tick = this._tick ? deepcopy(this._tick) : this._tick;
     }
     if (this._channel === REPEAT_chn) {
-      o.tick = this._speech;
+      o.speech = this._speech;
     }
 
     return o;

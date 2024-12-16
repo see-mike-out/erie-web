@@ -259,9 +259,17 @@ export async function makeScales(
     let scaleDef = scaleInfo[scaleId];
     let channel = scaleDef.channel;
 
-    let o = {};
-    Object.assign(o, scaleDef);
-    scaleFunctions[scaleId] = getAudioScales(channel, o, scaleDef.values, beat, scaleDef.data);
+    let o: ParsedScaleDefinition = deepcopy(scaleDef);
+    // Object.assign(o, scaleDef);
+    if (scaleDef.values === undefined || scaleDef.data === undefined) {
+      console.error("Value not assigned", scaleDef);
+    } else {
+      let s = getAudioScales(channel, o, scaleDef.values, beat, scaleDef.data);
+      if (s) scaleFunctions[scaleId] = s;
+      else {
+        console.error("Couldn't get the scale function", channel, o, scaleDef.values, beat, scaleDef.data);
+      }
+    }
   }
   if (beat) scaleFunctions.__beat = beat;
   return scaleFunctions;
