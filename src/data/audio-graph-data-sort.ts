@@ -1,5 +1,8 @@
 import { RecordObject } from "../types";
-import { asc, desc } from "../util";
+import {
+  asc,
+  desc
+} from "../util";
 
 export function makeIndexSortFn<T extends RecordObject>(key: string, order: T[]): (a: T, b: T) => number {
   return (a: T, b: T) => {

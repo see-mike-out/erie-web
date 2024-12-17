@@ -1,5 +1,10 @@
 import { format } from "d3";
-import { NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, RecordObject } from "../types";
+import {
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  ParsedScaleProperties,
+  RecordObject
+} from "../types";
 
 export function makeSpeechChannelScale(
   channel: string,

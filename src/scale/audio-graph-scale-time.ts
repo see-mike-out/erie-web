@@ -1,13 +1,25 @@
-import {
-  TIME_chn, REL, DEF_DUR, TMP, ORD, NOM, STATIC, QUANT, SIM,
-  BeatObject, ParsedScaleDefinition, ParsedScaleFunction, RecordObject
-} from "../types";
-import { deepcopy } from "../util";
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
 import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
+
+import {
+  TIME_chn,
+  REL,
+  DEF_DUR,
+  TMP,
+  ORD,
+  NOM,
+  STATIC,
+  QUANT,
+  SIM,
+  BeatObject,
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  RecordObject
+} from "../types";
+import { deepcopy } from "../util";
 
 // only for the time scale
 export function makeTimeChannelScale(

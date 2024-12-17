@@ -1,10 +1,9 @@
 import { extent } from "d3";
-// import { randomKDE } from 'vega-statistics';
-// import { sampleCurve } from 'vega-statistics';
 import * as vega from "vega-statistics";
-import * as aq from "arquero";
 import { AqTableType } from "../types";
+import * as aq from "arquero";
 const fromTidy = aq.from;
+
 // this is from custom typing
 const randomKDE = vega.randomKDE, sampleCurve = vega.sampleCurve;
 

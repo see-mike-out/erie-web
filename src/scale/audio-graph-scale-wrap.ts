@@ -1,4 +1,20 @@
-import { asc, unique, round, listString, jType, detectType, deepcopy } from "../util";
+import { makeFieldedScaleFunction } from "./audio-graph-scale-field";
+import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
+import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
+import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
+import { makeStaticScaleFunction } from "./audio-graph-scale-static";
+import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
+import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
+import { makeTimeChannelScale } from "./audio-graph-scale-time";
+
+import {
+  asc,
+  unique,
+  round,
+  listString,
+  detectType,
+  deepcopy
+} from "../util";
 import {
   BeatObject,
   DEF_TAPPING_DUR_BEAT,
@@ -28,16 +44,7 @@ import {
   TapSpeedValue,
   TimeChannels
 } from "../types";
-
-import { makeFieldedScaleFunction } from "./audio-graph-scale-field";
-import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
-import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
-import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
-import { makeStaticScaleFunction } from "./audio-graph-scale-static";
-import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
-import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
-import { makeTimeChannelScale } from "./audio-graph-scale-time";
-import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
+import { roundToNoteScale } from "../player";
 
 export function getAudioScales(
   channel: string,

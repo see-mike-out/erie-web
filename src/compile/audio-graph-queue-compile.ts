@@ -1,24 +1,54 @@
-import { OverlayStream, UnitStream } from './audio-graph-datatype';
-import { makeRepeatStreamTree, postprocessRepeatStreams } from './audio-graph-repeat-stream';
-import { jType } from "../util/audio-graph-typing-util";
-import { asc, deepcopy, unique } from "../util/audio-graph-util";
-import { listString } from "../util/audio-graph-format-util";
-import { transformData, orderArray } from "../data/audio-graph-data-transform";
 import {
-  NOM, ORD, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TMP,
-  REPEAT_chn, ScaleDescriptionOrder, TIMBRE_chn, TIME2_chn, TIME_chn, TapChannels, SEQUENCE,
+  OverlayStream,
+  UnitStream
+} from './audio-graph-datatype';
+import {
+  makeRepeatStreamTree,
+  postprocessRepeatStreams
+} from './audio-graph-repeat-stream';
+import { Def_tone } from './audio-graph-normalize-single';
+import {
+  jType,
+  asc,
+  deepcopy,
+  unique,
+  listString
+} from "../util";
+import {
+  transformData,
+  orderArray
+} from "../data";
+import {
+  NOM,
+  ORD,
+  TMP,
+  SPEECH_AFTER_chn,
+  SPEECH_BEFORE_chn,
+  REPEAT_chn,
+  TIMBRE_chn,
+  TIME2_chn,
+  TIME_chn,
+  TapChannels,
+  SEQUENCE,
   REL,
+  ScaleDescriptionOrder,
   TickObject,
   ParsedScaleFunction,
   DataOrderingItem,
   InternalData,
-  RecordObject,
-  ScaleCollection
+  BeforeAll,
+  PlayAt,
+  ScaleCollection,
+  ConfigInterface,
+  NormalizedSingleStream
 } from "../types";
-import { BeforeAll, PlayAt, makeScaleDescription } from "../scale/audio-graph-scale-desc";
-import { Def_Tick_Duration, Def_Tick_Duration_Beat, Def_Tick_Interval, Def_Tick_Interval_Beat } from '../tick/audio-graph-time-tick';
-import { ConfigInterface, NormalizedSingleStream } from '../types';
-import { Def_tone } from './audio-graph-normalize-single';
+import { makeScaleDescription } from "../scale";
+import {
+  Def_Tick_Duration,
+  Def_Tick_Duration_Beat,
+  Def_Tick_Interval,
+  Def_Tick_Interval_Beat
+} from '../tick';
 
 export async function compileSingleLayerAuidoGraph(
   audio_spec: NormalizedSingleStream,

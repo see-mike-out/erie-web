@@ -1,11 +1,24 @@
-import { ToneType, TextType, ToneSeries, ToneOverlaySeries, AudioGraphQueue } from '../player/audio-graph-player';
+import {
+  ToneType,
+  TextType,
+  ToneSeries,
+  ToneOverlaySeries,
+  AudioGraphQueue
+} from '../player/audio-graph-player';
 import { DefaultFrequency } from '../player/audio-graph-player-proto';
-import { AfterAll, AfterThis, BeforeAll, BeforeThis, ForceRepeatScale, PlayAt } from '../scale/audio-graph-scale-desc';
-import { toOrdinalNumbers } from '../util/audio-graph-format-util';
-import { jType } from '../util/audio-graph-typing-util';
-import { deepcopy } from '../util/audio-graph-util';
-
-export const SeqStrm = 'SequenceStream', OverStrm = 'OverlayStream', UnitStrm = 'UnitStream', IntroStrm = 'IntroStream', AGQueue = 'AudioGraphQueue';
+import {
+  AfterAll,
+  AfterThis,
+  BeforeAll,
+  BeforeThis,
+  ForceRepeatScale,
+  PlayAt
+} from '../types';
+import {
+  toOrdinalNumbers,
+  deepcopy,
+  jType
+} from '../util';
 
 export class SequenceStream {
   constructor() {

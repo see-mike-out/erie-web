@@ -1,7 +1,5 @@
-import {
-  SEQUENCE, OVERLAY
-} from "../scale/audio-graph-scale-constant";
-import { jType } from "../util/audio-graph-typing-util";
+import { jType } from "../util";
+import { SEQUENCE, OVERLAY } from "../types"
 import { OverlayStream, UnitStream } from "./audio-graph-datatype";
 
 export function makeRepeatStreamTree(level, values, directions) {

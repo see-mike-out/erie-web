@@ -1,13 +1,32 @@
-import { scaleLinear, scaleSymlog, scaleLog, scaleSqrt, scalePow } from "d3";
-import { noteToFreq, jType, deepcopy, getFirstDefined } from "../util";
-import { QuantPreferredRange } from "./audio-graph-palletes";
-import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
 import {
-  LOG, SYMLOG, SQRT, POW, PITCH_chn, NEG, POS, PAN_chn, TIMBRE_chn,
-  NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, RecordObject,
+  getChannelCaps,
+  getChannelThresholds
+} from "./audio-graph-scale-thresholds";
+import { QuantPreferredRange } from "./audio-graph-palletes";
+
+import { scaleLinear, scaleSymlog, scaleLog, scaleSqrt, scalePow } from "d3";
+import {
+  noteToFreq,
+  jType,
+  deepcopy,
+  getFirstDefined
+} from "../util";
+import { FilterExtraChannelTypes } from "../player";
+import {
+  LOG,
+  SYMLOG,
+  SQRT,
+  POW,
+  PITCH_chn,
+  NEG,
+  POS,
+  PAN_chn,
+  TIMBRE_chn,
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  RecordObject,
   ParsedScaleProperties
 } from "../types";
-import { getChannelCaps, getChannelThresholds } from "./audio-graph-scale-thresholds";
 
 export function makeQuantitativeScaleFunction(
   channel: string,

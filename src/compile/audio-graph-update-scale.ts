@@ -1,13 +1,34 @@
 import { applyTransforms } from "../data";
-import { getAudioScales } from "../scale/audio-graph-scale-wrap";
-import { makeBeatFunction, makeBeatRounder } from "../scale/audio-graph-time-convert";
-import { BeatObject, ConfigInterface, LoadedDatasets, NormalizedEncodingItem, NormalizedSingleStream, NormalizedStreamItem, ParsedScaleDefinition, ParsedScaleFunction, ScaleCollection, ScaleConsistencyRecord, ScaleType, STATIC, TIME_chn, TMP } from "../types";
-import { deepcopy, detectType, jType } from "../util";
+import {
+  getAudioScales,
+  makeBeatFunction,
+  makeBeatRounder
+} from "../scale";
+import {
+  BeatObject,
+  ConfigInterface,
+  LoadedDatasets,
+  NormalizedEncodingItem,
+  NormalizedSingleStream,
+  NormalizedStreamItem,
+  ParsedScaleDefinition,
+  ScaleCollection,
+  ScaleConsistencyRecord,
+  ScaleType,
+  STATIC,
+  TIME_chn,
+  TMP
+} from "../types";
+import {
+  deepcopy,
+  detectType
+} from "../util";
 
 export function tidyUpScaleDefinitions(
   scaleDefinitions: ParsedScaleDefinition[],
   normalizedSpecs: NormalizedStreamItem[],
-  sequenceConfig: ConfigInterface) {
+  sequenceConfig: ConfigInterface
+): string[] {
   // directly updates the scale definitions, and returns the ids of scales to be removed, which can be later handled.
   let sequenceScaleConsistency: ScaleConsistencyRecord = sequenceConfig?.sequenceScaleConsistency as ScaleConsistencyRecord ?? {};
   let forceSequenceScaleConsistency: ScaleConsistencyRecord = sequenceConfig?.forceSequenceScaleConsistency as ScaleConsistencyRecord ?? {};
@@ -260,7 +281,7 @@ export async function makeScales(
     let channel = scaleDef.channel;
 
     let o: ParsedScaleDefinition = deepcopy(scaleDef);
-    
+
     if (scaleDef.values === undefined || scaleDef.data === undefined) {
       console.error("Value not assigned", scaleDef);
     } else {

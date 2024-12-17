@@ -1,18 +1,17 @@
 import { determineNoteRange, MultiNoteInstruments, SingleNoteInstruments } from './audio-graph-instrument-sample';
-import { notifyStop } from '../util/audio-graph-speech';
-import { makeTick, playTick } from '../tick/audio-graph-time-tick';
-import { deepcopy, genRid } from '../util/audio-graph-util';
 import { AM, ErieSynth, FM, makeSynth } from './audio-graph-synth';
 import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
 import { PresetFilters } from './audio-graph-audio-filter';
-import { TAPSPD_chn, TAPCNT_chn } from '../scale/audio-graph-scale-constant';
 import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
-import { ErieFilters } from '../classes/erie-audio-filter';
 import { emitNotePlayEvent, emitNoteStopEvent } from "./audio-graph-note-event";
 import { WebSpeechGenerator } from './audio-graph-web-speech-generator';
 import { GoogleCloudTTSGenerator } from './audio-graph-google-tts-generator';
-// import { AudioContext, OfflineAudioContext } from 'standardized-audio-context';
-import { AudioPrimitiveBuffer } from '../pulse/audio-primitive-buffer';
+
+import { ErieFilters } from '../classes';
+import { TAPSPD_chn, TAPCNT_chn } from '../types';
+import { makeTick, playTick } from '../tick';
+import { deepcopy, genRid, notifyStop } from '../util';
+import { AudioPrimitiveBuffer } from '../pulse';
 
 export function makeContext() {
   return new AudioContext();

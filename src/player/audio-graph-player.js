@@ -1,4 +1,3 @@
-import { notifyStop, notifyPause, notifyResume } from "../util/audio-graph-speech";
 import {
   setPlayerEvents,
   clearPlayerEvents,
@@ -12,14 +11,26 @@ import {
   Tone, Speech, DefaultFrequency,
   ErieGlobalControl
 } from "./audio-graph-player-proto";
-
-import { SupportedInstruments, loadSamples } from "./audio-graph-instrument-sample";
-import { deepcopy, genRid, getFirstDefined } from "../util/audio-graph-util";
-import { DefaultChannels } from "../scale/audio-graph-scale-constant";
-import { sendQueueFinishEvent, sendQueueStartEvent, sendToneStartEvent } from "./audio-graph-player-event";
-import { mergeTapPattern } from "../util/audio-graph-scale-util";
-import { AudioPrimitiveBuffer, concatenateBuffers } from "../pulse/audio-primitive-buffer";
-import { makeWaveFromBuffer } from "../pulse/audio-buffer-to-wave";
+import {
+  SupportedInstruments,
+  loadSamples
+} from "./audio-graph-instrument-sample";
+import {
+  notifyStop,
+  notifyPause,
+  notifyResume,
+  deepcopy,
+  genRid,
+  getFirstDefined,
+  mergeTapPattern
+} from "../util";
+import { sendQueueFinishEvent, sendQueueStartEvent } from "./audio-graph-player-event";
+import {
+  AudioPrimitiveBuffer,
+  concatenateBuffers,
+  makeWaveFromBuffer
+} from "../pulse";
+import { DefaultChannels } from "../types";
 
 export const TextType = 'text',
   ToneType = 'tone',

@@ -29,11 +29,11 @@ export class DefaultDynamicCompressor extends AudioFilterPrototype {
 }
 
 export function CompressorEncoder(filter: DefaultDynamicCompressor, sound: Glyph, startTime: number) {
-  if (sound.others.dcAttack !== undefined) filter.filter.attack.linearRampToValueAtTime(sound.others.dcAttack || 1, startTime);
-  if (sound.others.dcKnee !== undefined) filter.filter.knee.linearRampToValueAtTime(sound.others.dcKnee || 1, startTime);
-  if (sound.others.dcRatio !== undefined) filter.filter.ratio.linearRampToValueAtTime(sound.others.dcRatio || 1, startTime);
-  if (sound.others.dcReduction !== undefined) filter.filter.release.linearRampToValueAtTime(sound.others.dcReduction || 1, startTime);
-  if (sound.others.dcThreshold !== undefined) filter.filter.threshold.linearRampToValueAtTime(sound.others.dcThreshold || 1, startTime);
+  if (sound.others?.dcAttack !== undefined) filter.filter.attack.linearRampToValueAtTime(sound.others.dcAttack || 1, startTime);
+  if (sound.others?.dcKnee !== undefined) filter.filter.knee.linearRampToValueAtTime(sound.others.dcKnee || 1, startTime);
+  if (sound.others?.dcRatio !== undefined) filter.filter.ratio.linearRampToValueAtTime(sound.others.dcRatio || 1, startTime);
+  if (sound.others?.dcReduction !== undefined) filter.filter.release.linearRampToValueAtTime(sound.others.dcReduction || 1, startTime);
+  if (sound.others?.dcThreshold !== undefined) filter.filter.threshold.linearRampToValueAtTime(sound.others.dcThreshold || 1, startTime);
 }
 
 export function CompressorFinisher(filter: DefaultDynamicCompressor, sound: Glyph, startTime: number, duration: number) {

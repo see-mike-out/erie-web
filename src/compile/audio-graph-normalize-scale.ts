@@ -1,4 +1,7 @@
-import { ConfigInterface, ScaleConsistencyRecord } from "../types";
+import {
+  ConfigInterface,
+  ScaleConsistencyRecord
+} from "../types";
 
 export function normalizeScaleConsistency(config: ConfigInterface, used_channels: string[]) {
   let overlayScaleConsistency: ScaleConsistencyRecord = {},
@@ -53,7 +56,7 @@ export function normalizeScaleConsistency(config: ConfigInterface, used_channels
       forceSequenceScaleConsistency[chn] = false;
     }
   }
-  
+
   // reassign values
   config.overlayScaleConsistency = overlayScaleConsistency;
   config.forceOverlayScaleConsistency = forceOverlayScaleConsistency;

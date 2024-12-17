@@ -1,4 +1,7 @@
-import { AqTableType, CalculateObject } from "../types";
+import {
+  AqTableType,
+  CalculateObject
+} from "../types";
 
 export function doCalculate(table: AqTableType, cal: CalculateObject, groupby: string[]): AqTableType {
   let eq = cal.calculate, name_as = cal.as;

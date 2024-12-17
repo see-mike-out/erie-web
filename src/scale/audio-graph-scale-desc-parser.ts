@@ -10,7 +10,10 @@
 // |  => return ParsedDescMarkup[]
 // => return DescriptionMarkupQueueItem[] (playable Queue)
 
-import { format, timeFormat } from "d3";
+import {
+  format,
+  timeFormat
+} from "d3";
 import { listString } from "../util";
 import {
   TimeUnitUnits,

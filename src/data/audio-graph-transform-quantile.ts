@@ -1,6 +1,9 @@
+import { round } from "../util";
+import {
+  AqTableType,
+  RecordObject
+} from "../types";
 import * as aq from "arquero";
-import { round } from "../util/audio-graph-util";
-import { AqTableType, RecordObject } from "../types";
 const fromTidy = aq.from;
 
 export function generateQuantiles(

@@ -1,5 +1,8 @@
+import {
+  AqTableType,
+  RecordObject
+} from "../types";
 import * as aq from "arquero";
-import { AqTableType, RecordObject } from "../types";
 const fromTidy = aq.from;
 
 export function makeBoxPlotTable(

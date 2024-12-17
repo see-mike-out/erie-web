@@ -1,4 +1,12 @@
 import {
+  isOverlayStream,
+  isSequenceStream,
+  isSingleStream
+} from "./audio-graph-spec-type-check";
+import { normalizeSingleSpec } from "./audio-graph-normalize-single";
+import { normalizeScaleConsistency } from "./audio-graph-normalize-scale";
+
+import {
   OVERLAY,
   SEQUENCE,
   NormalizedStream,
@@ -30,9 +38,6 @@ import {
   unique,
   toHashedObject
 } from "../util";
-import { isOverlayStream, isSequenceStream, isSingleStream } from "./audio-graph-spec-type-check";
-import { normalizeSingleSpec } from "./audio-graph-normalize-single";
-import { normalizeScaleConsistency } from "./audio-graph-normalize-scale";
 
 export async function normalizeSpecification(_spec: TopLevelSpec): Promise<NormalizedStream> {
   let spec = deepcopy(_spec);
@@ -308,7 +313,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec): Promise<Norma
     delete config.overlayScaleConsistency;
     delete config.forceOverlayScaleConsistency;
   }
-  
+
   return {
     normalized: streams,
     datasets: dataset_hash,

@@ -1,6 +1,6 @@
 import {
-  ChannelThresholds, ChannelCaps, LOG, SYMLOG, SQRT, POW, PITCH_chn, NEG, POS, PAN_chn, TIMBRE_chn,
-  NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, RecordObject
+  ChannelThresholds,
+  ChannelCaps
 } from "../types";
 
 export function getChannelThresholds(channel: string, extraChannelType: string): [any, any] {

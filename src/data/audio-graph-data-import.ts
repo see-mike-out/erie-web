@@ -1,7 +1,17 @@
-import { csvParse, tsvParse } from "d3";
-import { isJSON, isCSV, isTSV } from "../util/audio-graph-typing-util";
-import { deepcopy } from "../util/audio-graph-util";
-import { DataSpec, ParsedDatasetObject } from "../types";
+import {
+  csvParse,
+  tsvParse
+} from "d3";
+import {
+  isJSON,
+  isCSV,
+  isTSV,
+  deepcopy
+} from "../util";
+import {
+  DataSpec,
+  ParsedDatasetObject
+} from "../types";
 
 export async function getData(dataDef: DataSpec,
   loaded_datasets: { [key: string]: any[] },

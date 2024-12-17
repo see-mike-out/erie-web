@@ -1,5 +1,12 @@
 import { noteToFreq } from "../util";
-import { FieldedRange, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, PITCH_chn, RecordObject } from "../types";
+import {
+  FieldedRange,
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  ParsedScaleProperties,
+  PITCH_chn,
+  RecordObject
+} from "../types";
 
 export function makeFieldedScaleFunction(
   channel: string,

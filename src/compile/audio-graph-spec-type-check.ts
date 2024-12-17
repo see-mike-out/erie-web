@@ -1,4 +1,4 @@
-import { InSeqOverlayStreamSpec, OVERLAY, OverlayStreamSpec, SEQUENCE, TopLevelSpec, UnitStreamSpec } from "../types";
+import { InSeqOverlayStreamSpec, OVERLAY, SEQUENCE, TopLevelSpec, UnitStreamSpec } from "../types";
 
 export function isRepeatedStream(spec: TopLevelSpec): boolean {
   if (spec && ('encoding' in spec) && spec.encoding?.repeat) {

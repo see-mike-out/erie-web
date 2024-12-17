@@ -1,10 +1,22 @@
-import { scaleOrdinal } from "d3";
-import { NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, PITCH_chn, RecordObject, REPEAT_chn, TIMBRE_chn } from "../types";
-import { NomPalletes, repeatPallete } from "./audio-graph-palletes";
-import { unique, deepcopy, noteToFreq } from "../util";
-
-import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
+import {
+  NomPalletes,
+  repeatPallete
+} from "./audio-graph-palletes";
 import { getChannelCaps } from "./audio-graph-scale-thresholds";
+
+import { scaleOrdinal } from "d3";
+import {
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  ParsedScaleProperties,
+  PITCH_chn,
+  RecordObject,
+  REPEAT_chn,
+  TIMBRE_chn
+} from "../types";
+import { unique, deepcopy, noteToFreq } from "../util";
+import { FilterExtraChannelTypes } from "../player";
+
 
 export function makeNominalScaleFunction(
   channel: string,

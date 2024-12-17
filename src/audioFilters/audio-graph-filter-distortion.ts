@@ -40,7 +40,7 @@ function makeDistortionCurve(amount: number) {
 }
 
 export function DistortionEncoder(filter: DistortionFilter, sound: Glyph, startTime: number) {
-  if (sound.others.distortion !== undefined) {
+  if (sound.others?.distortion !== undefined) {
     filter.filter.curve = makeDistortionCurve(sound.others.distortion);
   } else {
     filter.filter.curve = makeDistortionCurve(100);

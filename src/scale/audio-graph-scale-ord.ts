@@ -1,9 +1,35 @@
-import { ascending, descending, scaleOrdinal } from "d3";
-import { PITCH_chn, TIMBRE_chn, NEG, RecordObject, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, POS } from "../types";
-import { getFirstDefined, unique, deepcopy, noteToFreq } from "../util";
-import { NomPalletes, repeatPallete, QuantPreferredRange } from "./audio-graph-palletes";
-import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
-import { getChannelCaps, getChannelThresholds } from "./audio-graph-scale-thresholds";
+import {
+  NomPalletes,
+  repeatPallete,
+  QuantPreferredRange
+} from "./audio-graph-palletes";
+import {
+  getChannelCaps,
+  getChannelThresholds
+} from "./audio-graph-scale-thresholds";
+
+import {
+  ascending,
+  descending,
+  scaleOrdinal
+} from "d3";
+import {
+  PITCH_chn,
+  TIMBRE_chn,
+  NEG,
+  RecordObject,
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  ParsedScaleProperties,
+  POS
+} from "../types";
+import {
+  getFirstDefined,
+  unique,
+  deepcopy,
+  noteToFreq
+} from "../util";
+import { FilterExtraChannelTypes } from "../player";
 
 export function makeOrdinalScaleFunction(
   channel: string,

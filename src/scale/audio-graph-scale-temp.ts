@@ -1,11 +1,31 @@
-import { scaleTime } from "d3";
-import { jType, noteToFreq, aRange, deepcopy, getFirstDefined } from "../util";
-import { PITCH_chn, NEG, POS, PAN_chn, TIMBRE_chn, NormalizedEncodingItem, ParsedScaleDefinition, RecordObject, ParsedScaleProperties, timeUnitDomainDefs, ParsedScaleFunction } from "../types";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { QuantPreferredRange } from "./audio-graph-palletes";
+import {
+  getChannelCaps,
+  getChannelThresholds
+} from "./audio-graph-scale-thresholds";
 
-import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
-import { getChannelCaps, getChannelThresholds } from "./audio-graph-scale-thresholds";
+import { scaleTime } from "d3";
+import {
+  jType,
+  noteToFreq,
+  deepcopy,
+  getFirstDefined
+} from "../util";
+import {
+  PITCH_chn,
+  PAN_chn,
+  TIMBRE_chn,
+  NEG,
+  POS,
+  ParsedScaleDefinition,
+  ParsedScaleProperties,
+  ParsedScaleFunction,
+  timeUnitDomainDefs,
+  RecordObject
+} from "../types";
+import { FilterExtraChannelTypes } from "../player";
+
 
 export function makeTemporalScaleFunction(
   channel: string,

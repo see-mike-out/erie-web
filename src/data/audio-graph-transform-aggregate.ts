@@ -1,4 +1,8 @@
-import { AggregateItem, AqTableType, RecordObject } from "../types";
+import {
+  AggregateItem,
+  AqTableType,
+  RecordObject
+} from "../types";
 
 export function doAggregate(table: AqTableType, aggregates: AggregateItem[], groupby: string[]) {
   let rollups = getRollUps(aggregates);

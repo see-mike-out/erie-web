@@ -1,5 +1,3 @@
-import { AqTableType, Auto, DataOrderingItem, InternalData, RecordObject, TableInfoObject, TransformList } from "../types";
-import * as aq from "arquero";
 import { makeAscSortFn, makeDescSortFn, makeIndexSortFn } from "./audio-graph-data-sort"
 import { createBin } from "./audio-graph-transform-bin";
 import { doAggregate } from "./audio-graph-transform-aggregate";
@@ -10,7 +8,17 @@ import { foldTable } from "./audio-graph-transform-fold";
 import { generateQuantiles } from "./audio-graph-transform-quantile";
 import { getKernelDensity } from "./audio-graph-transform-density";
 
+import {
+  AqTableType,
+  Auto,
+  DataOrderingItem,
+  InternalData,
+  RecordObject,
+  TableInfoObject,
+  TransformList
+} from "../types";
 
+import * as aq from "arquero";
 const fromTidy = aq.from, op = aq.op, escape = aq.escape, aqTable = aq.table;
 
 export function transformData(data: any[], transforms: TransformList, dimensions: string[]): InternalData {

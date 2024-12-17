@@ -1,6 +1,13 @@
-import { NOM, NormalizedSingleStream, ORD, REPEAT_chn, TMP } from "../types";
-import { unique } from "../util/audio-graph-util";
 import { transformData } from "./audio-graph-data-transform";
+
+import {
+  NOM,
+  ORD,
+  TMP,
+  REPEAT_chn,
+  NormalizedSingleStream
+} from "../types";
+import { unique } from "../util";
 
 export function applyTransforms(data: any[], spec: NormalizedSingleStream) {
   // transformations

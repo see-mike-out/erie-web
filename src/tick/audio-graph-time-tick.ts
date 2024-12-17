@@ -1,8 +1,8 @@
 import { AudioContext, IAudioNode, OfflineAudioContext } from "standardized-audio-context";
 import { makeInstrument, makeOfflineContext } from "../player/audio-graph-player-proto";
-import { round } from "../util/audio-graph-util";
+import { round } from "../util";
 import { TickDefinition } from "../types";
-import { AudioPrimitiveBuffer } from "../pulse/audio-primitive-buffer";
+import { AudioPrimitiveBuffer } from "../pulse";
 
 export const Def_Tick_Interval = 0.5,
   Def_Tick_Interval_Beat = 2,

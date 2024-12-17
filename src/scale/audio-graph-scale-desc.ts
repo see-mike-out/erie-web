@@ -1,11 +1,23 @@
-import { scaleLinear } from "d3";
-import { listString, unique } from "../util";
 import { compileDescriptionMarkup } from "./audio-graph-scale-desc-parser";
+import { scaleLinear } from "d3";
 import {
-  TextType, ToneSeries, ToneType,
+  listString,
+  unique
+} from "../util";
+import {
+  TextType,
+  ToneSeries,
+  ToneType,
   ParsedScaleFunction,
   DEF_SPEECH_RATE,
-  NOM, ORD, QUANT, SKIP, NONSKIP, STATIC, TIME_chn, TMP,
+  NOM,
+  ORD,
+  QUANT,
+  SKIP,
+  NONSKIP,
+  STATIC,
+  TIME_chn,
+  TMP,
   TickDefinition,
   ConfigInterface,
   ToneObject,
@@ -55,7 +67,7 @@ export function makeScaleDescription(scale: ParsedScaleFunction,
       if (!customExpression) expression += `The duration of the stream is <range.length> <timeUnit>. `
     }
     if (properties.binned) {
-      if (dataInfo?.bin && encoding.field && encoding.field in dataInfo?.bin && dataInfo?.bin?.[encoding.field]?.equiBin) {
+      if (dataInfo?.bin && encoding.field && typeof encoding.field === 'string' && encoding.field in dataInfo?.bin && dataInfo?.bin?.[encoding.field]?.equiBin) {
         if (!customExpression) expression += `Each sound represents a equally sized bin bucket. `
       } else {
         if (!customExpression) expression += `The length of each sound represents the corresponding bin bucket size. `

@@ -1,5 +1,16 @@
-import { Condition, ConditionFunction, ConditionItem, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, RecordObject } from "../types";
-import { deepcopy, makeParamFilter } from "../util";
+import {
+  Condition,
+  ConditionFunction,
+  ConditionItem,
+  ParsedScaleDefinition,
+  ParsedScaleFunction,
+  ParsedScaleProperties,
+  RecordObject
+} from "../types";
+import {
+  deepcopy,
+  makeParamFilter
+} from "../util";
 
 export function makeStaticScaleFunction(
   channel: string,

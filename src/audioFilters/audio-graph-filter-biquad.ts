@@ -163,7 +163,7 @@ export function BiquadEncoder(filter: BiquadFilter, sound: Glyph, startTime: num
 
 export function BiquadFinisher(filter: BiquadFilter, sound: Glyph, startTime: number, duration: number) {
   if (filter.useGain) {
-    filter.filter.gain.setValueAtTime((sound?.others.biquadGain || 1), startTime + duration);
+    filter.filter.gain.setValueAtTime((sound?.others?.biquadGain || 1), startTime + duration);
   }
   if (sound?.others?.biquadPitch !== undefined) {
     filter.filter.frequency.setValueAtTime((sound.others.biquadPitch || 1), startTime + duration);

@@ -1,4 +1,9 @@
-import { Bin, bin, max, min } from "d3";
+import {
+  Bin,
+  bin,
+  max,
+  min
+} from "d3";
 import { BinObject } from "../types";
 
 export function createBin(col: number[], transform: BinObject): {
