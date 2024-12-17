@@ -74,9 +74,13 @@ export type SortValues = 'ascending' | 'asc' | 'descending' | 'desc' | true | fa
 
 // sacle object
 export const KeyDomain = 'domain',
+  KeyDomainMin = 'domainMin',
+  KeyDomainMax = 'domainMax',
+  KeyDomainMid = 'domainMid',
   KeyRange = 'range',
   KeyRangeMin = 'rangeMin',
   KeyRangeMax = 'rangeMax',
+  KeyRangeMid = 'rangeMid',
   KeyPolarity = 'polarity',
   KeyMaxDistinct = 'maxDistinct',
   KeyTimes = 'times',
@@ -89,6 +93,9 @@ export const KeyDomain = 'domain',
   KeyOrder = 'order',
   KeySort = 'sort',
   KeyType = 'type',
+  KeyBase = 'base',
+  KeyConstant = 'constant',
+  KeyExponent = 'exponent',
   KeySingleTappingPosition = 'singleTappingPosition',
   KeyNice = 'nice',
   KeyPauseRate = 'pauseRate',
@@ -100,10 +107,17 @@ export type FieldedRange = { field: string };
 export type ScaleType = {
   id?: string,
   [KeyType]?: ScaleTransformType,
+  [KeyBase]?: number,
+  [KeyConstant]?: number,
+  [KeyExponent]?: number,
   [KeyDomain]?: any[],
+  [KeyDomainMin]?: any,
+  [KeyDomainMax]?: any,
+  [KeyDomainMid]?: any,
+  [KeyRange]?: any[] | FieldedRange,
   [KeyRangeMin]?: any,
   [KeyRangeMax]?: any,
-  [KeyRange]?: any[] | FieldedRange,
+  [KeyRangeMid]?: any,
   [KeyOrder]?: any[],
   [KeySort]?: SortValues,
   [KeyPolarity]?: PolarityType,
@@ -119,7 +133,7 @@ export type ScaleType = {
   [KeyNice]?: boolean,
   [KeyPauseRate]?: number,
   [KeyPauseLength]?: number
-  [KeyMaxTappingLength]?: number
+  [KeyMaxTappingLength]?: number,
 }
 
 // conditions
@@ -139,6 +153,11 @@ export interface ConditionItem {
 
 export type Condition = ConditionItem[];
 
+export type ConditionFunction = {
+  test: (a: any) => boolean,
+  name?: string,
+  value: any
+}
 
 // format
 export const NumberFormat = 'number',

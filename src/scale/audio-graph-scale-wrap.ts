@@ -25,21 +25,20 @@ import {
   TAPSPD_chn,
   TMP,
   TapChannels,
+  TapCountValue,
+  TapSpeedValue,
   TimeChannels
 } from "../types";
 
 import { makeFieldedScaleFunction } from "./audio-graph-scale-field";
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
-
-import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
-
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
-import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
 import { makeStaticScaleFunction } from "./audio-graph-scale-static";
+import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 import { makeTimeChannelScale } from "./audio-graph-scale-time";
-
+import { roundToNoteScale } from "../player/audio-graph-instrument-sample";
 
 export function getAudioScales(
   channel: string,
@@ -102,6 +101,7 @@ export function getAudioScales(
     let scale!: ParsedScaleFunction;
     if (channel === PITCH_chn && encoding.roundToNote) {
       // 1. pitch channel with round-to-note feature
+      // @ts-ignore
       scale = (d: any) => { return roundToNoteScale(_scale(d)); }
     } else if (TapChannels.includes(channel)) {
       // 2. if it is a tapping channel, convert it to actual tapping patterns
@@ -109,12 +109,13 @@ export function getAudioScales(
       if (encoding.scale?.pauseLength) pause = { length: encoding.scale?.pauseLength };
       if (channel === TAPCNT_chn) {
         // tapping count
+        // @ts-ignore
         scale = (d: any) => ({
           value: _scale(d),
           tapLength: encoding.scale?.band,
           pause,
           beat
-        });
+        } as TapCountValue);
       } else if (channel === TAPSPD_chn) {
         // tapping speed
         let tapSpeedValues = values.map((d) => _scale(d));
@@ -125,17 +126,19 @@ export function getAudioScales(
         let maxTappingLength = encoding.scale?.maxTappingLength !== undefined ? encoding.scale?.maxTappingLength : (beat ? DEF_TAPPING_DUR_BEAT : MAX_TAPPING_DUR);
         if (tappingUnit > maxTappingLength) tappingUnit = maxTappingLength;
         tappingUnit = round(tappingUnit, -2);
+        // @ts-ignore
         scale = (d) => ({
           value: _scale(d),
           tapDuration: encoding.scale?.band,
           tappingUnit,
           singleTappingPosition: encoding.scale?.singleTappingPosition || SINGLE_TAP_MIDDLE,
           beat
-        });
+        } as TapSpeedValue);
       }
     } else if (channel === DUR_chn && beat) {
       // 3. if it is duration channel and "beat" unit was used --> convert to the beats
       // note: time channel is separate converted, so no further edit is needed here.
+      // @ts-ignore
       scale = (d: any) => beat.converter(_scale(d));
     } else {
       // 4. default cases (no edits)
@@ -183,7 +186,7 @@ function getScaleType(
   channel: string,
   encoding: NormalizedEncodingItem & ParsedScaleDefinition,
   values: any[]
-) {
+): RecordObject {
   let isTime = TimeChannels.includes(channel) || TimeChannels.includes(channel[0]);
   let isSpeech = SpeechChannels.includes(channel);
   let encodingType = encoding.type;

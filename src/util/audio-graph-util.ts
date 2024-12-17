@@ -6,7 +6,7 @@ export function deepcopy<T extends any>(i: T): T {
   return JSON.parse(JSON.stringify(i));
 }
 
-export function aRange(s: number, e: number, incl: number): number[] {
+export function aRange(s: number, e: number, incl?: boolean): number[] {
   let o = [];
   if (incl) e = e + 1;
   for (let i = s; i < e; i++) {

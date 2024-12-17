@@ -44,11 +44,13 @@ import {
 
 export const bin_ending = "__bin", bin_end_ending = "__bin_end", count_ending = "__count", Def_tone = "default";
 
-export function normalizeSingleSpec(spec: ExtendedSingleSpec,
-  parent: typeof OVERLAY | typeof SEQUENCE | null): {
-    normalized: NormalizedSingleStream | null,
-    scaleDefinitions: ParsedScaleDefinition[] | null
-  } {
+export function normalizeSingleSpec(
+  spec: ExtendedSingleSpec,
+  parent: typeof OVERLAY | typeof SEQUENCE | null
+): {
+  normalized: NormalizedSingleStream | null,
+  scaleDefinitions: ParsedScaleDefinition[] | null
+} {
   if (!spec) return { normalized: null, scaleDefinitions: null };
 
   let scaleDefinitions: ParsedScaleDefinition[] = [];
@@ -224,6 +226,9 @@ export function normalizeSingleSpec(spec: ExtendedSingleSpec,
       scale: deepcopy(_scale),
       streamID: [id],
       parentType: parent,
+      condition: _condition,
+      sort: o_enc.sort,
+      timeUnit: o_enc.timeUnit
     };
     if (_roundToNote) {
       scaleDef.roundToNote = true;
@@ -248,8 +253,12 @@ export function normalizeSingleSpec(spec: ExtendedSingleSpec,
       roundToNote: _roundToNote,
       hasTapSpeed: _hasTapSpeed,
       hasTapCount: _hasTapCount,
-      by: _by
-    };
+      by: _by,
+      sort: o_enc.sort,
+      timeUnit: o_enc.timeUnit,
+      timeUnitName: o_enc.timeUnitName,
+      timeLevel: o_enc.timeLevel
+    } as NormalizedEncodingItem;
   }
   // if time2 channel is defined, set the scale for it
   if (encoding[TIME2_chn]) {

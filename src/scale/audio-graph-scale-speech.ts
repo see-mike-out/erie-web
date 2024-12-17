@@ -3,7 +3,7 @@ import { NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, Par
 
 export function makeSpeechChannelScale(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: ParsedScaleDefinition,
   values: any[],
   info: RecordObject,
 ): ParsedScaleFunction {

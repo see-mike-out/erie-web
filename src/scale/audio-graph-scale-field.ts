@@ -3,7 +3,7 @@ import { FieldedRange, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScal
 
 export function makeFieldedScaleFunction(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: ParsedScaleDefinition,
   values: any[], // for the shape
   info: RecordObject, // for the shape
   data: any[]) {

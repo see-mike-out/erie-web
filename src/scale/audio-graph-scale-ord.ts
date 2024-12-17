@@ -1,32 +1,23 @@
 import { ascending, descending, scaleOrdinal } from "d3";
-import { ChannelCaps, ChannelThresholds, PITCH_chn, TIMBRE_chn, NEG, RecordObject, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, POS } from "../types";
-import { jType, getFirstDefined, unique, deepcopy, noteToFreq } from "../util";
+import { PITCH_chn, TIMBRE_chn, NEG, RecordObject, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, POS } from "../types";
+import { getFirstDefined, unique, deepcopy, noteToFreq } from "../util";
 import { NomPalletes, repeatPallete, QuantPreferredRange } from "./audio-graph-palletes";
 import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
+import { getChannelCaps, getChannelThresholds } from "./audio-graph-scale-thresholds";
 
 export function makeOrdinalScaleFunction(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: ParsedScaleDefinition,
   values: any[],
   info: RecordObject,
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;
 
-  // thresholds
-  const CHN_MAX
-    = ChannelThresholds[channel as keyof typeof ChannelThresholds]?.max
-    || ChannelThresholds[extraChannelType as keyof typeof ChannelThresholds]?.max,
-    CHN_MIN
-      = ChannelThresholds[channel as keyof typeof ChannelThresholds]?.min
-      || ChannelThresholds[extraChannelType as keyof typeof ChannelThresholds]?.min;
 
-  const CHN_CAP_MAX
-    = ChannelCaps[channel as keyof typeof ChannelCaps]?.max
-    || ChannelCaps[extraChannelType as keyof typeof ChannelCaps]?.max,
-    CHN_CAP_MIN
-      = ChannelCaps[channel as keyof typeof ChannelCaps]?.min
-      || ChannelCaps[extraChannelType as keyof typeof ChannelCaps]?.min;
+  // thresholds
+  const [CHN_MAX, CHN_MIN] = getChannelThresholds(channel, extraChannelType);
+  const [CHN_CAP_MAX, CHN_CAP_MIN] = getChannelCaps(channel, extraChannelType);
 
   let scaleDef = encoding?.scale;
   let scaleProperties: ParsedScaleProperties = {

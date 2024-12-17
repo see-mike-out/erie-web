@@ -6,7 +6,7 @@ import { SynthObject } from "../synth"
 import { AggOpType, InlineBinType, TransformList } from "../transform"
 import { WaveObject } from "../wave"
 import { ParsedDatasetObject } from "./data"
-import { ParsedScaleDefinition } from "./scale"
+import { ParsedScaleDefinition, timeLevelValues, timeUnitDomainDefs } from "./scale"
 
 export type NormalizedStream = {
   normalized: NormalizedStreamItem[],
@@ -84,7 +84,10 @@ export type NormalizedEncodingItem = {
   hasTapSpeed?: boolean | undefined,
   hasTapCount?: boolean | undefined,
   by?: string[] | undefined,
-  sort?: SortValues
+  sort?: SortValues,
+  timeUnit?: keyof typeof timeUnitDomainDefs,
+  timeUnitName?: string | string[] | number[],
+  timeLevel?: timeLevelValues
 }
 
 export type ExtendedSingleSpec = SingleStreamSpec & {

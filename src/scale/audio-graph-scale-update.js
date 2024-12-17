@@ -35,7 +35,7 @@ export function updateScaleDomain(scale, values) {
       if (scale.properties.timeUnit) {
         let _values = [...values, prevDomain]
         let ordScale = makeOrdinalScaleFunction(channel, {
-          domain: timeUnitDomain(scaleDef?.domain, scale.properties.timeUnit, scale.properties.dayName),
+          domain: timeUnitDomain(scaleDef?.domain, scale.properties.timeUnit, scale.properties.timeUnitName),
           range: scale.properties.range,
           polarity: scale.properties.polarity,
           maxDistinct: scale.properties.maxDistinct
@@ -44,7 +44,7 @@ export function updateScaleDomain(scale, values) {
           maxDistinct: scale.properties.maxDistinct,
           times: scale.properties.times
         });
-        let timeUnitFunction = makeTimeUnitFunction(encoding?.timeUnit, encoding?.dayName);
+        let timeUnitFunction = makeTimeUnitFunction(encoding?.timeUnit, encoding?.timeUnitName);
         Object.assign(scale.properties, ordScale.properties);
         let scaleFunction = (d) => {
           return ordScale(timeUnitFunction(d));
@@ -135,7 +135,7 @@ export function updateScaleDomain(scale, values) {
           newRange = newRange.map(noteToFreq);
         }
         scale.range(newRange);
-        scale.properties.domain = [...newRange];
+        scale.properties.range = [...newRange];
       }
     }
   }

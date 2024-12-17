@@ -260,7 +260,7 @@ export async function makeScales(
     let channel = scaleDef.channel;
 
     let o: ParsedScaleDefinition = deepcopy(scaleDef);
-    // Object.assign(o, scaleDef);
+    
     if (scaleDef.values === undefined || scaleDef.data === undefined) {
       console.error("Value not assigned", scaleDef);
     } else {

@@ -1,29 +1,35 @@
-import { DEF_TAPPING_DUR, DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, TAPCNT_chn, TAPSPD_chn } from "../scale/audio-graph-scale-constant";
-import { NoteNames, OctaveObject } from "../types/notes";
+import { NoteNames, OctaveObject, DEF_TAPPING_DUR, DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, TAPCNT_chn, TAPSPD_chn, BeatObject, TapCountValue, TapSpeedValue, TapValue, PuaseMarker, SingleTapPosType, SINGLE_TAP_END } from "../types";
 import { jType } from "./audio-graph-typing-util";
 import { round } from "./audio-graph-util";
 
-export function makeParamFilter(expr: string): Function | null {
+export function makeParamFilter(expr: string): ((d: any) => boolean) | null {
   if (jType(expr) !== "String") return null;
   let base = expr.includes("datum.") ? "datum" : "d";
   if (base === "datum") {
-    return Function('datum', "return (" + expr + ");");
+    return Function('datum', "return (" + expr + ");") as ((d: any) => boolean);
   } else {
-    return Function('d', "return (" + expr + ");");
+    return Function('d', "return (" + expr + ");") as ((d: any) => boolean);
   }
 }
 
 const tapEndBumper = 0.1
 
-export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, singleTappingPosition, beat) {
+export function makeTapPattern(
+  tapValue: TapValue,
+  tapType: typeof TAPCNT_chn | typeof TAPSPD_chn | 'both',
+  duration: number,
+  pause: PuaseMarker | undefined,
+  tappingDur: number | undefined,
+  singleTappingPosition: SingleTapPosType | undefined,
+  beat: BeatObject) {
   // tapValue: whatever value computed out of a scale function
   // tapType: 'tapCount' or 'tapSpeed'
   // duration: for 'tapSpeed' channel, it is the total length; for 'tapCount' channel it is each tap's length,
   // pause: pause between tappings (can be rate ({rate: ...}) or length ({length: ...}))
   // tappingDur: for a `tapSpeed` channel, the tapping sound length.
-  if (tapValue !== undefined && tapType === TAPCNT_chn) {
+  if (tapValue !== undefined && typeof tapValue === 'number' && tapType === TAPCNT_chn) {
     if (!duration && !beat) duration = DEF_TAPPING_DUR;
-    else if (!duration && beat && beat.converter) {
+    else if (!duration && beat && beat.converter !== undefined) {
       duration = DEF_TAPPING_DUR_BEAT;
     }
     let pauseLength;
@@ -46,15 +52,18 @@ export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, s
     }
     if (beat?.converter) pattern = pattern.map(beat?.converter);
     return { pattern, totalLength, patternString };
-  } else if (tapValue !== undefined && tapType === TAPSPD_chn) {
+  } else if (tapValue !== undefined
+    && typeof tapValue === 'number'
+    && tapType === TAPSPD_chn
+    && tappingDur !== undefined) {
     if (!duration && !beat) duration = DEF_TAP_DUR;
-    else if (!duration && beat && beat.converter) {
+    else if (!duration && beat && beat.converter !== undefined) {
       duration = DEF_TAP_DUR_BEAT;
     }
     let count = round(tapValue * duration, 0);
     let tapOnlyDur = count * tappingDur;
     let pauseLength;
-    let pattern = [], totalLength = 0;
+    let pattern: number[] = [], totalLength = 0;
     if (count == 0) {
       pauseLength = duration;
       pattern = [0, pauseLength];
@@ -71,7 +80,7 @@ export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, s
         if (singleTappingPosition === SINGLE_TAP_START) {
           pattern = [tappingDur, pauseLength];
           totalLength += pauseLength + tappingDur;
-        } else if (singleTappingPosition === SINGLE_TAP_START) {
+        } else if (singleTappingPosition === SINGLE_TAP_END) {
           pattern = [0, pauseLength, tappingDur, tapEndBumper];
           totalLength += pauseLength + tappingDur + tapEndBumper;
         }
@@ -94,10 +103,10 @@ export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, s
     let patternString = `[${tappingDur}, ${pauseLength}] x ${count}`;
     if (beat?.converter) pattern = pattern.map(beat?.converter);
     return { pattern, totalLength, patternString };
-  } else if (tapValue !== undefined && tapType === 'both') {
+  } else if (tapValue !== undefined && tapValue instanceof Object && tapType === 'both') {
     let count = round(tapValue.count, 0), speed = tapValue.speed;
     if (!duration && !beat) duration = DEF_TAPPING_DUR;
-    else if (!duration && beat && beat.converter) {
+    else if (!duration && beat && beat.converter !== undefined) {
       duration = DEF_TAPPING_DUR_BEAT;
     }
     let tapSection = round(1 / speed, -2);
@@ -125,7 +134,7 @@ export function makeTapPattern(tapValue, tapType, duration, pause, tappingDur, s
   }
 }
 
-export function mergeTapPattern(tapCount, tapSpeed) {
+export function mergeTapPattern(tapCount: TapCountValue, tapSpeed: TapSpeedValue) {
   if (tapCount && tapSpeed) {
     return makeTapPattern({ count: tapCount?.value, speed: tapSpeed?.value }, 'both', tapCount.tapLength, undefined, tapSpeed.tappingUnit, tapSpeed.singleTappingPosition, tapCount.beat);
   } else if (tapCount) {

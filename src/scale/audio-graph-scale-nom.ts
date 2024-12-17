@@ -1,24 +1,23 @@
 import { scaleOrdinal } from "d3";
-import { ChannelCaps, NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, PITCH_chn, RecordObject, REPEAT_chn, TIMBRE_chn } from "../types";
+import { NormalizedEncodingItem, ParsedScaleDefinition, ParsedScaleFunction, ParsedScaleProperties, PITCH_chn, RecordObject, REPEAT_chn, TIMBRE_chn } from "../types";
 import { NomPalletes, repeatPallete } from "./audio-graph-palletes";
-import { unique, deepcopy, jType, noteToFreq } from "../util";
+import { unique, deepcopy, noteToFreq } from "../util";
 
 import { FilterExtraChannelTypes } from "../player/audio-graph-audio-filter";
+import { getChannelCaps } from "./audio-graph-scale-thresholds";
 
 export function makeNominalScaleFunction(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: ParsedScaleDefinition,
   values: any[],
   info: RecordObject,
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;
-  const CHN_CAP_MAX
-    = ChannelCaps[channel as keyof typeof ChannelCaps]?.max
-    || ChannelCaps[extraChannelType as keyof typeof ChannelCaps]?.max,
-    CHN_CAP_MIN
-      = ChannelCaps[channel as keyof typeof ChannelCaps]?.min
-      || ChannelCaps[extraChannelType as keyof typeof ChannelCaps]?.min;
+
+  // thresholds
+  const [CHN_CAP_MAX, CHN_CAP_MIN] = getChannelCaps(channel, extraChannelType);
+
   let scaleDef = encoding?.scale;
   let scaleProperties: ParsedScaleProperties = {
     channel,

@@ -1,5 +1,8 @@
-import { deepcopy } from "../util/audio-graph-util";
-import { TIME_chn, REL_TIMING, DEF_DUR, TMP, ORD, NOM, STATIC, QUANT, SIM_TIMING } from "./audio-graph-scale-constant";
+import {
+  TIME_chn, REL, DEF_DUR, TMP, ORD, NOM, STATIC, QUANT, SIM,
+  BeatObject, ParsedScaleDefinition, ParsedScaleFunction, RecordObject
+} from "../types";
+import { deepcopy } from "../util";
 import { makeNominalScaleFunction } from "./audio-graph-scale-nom";
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
@@ -7,14 +10,20 @@ import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 
 // only for the time scale
-export function makeTimeChannelScale(channel, _encoding, values, info, scaleType, beat) {
+export function makeTimeChannelScale(
+  channel: string,
+  _encoding: ParsedScaleDefinition,
+  values: any[],
+  info: RecordObject,
+  scaleType: RecordObject,
+  beat: BeatObject | undefined) {
   let encoding = deepcopy(_encoding);
   let scaleDef = encoding?.scale;
   if (encoding.type === NOM && !scaleDef.timing) {
-    scaleDef.timing = REL_TIMING
+    scaleDef.timing = REL
   }
-  let isRelative = scaleDef.timing === REL_TIMING,
-    isSimultaneous = scaleDef.timing === SIM_TIMING,
+  let isRelative = scaleDef.timing === REL,
+    isSimultaneous = scaleDef.timing === SIM,
     band = scaleDef?.band || DEF_DUR, length = scaleDef?.length || 5;
   if (beat?.converter) {
     band = beat.converter(scaleDef?.band || 1), length = beat.converter(length);
@@ -24,23 +33,27 @@ export function makeTimeChannelScale(channel, _encoding, values, info, scaleType
   } else if (encoding?.scale?.range === undefined) {
     encoding.scale.range = [0, length];
   }
-  let scale1;
+  let scale1!: ParsedScaleFunction;
   // single-time channel
   if (isRelative) {
-    scale1 = (t1) => {
+    // @ts-ignore
+    scale1 = (t1: any) => {
       return 'after_previous';
     };
     scale1.properties = {
       channel,
-      timing: REL_TIMING,
+      encodingType: encoding.type,
+      timing: REL,
     }
   } else if (isSimultaneous) {
+    // @ts-ignore
     scale1 = (t1) => {
       return 0;
     };
     scale1.properties = {
       channel,
-      timing: SIM_TIMING,
+      encodingType: encoding.type,
+      timing: SIM,
     }
   } else if (scaleType?.encodingType === QUANT) {
     scale1 = makeQuantitativeScaleFunction(TIME_chn, encoding, values, info);
@@ -56,7 +69,8 @@ export function makeTimeChannelScale(channel, _encoding, values, info, scaleType
   if (!scale1) {
     console.error("Wrong scale definition for the time channel", scaleDef);
   }
-  let scaleFunction = (t1, t2) => {
+  // @ts-ignore
+  let scaleFunction: ParsedScaleFunction = (t1: any, t2: any) => {
     if (t2 !== undefined) {
       return {
         start: (beat?.roundStart ? beat?.roundStart(scale1(t1)) : scale1(t1)),
