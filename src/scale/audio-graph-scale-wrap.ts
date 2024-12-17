@@ -8,7 +8,6 @@ import {
   DUR_chn,
   MAX_TAPPING_DUR,
   NOM,
-  NormalizedEncoding,
   NormalizedEncodingItem,
   ORD,
   PITCH_chn,

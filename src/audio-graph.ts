@@ -1,12 +1,24 @@
-import { SequenceStream, OverlayStream, SpeechStream } from './compile/audio-graph-datatype';
-import { compileSingleLayerAuidoGraph } from './compile/audio-graph-queue-compile';
-import { normalizeSpecification, isRepeatedStream } from "./compile/audio-graph-normalize";
-import { deepcopy } from "./util/audio-graph-util";
-import { getData } from "./data/audio-graph-data-import";
-import { toHashedObject } from './util/audio-graph-format-util';
-import { tidyUpScaleDefinitions, getChannelType, makeScales } from './compile/audio-graph-update-scale';
-import { TopLevelSpec } from './types/spec';
-import { ConfigInterface, LoadedDatasets } from './types';
+import {
+  SequenceStream,
+  OverlayStream,
+  SpeechStream,
+  normalizeSpecification,
+  isRepeatedStream,
+  compileSingleLayerAuidoGraph,
+  tidyUpScaleDefinitions,
+  getChannelType,
+  makeScales
+} from './compile';
+import {
+  deepcopy,
+  toHashedObject
+} from "./util";
+import { getData } from "./data";
+import {
+  TopLevelSpec,
+  ConfigInterface,
+  LoadedDatasets
+} from './types';
 
 // global event
 let isRecorded = false;
