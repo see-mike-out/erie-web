@@ -352,7 +352,6 @@ export class AudioGraphQueue {
     notifyPause(this.config);
   }
 
-  // todo
   async resume() {
     await notifyResume(this.config);
     return this.play(this.playAt);

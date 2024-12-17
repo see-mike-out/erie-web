@@ -326,7 +326,6 @@ export async function compileSingleLayerAuidoGraph(
   let instrument_type = tone_spec.type || 'default'
 
   // repetition control
-  // todo
   let stream: UnitStream | Array<UnitStream | OverlayStream>;
   if (is_repeated) {
     let repeat_streams = makeRepeatStreamTree(0, repeat_values, repeat_direction);

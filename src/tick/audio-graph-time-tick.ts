@@ -61,7 +61,6 @@ export function makeTick(
   return null;
 }
 
-// TODO
 export async function playTick(
   _ctx: AudioContext | OfflineAudioContext,
   def: TickDefinition,

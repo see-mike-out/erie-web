@@ -32,7 +32,6 @@ export type ParsedScaleProperties = {
 };
 
 export interface ParsedScaleFunction {
-  // [todo] make it precise
   properties: ParsedScaleProperties,
   scaleId?: string,
   description?: any,

@@ -81,7 +81,6 @@ export function getAudioScales(
 
   // get scale functions
   if (scaleType.fieldRange) {
-    // [todo] (need to fix the inidividual functions)
     _scale = makeFieldedScaleFunction(channel, encoding, values, info, data);
   } else if (scaleType.isTime) {
     // time scales

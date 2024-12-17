@@ -1,3 +1,4 @@
+import { AudioContext } from "standardized-audio-context";
 import { ConfigInterface, detuneAmmount, noteFreqRange, noteScaleOrder, OctaveDefinition, RoundedNote } from "../types";
 
 export function roundToNote(
@@ -154,7 +155,7 @@ export async function makeMultiScaleSamplingNode(ctx, def) {
   return samples;
 }
 
-export async function makeSingleScaleSamplingNode(ctx, def) {
+export async function makeSingleScaleSamplingNode(ctx: AudioContext, def: string) {
   let samples = {};
   let sampleRes = await fetch(def);
   let sampleBuffer = await sampleRes.arrayBuffer();
@@ -163,6 +164,6 @@ export async function makeSingleScaleSamplingNode(ctx, def) {
   return samples;
 }
 
-function scaleKeyCheck(key) {
+function scaleKeyCheck(key: string) {
   return key.match(/^[C][0-7]$/);
 }

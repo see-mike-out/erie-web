@@ -190,7 +190,6 @@ export async function normalizeSpecification(_spec: TopLevelSpec): Promise<Norma
       // finally pass to the 
       streams.push({ overlay, name: spec.name, title: spec.title, description: spec.description, config });
     } else if (isSequenceStream(spec as UnitStreamSpec | InSeqOverlayStreamSpec) && 'sequence' in spec) {
-      // [todo] specify type
       let output: NormalizedStreamItem[] = [];
       let introSeq: IntroStream = {};
       config = {} as ConfigInterface;
