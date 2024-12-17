@@ -18,9 +18,7 @@ import {
   STATIC,
   TIME_chn,
   TMP,
-  TickDefinition,
   ConfigInterface,
-  ToneObject,
   NormalizedEncodingItem,
   BeatObject,
   ParsedScaleDescription,
@@ -29,19 +27,21 @@ import {
   M_Text,
   TableInfoObject,
   TimeUnitUnits,
-  TU_SEC
+  TU_SEC,
+  TickObject,
+  NormalizedTone
 } from "../types";
 
 export function makeScaleDescription(scale: ParsedScaleFunction,
   encoding: NormalizedEncodingItem,
   dataInfo: TableInfoObject | undefined,
-  tickDef: TickDefinition | undefined,
-  tone_spec: ToneObject,
+  tickDef: TickObject | undefined,
+  tone_spec: NormalizedTone,
   config: ConfigInterface,
-  beat: BeatObject) {
+  beat?: BeatObject) {
   let properties = scale.properties;
   let channel = properties.channel, field = properties.field, encodingType = properties.encodingType;
-  let timeUnit: TimeUnitUnits = config?.timeUnit?.unit || TU_SEC;
+  let timeUnit: TimeUnitUnits = beat ? 'beat' : (config?.timeUnit?.unit || TU_SEC);
 
   if (properties?.descriptionDetail === SKIP || properties?.descriptionDetail === null) {
     return null;

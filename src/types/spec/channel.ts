@@ -3,7 +3,7 @@ import { timeLevelValues, timeUnitDomainDefs } from "../internal";
 import { AggOpType, InlineBinType } from "../transform";
 
 export interface SpecChannel {
-  field?: string | undefined,
+  field?: string | string[] | undefined,
   type?: EncodingType | undefined,
   ramp?: RampType | undefined,
   aggregate?: AggOpType | undefined,

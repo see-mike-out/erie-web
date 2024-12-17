@@ -3,6 +3,7 @@ import { RecordObject } from "../generic";
 export type Glyph = {
   start?: number,
   duration?: number,
+  key?: string,
   [key: string]: any,
   others?: RecordObject;
 };

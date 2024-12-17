@@ -103,6 +103,12 @@ export function normalizeSingleSpec(
     let _original_field: string | undefined = undefined;
     let _type = o_enc.type ?? undefined;
     let _by: string[] | undefined = undefined;
+    if (channel !== REPEAT_chn && _field instanceof Array) {
+      console.error("Only a repeat channel can have an array of fields.");
+    }
+    if ((o_enc.bin || o_enc.aggregate) && _field instanceof Array) {
+      console.error("An aggregated/binned channel can't have an array of fields.");
+    }
     if (o_enc.by) {
       if (o_enc.by instanceof Array
         && !o_enc.by.join('X').match(/(^(sequence|sequenceX)*(overlay|overlayX)*$)/gi)) {
@@ -154,7 +160,7 @@ export function normalizeSingleSpec(
         } as TransformItem);
       }
       _field = o_enc.field + bin_ending;
-      _original_field = o_enc.field;
+      _original_field = o_enc.field as string;
       _type = QUANT;
       if (channel === TIME_chn) {
         encoding[channel + "2"] = {
@@ -186,7 +192,7 @@ export function normalizeSingleSpec(
           p: o_enc.p
         });
         _field = o_enc.field + "__" + o_enc.aggregate;
-        _original_field = o_enc.field;
+        _original_field = o_enc.field as string;
         if (!_scale) _scale = {};
         _scale.title = o_enc.aggregate + " " + o_enc.field;
         _type = o_enc.type || QUANT;
@@ -222,7 +228,7 @@ export function normalizeSingleSpec(
       channel,
       type: _type as EncodingType,
       dataName: data.name,
-      field: _field ? [_field] : [],
+      field: _field ? (_field instanceof Array ? _field : [_field]) : [],
       scale: deepcopy(_scale),
       streamID: [id],
       parentType: parent,

@@ -1,7 +1,8 @@
 import { ConfigInterface } from "../config"
 import { Condition, EncodingType, FormatType, RampType, ScaleType, SortValues, TickObject } from "../encoding"
 import { SampledToneObject } from "../sampling"
-import { DatasetSpecItem, DataSpec3, SingleStreamSpec } from "../spec"
+import { DataSpec3, SingleStreamSpec } from "../spec"
+import { OVERLAY, SEQUENCE } from "../stream"
 import { SynthObject } from "../synth"
 import { AggOpType, InlineBinType, TransformList } from "../transform"
 import { WaveObject } from "../wave"
@@ -83,11 +84,12 @@ export type NormalizedEncodingItem = {
   roundToNote?: boolean,
   hasTapSpeed?: boolean | undefined,
   hasTapCount?: boolean | undefined,
-  by?: string[] | undefined,
+  by?: typeof SEQUENCE | typeof OVERLAY | Array<typeof SEQUENCE | typeof OVERLAY> | undefined,
   sort?: SortValues,
   timeUnit?: keyof typeof timeUnitDomainDefs,
   timeUnitName?: string | string[] | number[],
-  timeLevel?: timeLevelValues
+  timeLevel?: timeLevelValues,
+  language?: string
 }
 
 export type ExtendedSingleSpec = SingleStreamSpec & {

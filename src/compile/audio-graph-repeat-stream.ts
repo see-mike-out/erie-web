@@ -1,23 +1,31 @@
 import { jType } from "../util";
-import { SEQUENCE, OVERLAY } from "../types"
+import { SEQUENCE, OVERLAY, RepeatMembershipItem, RepeatTree, RepeatTreeLeaf, RepeatTreeNonLeaf, RepeatTreePost } from "../types"
 import { OverlayStream, UnitStream } from "./audio-graph-datatype";
 
-export function makeRepeatStreamTree(level, values, directions) {
-  let tree = {};
+export function makeRepeatStreamTree(
+  level: number,
+  values: RepeatMembershipItem[],
+  directions: Array<typeof SEQUENCE | typeof OVERLAY>
+): RepeatTree {
+
   if (level === undefined) level = 0;
-  if (directions.length <= level) return { direction: 'leaf', node: [] };
+  if (directions.length <= level) return { direction: 'leaf', nodes: [] } as RepeatTreeLeaf;
   let memberships = values.map((v) => v.membership[level]);
-  let curr_value_list = [];
+  let curr_value_list: any[] = [];
   let dir = directions[level];
-  tree.direction = dir;
-  tree.nodes = [];
-  tree.field = memberships[0].key;
-  let membership_checked = [];
+  let direction = dir;
+  let nodes: RepeatTree[] = [];
+  let tree: RepeatTreeNonLeaf = {
+    direction,
+    field: memberships[0].key,
+    nodes
+  };
+  let membership_checked: any[] = [];
   for (const member of memberships) {
     if (!membership_checked.includes(member.value)) {
       membership_checked.push(member.value);
       if (!curr_value_list.includes(member.value)) {
-        let subValues = values.filter((d) => d[level] === member.value);
+        let subValues = values.filter((d) => d.value_keys[level] === member.value);
         if (subValues.length > 0) {
           let subtree = makeRepeatStreamTree(level + 1, subValues, directions);
           subtree.parent_value = member.value;
@@ -30,41 +38,41 @@ export function makeRepeatStreamTree(level, values, directions) {
   return tree;
 }
 
-export function postprocessRepeatStreams(tree) {
-  let flat_streams = postprocessRstreamTree(tree);
-  flat_streams = flat_streams.nodes.map((s) => {
+export function postprocessRepeatStreams(
+  tree: RepeatTree
+): Array<UnitStream | OverlayStream> {
+  let flat_streams: RepeatTreePost = postprocessRstreamTree(tree);
+  return flat_streams.nodes.map((s) => {
     if (jType(s) === UnitStream.name) return s;
-    else if (s.length == 1) return s[0];
-    else if (s.length > 1) {
+    else if (s instanceof Array && s.length == 1) return s[0];
+    else if (s instanceof Array && s.length > 1) {
       let overlay = new OverlayStream();
       overlay.addStreams(s);
       return overlay;
-    }
-  });
-  return flat_streams;
+    } else return undefined;
+  }).filter((d: any) => d !== undefined) as Array<UnitStream | OverlayStream>;
 }
 
-function postprocessRstreamTree(tree) {
-  if (tree.direction === 'leaf') return { nodes: tree.node, dir: 'leaf' };
-  else {
-    if (tree.direction === OVERLAY) {
-      let flat_overlay = [];
-      tree.nodes.forEach((node) => {
-        let { nodes, dir } = postprocessRstreamTree(node);
-        flat_overlay.push(...nodes);
-      });
-      return { nodes: [flat_overlay.filter(d => d !== undefined)] };
-    } else if (tree.direction === SEQUENCE) {
-      let flat_seq = [];
-      tree.nodes.forEach((node) => {
-        let { nodes, dir } = postprocessRstreamTree(node);
-        if (dir === OVERLAY) {
-          flat_seq.push(nodes);
-        } else {
-          flat_seq.push(...nodes);
-        }
-      });
-      return { nodes: flat_seq.filter(d => d !== undefined), dir: SEQUENCE };
-    }
+function postprocessRstreamTree(tree: RepeatTree): RepeatTreePost {
+  if (tree.direction === 'leaf') return { nodes: tree.nodes, dir: 'leaf' };
+  else if (tree.direction === OVERLAY) {
+    let flat_overlay: UnitStream[] = [];
+    tree.nodes.forEach((node) => {
+      let { nodes, dir } = postprocessRstreamTree(node);
+      flat_overlay.push(...(nodes as UnitStream[]));
+    });
+    return { nodes: [flat_overlay.filter(d => d !== undefined)], dir: OVERLAY };
+  } else { // tree.direction === SEQUENCE
+    let flat_seq: Array<UnitStream | UnitStream[]> = [];
+    tree.nodes.forEach((node) => {
+      let { nodes, dir } = postprocessRstreamTree(node);
+      if (dir === OVERLAY) {
+        flat_seq.push(nodes as UnitStream[]);
+      } else {
+        flat_seq.push(...(nodes as UnitStream[]));
+      }
+    });
+    return { nodes: flat_seq.filter(d => d !== undefined), dir: SEQUENCE };
   }
+
 }

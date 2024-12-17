@@ -222,7 +222,7 @@ export async function makeScales(
         if (scaleId) {
           scaleInfo[scaleId].data = data;
           if (encoding[cname].field) {
-            let collectionKey = stream.stream.data.name + "_" + encoding[cname].field;
+            let collectionKey = stream.stream.data.name + "_" + (encoding[cname].field instanceof Array ? encoding[cname].field.join("_") : encoding[cname].field);
             if (scaleInfo[scaleId].collected
               && !scaleInfo[scaleId].collected.includes(collectionKey)) {
               scaleInfoUpdater(encoding[cname], scaleInfo, data);

@@ -190,9 +190,9 @@ export interface TickObject {
   playAtTime0?: boolean,
   oscType?: OscType,
   pitch?: number
-  loudness?: number
+  loudness?: number,
+  description?: string
 }
-
 
 // Channels
 // Channel names

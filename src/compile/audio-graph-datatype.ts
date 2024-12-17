@@ -9,57 +9,90 @@ import { DefaultFrequency } from '../player/audio-graph-player-proto';
 import {
   AfterAll,
   AfterThis,
+  AudioGraph,
+  AudioGraphSpeech,
   BeforeAll,
   BeforeThis,
+  ConfigInterface,
   ForceRepeatScale,
-  PlayAt
+  PlayAt,
+  PreGraphSpeech,
+  PreGraphSpeechItem,
+  PreGraphUnit,
+  RampType,
+  RecordObject,
+  SamplingItem,
+  ScaleCollection,
+  SynthObject,
+  WaveObject
 } from '../types';
+import { HashedSampledToneObject, HashedSynthObject, HashedWaveObject } from '../types/internal/hashed';
 import {
   toOrdinalNumbers,
   deepcopy,
   jType
 } from '../util';
 
+const OmitDesc = ['time2'];
+
 export class SequenceStream {
+  streams: Array<UnitStream | OverlayStream>;
+  playing: boolean;
+  prerendered: boolean;
+  config: ConfigInterface;
+  synths: HashedSynthObject;
+  samplings: HashedSampledToneObject;
+  waves: HashedWaveObject;
+  name!: string;
+  title!: string;
+  description!: string;
+  introStream?: SpeechStream;
+  queue!: AudioGraphQueue;
+  scaleQueue!: AudioGraphQueue;
+
   constructor() {
     this.streams = [];
     this.playing = false;
-    this.status = undefined;
     this.prerendered = false;
     this.config = {};
-    this.synths = [];
-    this.samplings = [];
+    this.synths = {};
+    this.samplings = {};
+    this.waves = {};
   }
 
-  setTitle(t) {
+  setName(n: string) {
+    this.name = n;
+  }
+
+  setTitle(t: string) {
     this.title = t;
   }
-  setDescription(d) {
+  setDescription(d: string) {
     this.description = d;
   }
-  addStream(stream) {
+  addStream(stream: UnitStream | OverlayStream) {
     this.streams.push(stream);
   }
-  addStreams(streams) {
+  addStreams(streams: Array<UnitStream | OverlayStream>) {
     this.streams.push(...streams);
   }
 
-  setSampling(samplings) {
+  setSampling(samplings: HashedSampledToneObject) {
     this.samplings = samplings;
   }
 
-  setSynths(synths) {
+  setSynths(synths: HashedSynthObject) {
     this.synths = synths;
   }
-  setWaves(waves) {
+  setWaves(waves: HashedWaveObject) {
     this.waves = waves;
   }
 
-  setConfig(key, value) {
+  setConfig(key: string, value: any) {
     this.config[key] = value;
   }
 
-  setIntroStream(stream) {
+  setIntroStream(stream: SpeechStream) {
     this.introStream = stream;
   }
 
@@ -96,7 +129,11 @@ export class SequenceStream {
     }
 
     // 2. making queues
-    let titles_queues = [], scales_queues = [], audio_queues = [], scale_count = 0, announced_scales = [];
+    let titles_queues: AudioGraphQueue[] = [],
+      scales_queues: AudioGraphQueue[] = [],
+      audio_queues: AudioGraphQueue[] = [],
+      scale_count = 0,
+      announced_scales: string[] = [];
 
     let multiSeq = this.streams.length > 1;
     if (multiSeq && !this.config.skipSquenceIntro) {
@@ -127,14 +164,14 @@ export class SequenceStream {
       let determiner = 'This';
       if (multiSeq) determiner = "The " + toOrdinalNumbers(oi + 1);
 
-      if (jType(stream) !== OverlayStream.name && !_c.skipScaleSpeech) {
+      if (!('overlays' in stream) && !_c.skipScaleSpeech) {
         let scale_text = stream.make_scale_text().filter((d) => d);
         let scales_to_announce = [];
         let forceRepeat = _c[ForceRepeatScale];
         if (!forceRepeat) forceRepeat = false;
         for (const item of scale_text) {
           if (item.description) {
-            if (!announced_scales.includes(item.id)) {
+            if (item.id && !announced_scales.includes(item.id)) {
               scales_to_announce.push(...item.description);
               announced_scales.push(item.id);
             } else if (forceRepeat === true || forceRepeat?.[item.channel] === true) {
@@ -152,7 +189,7 @@ export class SequenceStream {
         } else {
           scales_queues.push(null);
         }
-      } else if (jType(stream) === OverlayStream.name) {
+      } else if ('overlays' in stream) {
         // each overlay title
         if (!_c.skipTitle) titles_queues[oi].add(TextType, { speech: `${determiner} stream has ${stream.overlays.length} overlaid sounds. `, speechRate }, _c);
 
@@ -174,11 +211,11 @@ export class SequenceStream {
             titles_queues[oi].add(TextType, { speech: overlay.description, speechRate }, __c);
           }
 
-          let scale_text = stream.make_scale_text(li).filter((d) => d);
+          let scale_text = stream.make_scale_text(undefined, li).filter((d) => d);
           let scales_to_announce = [];
           for (const item of scale_text) {
             if (item.description) {
-              if (!announced_scales.includes(item.id)) {
+              if (item.id && !announced_scales.includes(item.id)) {
                 scales_to_announce.push(...item.description);
                 announced_scales.push(item.id);
               } else if (forceRepeat === true || forceRepeat?.[item.channel] === true) {
@@ -276,7 +313,10 @@ export class SequenceStream {
     return this.queue;
   }
 
-  make_scale_text(i, channel) {
+  make_scale_text(
+    channel?: string,
+    i?: number
+  ) {
     if (i === undefined) {
       return this.streams.map((stream) => {
         return stream.make_scale_text(channel)
@@ -287,15 +327,15 @@ export class SequenceStream {
   }
 
   // needs test
-  async prerenderScale(i, channel) {
-    let scaleQueue = (this.make_scale_text(i, channel) || []).map((d) => d.description).flat();
+  async prerenderScale(channel: string, i: number) {
+    let scaleQueue = (this.make_scale_text(channel, i) || []).map((d) => d.description).flat();
     this.scaleQueue = new AudioGraphQueue();
     this.scaleQueue.addMulti(scaleQueue, { ...this.config, tick: null });
     return this.scaleQueue;
   }
 
-  async playScaleDescription(i, channel) {
-    await this.prerenderScale(i, channel);
+  async playScaleDescription(i: number, channel: string) {
+    await this.prerenderScale(channel, i);
     await this.scaleQueue?.play();
   }
   async stopScaleDescription() {
@@ -317,42 +357,55 @@ export class SequenceStream {
 }
 
 export class OverlayStream {
-  // todoL change to queue format
+  overlays: UnitStream[];
+  playing: boolean;
+  prerendered: boolean;
+  config: ConfigInterface;
+  name!: string;
+  title!: string;
+  description!: string;
+  queue!: AudioGraphQueue;
+  duration!: number;
+
   constructor() {
     this.overlays = [];
     this.playing = false;
-    this.status = undefined;
     this.prerendered = false;
-    this.individual_playing = [];
     this.config = {};
     this.name;
   }
 
-  setName(name) {
+  setName(name: string) {
     this.name = name;
   }
 
-  setTitle(title) {
+  setTitle(title: string) {
     this.title = title;
   }
 
-  setDescription(desc) {
+  setDescription(desc: string) {
     this.description = desc;
   }
 
-  addStream(stream) {
+  addStream(stream: UnitStream) {
     this.overlays.push(stream);
   }
 
-  addStreams(streams) {
+  addStreams(streams: UnitStream[]) {
     this.overlays.push(...streams);
   }
 
-  setConfig(key, value) {
+  setConfig(key: string, value: any) {
     this.config[key] = value;
   }
 
-  async prerender(subpart) {
+  setFilters(audioFilters: string[]) {
+    this.overlays.forEach((s: UnitStream) => {
+      s.setFilters(audioFilters);
+    });
+  }
+
+  async prerender(subpart?: boolean) {
     this.queue = new AudioGraphQueue();
     // order: scale > title--repeated
 
@@ -414,8 +467,8 @@ export class OverlayStream {
       }
     }
 
-    let overlays = [];
-    this.overlays.forEach(async (stream, i) => {
+    let overlays: PreGraphUnit[] = [];
+    this.overlays.forEach(async (stream: UnitStream) => {
       overlays.push(await stream.prerender());
     });
 
@@ -429,7 +482,7 @@ export class OverlayStream {
   }
 
 
-  make_scale_text(i, channel) {
+  make_scale_text(channel?: string, i?: number) {
     if (i !== undefined) {
       let stream = this.overlays[i];
       if (stream && !stream.config.skipScaleSpeech) return stream.make_scale_text(channel);
@@ -454,36 +507,51 @@ export class OverlayStream {
 
 export class UnitStream {
   instrument_type: string;
-  constructor(instrument_type: string, stream, scales, opt) {
+  stream: AudioGraph;
+  option: RecordObject;
+  scales: ScaleCollection;
+  config: ConfigInterface;
+  name!: string;
+  title!: string;
+  description!: string;
+  ramp: { [key: string]: RampType | undefined };
+  audioFilters!: string[];
+  duration!: number;
+
+  constructor(
+    instrument_type: string,
+    stream: AudioGraph,
+    scales: ScaleCollection,
+    opt: RecordObject
+  ) {
     this.instrument_type = instrument_type;
     this.stream = stream;
     this.option = opt || {};
-    this.instrument;
     this.scales = scales;
     this.config = {};
     this.name;
     this.ramp = {};
   }
-  setTitle(t) {
+  setTitle(t: string) {
     this.title = t;
   }
-  setDescription(d) {
+  setDescription(d: string) {
     this.description = d;
   }
-  setName(name) {
+  setName(name: string) {
     this.name = name;
   }
-  setConfig(key, value) {
+  setConfig(key: string, value: any) {
     this.config[key] = value;
   }
-  setFilters(audioFilters) {
+  setFilters(audioFilters: string[]) {
     this.audioFilters = audioFilters
   }
-  setRamp(ramp) {
+  setRamp(ramp: { [key: string]: RampType | undefined }) {
     this.ramp = deepcopy(ramp);
   }
 
-  make_tone_text(i) {
+  make_tone_text(i: number) {
     let text = [];
     let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`)
     if (this.name) text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: this.config?.speechRate });
@@ -492,23 +560,26 @@ export class UnitStream {
     return text;
   }
 
-  make_scale_text(channel) {
+  make_scale_text(channel?: string) {
     let scales = this.scales;
     let text = Object.keys(scales)
       .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
-      .map((channel) => {
+      .map((c: string) => {
         return {
-          id: scales[channel]?.scaleId,
-          channel,
-          description: scales[channel]?.description
+          id: scales[c]?.scaleId,
+          channel: c,
+          description: scales[c]?.description
         };
       });
     return text.flat();
   }
 
-  async prerender() {
+  async prerender(): Promise<PreGraphUnit> {
     return {
-      instrument_type: this.instrument_type, sounds: this.stream, continued: this.option?.is_continued, relative: this.option?.relative,
+      instrument_type: this.instrument_type,
+      sounds: this.stream,
+      continued: this.option?.is_continued,
+      relative: this.option?.relative,
       filters: this.audioFilters,
       ramp: this.ramp,
       duration: this.duration
@@ -517,12 +588,15 @@ export class UnitStream {
 }
 
 export class SpeechStream {
-  constructor(stream) {
+  stream: AudioGraphSpeech;
+  config: ConfigInterface;
+
+  constructor(stream: AudioGraphSpeech) {
     this.stream = stream;
     this.config = {};
   }
 
-  setConfig(key, value) {
+  setConfig(key: string, value: any) {
     this.config[key] = value;
   }
 
@@ -530,15 +604,17 @@ export class SpeechStream {
     return [];
   }
 
-  async prerender() {
-    let text = [];
+  async prerender(): Promise<PreGraphSpeech> {
+    let text: PreGraphSpeech = [];
     for (const stream of this.stream) {
       if (stream.speech) {
-        text.push({ type: TextType, speech: stream.speech, speechRate: this.config?.speechRate });
+        text.push({
+          type: TextType,
+          speech: stream.speech,
+          speechRate: this.config?.speechRate
+        } as PreGraphSpeechItem);
       }
     }
     return text;
   }
 }
-
-const OmitDesc = ['time2'];

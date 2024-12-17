@@ -7,7 +7,8 @@ import {
   compileSingleLayerAuidoGraph,
   tidyUpScaleDefinitions,
   getChannelType,
-  makeScales
+  makeScales,
+  UnitStream
 } from './compile';
 import {
   deepcopy,
@@ -17,7 +18,8 @@ import { getData } from "./data";
 import {
   TopLevelSpec,
   ConfigInterface,
-  LoadedDatasets
+  LoadedDatasets,
+  AudioGraphSpeechItem
 } from './types';
 
 // global event
@@ -35,7 +37,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   let loaded_datasets: LoadedDatasets = {};
   let scalesToRemove = [];
   for (const stream of normalized) {
-    if (stream.stream) {
+    if ('stream' in stream && stream.stream) {
       await getData(stream.stream.data, loaded_datasets, datasets);
 
       let untyped_channels: string[] = [];
@@ -46,7 +48,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
         await getChannelType(loaded_datasets, stream.stream, untyped_channels)
       }
       scalesToRemove.push(...tidyUpScaleDefinitions(scaleDefinitions, normalized, sequenceConfig));
-    } else if (stream.overlay) {
+    } else if ('overlay' in stream && stream.overlay) {
       for (const overlay of stream.overlay) {
         await getData(overlay.data, loaded_datasets, datasets);
         let untyped_channels: string[] = [];
@@ -57,7 +59,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
           await getChannelType(loaded_datasets, overlay, untyped_channels)
         }
       }
-      let c = {};
+      let c: ConfigInterface = {};
       Object.assign(c, sequenceConfig);
       Object.assign(c, stream.config || {});
       scalesToRemove.push(...tidyUpScaleDefinitions(scaleDefinitions, normalized, c));
@@ -87,9 +89,9 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   // 4b. make streams
   let si = 0;
   for (const stream of normalized) {
-    if (stream.intro) {
-      let speeches = [stream.intro.title, stream.intro.description].filter(d => d !== undefined);
-      let sStream = new SpeechStream(speeches.map((d) => ({ speech: d })));
+    if ('intro' in stream && stream.intro) {
+      let speeches: string[] = [stream.intro.title, stream.intro.description].filter(d => d !== undefined);
+      let sStream = new SpeechStream(speeches.map((d) => ({ speech: d } as AudioGraphSpeechItem)));
       if ('config' in audio_spec && audio_spec.config) {
         Object.keys(audio_spec.config).forEach((key) => {
           if (audio_spec.config?.[key]) {
@@ -98,16 +100,16 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
         });
       }
       sequence.setIntroStream(sStream);
-    } else if (stream.stream) {
+    } else if ('stream' in stream && stream.stream) {
       let is_repeated = isRepeatedStream(stream.stream);
       let data = deepcopy(loaded_datasets[stream.stream.data.name]);
       // slag = single layer audio graph
       let slag = await compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales)
 
-      if (!is_repeated) {
-        sequence.addStream(slag.stream);
-      } else {
-        sequence.addStreams(slag.stream);
+      if (!is_repeated && slag?.stream) {
+        sequence.addStream(slag?.stream as UnitStream);
+      } else if (slag?.stream) {
+        sequence.addStreams(slag?.stream as Array<UnitStream | OverlayStream>);
       }
       if (audio_spec.config) {
         Object.keys(audio_spec.config).forEach((key) => {
@@ -118,12 +120,12 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
       }
       if (stream.stream.config) {
         Object.keys(stream.stream.config).forEach((key) => {
-          sequence.setConfig(key, stream.stream.config[key]);
+          if (stream.stream.config) sequence.setConfig(key, stream.stream.config[key]);
         });
       }
       if (stream.stream.title) sequence.setTitle(stream.stream.title);
       if (stream.stream.description) sequence.setDescription(stream.stream.description);
-    } else if (stream.overlay) {
+    } else if ('overlay' in stream && stream.overlay) {
       let overlays = new OverlayStream();
       let i = 0;
       for (const overlay of stream.overlay) {
@@ -134,16 +136,17 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
 
         let overlayStrm = await compileSingleLayerAuidoGraph(overlay, data, config, tick, scales)
 
-        if (overlay.name) overlayStrm.stream.setName(overlay.name);
-        if (overlay.title) overlayStrm.stream.setTitle(overlay.title);
-        if (overlay.description) overlayStrm.stream.setDescription(overlay.description);
-
-        overlays.addStream(overlayStrm.stream);
+        if (overlayStrm) {
+          if (overlay.name) (overlayStrm.stream as UnitStream).setName(overlay.name);
+          if (overlay.title) (overlayStrm.stream as UnitStream).setTitle(overlay.title);
+          if (overlay.description) (overlayStrm.stream as UnitStream).setDescription(overlay.description);
+          overlays.addStream(overlayStrm.stream as UnitStream);
+        }
         i++;
       }
-      overlays.setName(stream.name);
-      overlays.setTitle(stream.title);
-      overlays.setDescription(stream.description);
+      if (stream.name) overlays.setName(stream.name);
+      if (stream.title) overlays.setTitle(stream.title);
+      if (stream.description) overlays.setDescription(stream.description);
       if (audio_spec.config) {
         Object.keys(audio_spec.config).forEach((key) => {
           if (audio_spec.config?.[key]) {
@@ -151,9 +154,9 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
           }
         });
       }
-      if (stream.overlay.config) {
-        Object.keys(stream.overlay.config).forEach((key) => {
-          overlays.setConfig(key, stream.overlay.config[key]);
+      if (stream.config) {
+        Object.keys(stream.config).forEach((key) => {
+          overlays.setConfig(key, stream.config[key]);
         });
       }
       sequence.addStream(overlays);
