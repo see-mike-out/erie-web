@@ -10,7 +10,7 @@ export class Density {
   _minsteps?: number;
   _maxsteps?: number;
   _steps?: number;
-  _as: string[];
+  _as: [string, string];
 
   constructor(field: string) {
     this._density = field;
@@ -73,9 +73,9 @@ export class Density {
     return this;
   }
 
-  as(a: string[]) {
+  as(a: [string, string]) {
     if (a.length == 2) {
-      this._as = [...a];
+      this._as = [a[0], a[1]];
     } else {
       throw new TypeError("Density 'as' should be an Array of two Strings.");
     }

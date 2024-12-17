@@ -1,6 +1,9 @@
 import { ToneSeries, ToneOverlaySeries } from "../player/audio-graph-player";
 import { AudioContext } from 'standardized-audio-context';
-import { RampType } from "../types";
+import {
+  Glyph,
+  RampType
+} from "../types";
 
 const channels = 2;
 // TODO
@@ -17,7 +20,7 @@ export async function generatePCMCode(queue) {
   } else if (queue.type === ToneOverlaySeries) {
     queues.push(...queue.overlays);
   }
-  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d) => d.time + d.duration + (d.postReverb || 0))));
+  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d: Glyph) => d.time + d.duration + (d.postReverb || 0))));
   let length = Math.max(...queue_lengths);
   let frameCount = sampleRate * length;
   let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
@@ -53,7 +56,7 @@ export async function generatePCMCode(queue) {
       let ramp_pan = getRampFunction(queue.ramp?.pan),
         ramp_gain = getRampFunction(queue.ramp?.loudness);
       if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
-        sounds.sort((a, b) => a.time - b.time);
+        sounds.sort((a: Glyph, b: Glyph) => a.time - b.time);
         let acc_prev = 0;
         for (let i = 0; i < sounds.length - 1; i++) {
           let sound = sounds[i], next_sound = sounds[i + 1];

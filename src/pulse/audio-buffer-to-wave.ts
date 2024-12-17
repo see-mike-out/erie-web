@@ -47,6 +47,7 @@ export async function makeWaveFromBuffer(buffer: AudioBuffer, ext: string) {
   }
 
   // create Blob
+  // @ts-ignore
   let waveBlob = new Blob([waveBuffer as unknown as DataView<ArrayBufferLike>], { type: "audio/wav" });
   if (ext === '$raw') {
     return waveBuffer;

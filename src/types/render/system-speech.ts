@@ -1,0 +1,1 @@
+export type SystemSpeechItem = { speech: string, speechRate?: number };
