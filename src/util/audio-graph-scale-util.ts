@@ -1,4 +1,23 @@
-import { NoteNames, OctaveObject, DEF_TAPPING_DUR, DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, TAPCNT_chn, TAPSPD_chn, BeatObject, TapCountValue, TapSpeedValue, TapValue, PuaseMarker, SingleTapPosType, SINGLE_TAP_END } from "../types";
+import {
+  NoteNames,
+  OctaveObject,
+  DEF_TAPPING_DUR,
+  DEF_TAPPING_DUR_BEAT,
+  DEF_TAP_DUR,
+  DEF_TAP_DUR_BEAT,
+  DEF_TAP_PAUSE_RATE,
+  SINGLE_TAP_MIDDLE,
+  SINGLE_TAP_START,
+  TAPCNT_chn,
+  TAPSPD_chn,
+  BeatObject,
+  TapCountValue,
+  TapSpeedValue,
+  TapValue,
+  PuaseMarker,
+  SingleTapPosType,
+  SINGLE_TAP_END
+} from "../types";
 import { jType } from "./audio-graph-typing-util";
 import { round } from "./audio-graph-util";
 

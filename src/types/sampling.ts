@@ -4,7 +4,8 @@ export type SamplingItem = {
 
 type note = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
 type octave = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-type NoteKey = `${note}${octave}` | 'mono';
+export type OctaveKey = `${note}${octave}`
+export type NoteKey = OctaveKey | 'mono';
 
 export interface SampledToneObject {
   name: string;

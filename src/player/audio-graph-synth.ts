@@ -1,4 +1,11 @@
-export const FM = 'FM', AM = 'AM', DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 0.5, DefaultModGainFM = 10;
+import {
+  AM,
+  DefaultModGainAM,
+  DefaultModGainFM,
+  DefCarrierPitch,
+  DefModPitch,
+  FM
+} from "../types";
 
 export function makeSynth(ctx, definition) {
   let synth = new ErieSynth(ctx, definition.type || FM);

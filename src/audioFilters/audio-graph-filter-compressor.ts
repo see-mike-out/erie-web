@@ -1,9 +1,8 @@
-import { AudioContext, DynamicsCompressorNode, IAudioNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
 import { Glyph } from "../types";
 
 export class DefaultDynamicCompressor extends AudioFilterPrototype {
-  filter: DynamicsCompressorNode<AudioContext>;
+  filter: DynamicsCompressorNode;
 
   constructor(ctx: AudioContext) {
     super(ctx);
@@ -20,10 +19,10 @@ export class DefaultDynamicCompressor extends AudioFilterPrototype {
   }
   finisher() {
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.filter.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.filter.disconnect(node);
   }
 }

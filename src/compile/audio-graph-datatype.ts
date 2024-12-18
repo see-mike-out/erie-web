@@ -21,12 +21,11 @@ import {
   PreGraphUnit,
   RampType,
   RecordObject,
-  SamplingItem,
   ScaleCollection,
-  SynthObject,
-  WaveObject
+  HashedSampledToneObject,
+  HashedSynthObject,
+  HashedWaveObject
 } from '../types';
-import { HashedSampledToneObject, HashedSynthObject, HashedWaveObject } from '../types/internal/hashed';
 import {
   toOrdinalNumbers,
   deepcopy,
@@ -611,7 +610,7 @@ export class SpeechStream {
         text.push({
           type: TextType,
           speech: stream.speech,
-          speechRate: this.config?.speechRate
+          speechRate: stream.speechRate ?? this.config?.speechRate
         } as PreGraphSpeechItem);
       }
     }

@@ -1,5 +1,6 @@
 import { ConfigInterface } from "../config"
 import { Condition, EncodingType, FormatType, RampType, ScaleType, SortValues, TickObject } from "../encoding"
+import { bcp47language } from "../render"
 import { SampledToneObject } from "../sampling"
 import { DataSpec3, SingleStreamSpec } from "../spec"
 import { OVERLAY, SEQUENCE } from "../stream"
@@ -89,7 +90,7 @@ export type NormalizedEncodingItem = {
   timeUnit?: keyof typeof timeUnitDomainDefs,
   timeUnitName?: string | string[] | number[],
   timeLevel?: timeLevelValues,
-  language?: string
+  language?: typeof bcp47language[number]
 }
 
 export type ExtendedSingleSpec = SingleStreamSpec & {

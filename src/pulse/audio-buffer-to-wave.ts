@@ -1,7 +1,5 @@
 // The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
 
-import { AudioBuffer } from "standardized-audio-context";
-
 export async function makeWaveFromBuffer(buffer: AudioBuffer, ext: string) {
   let nChannels = buffer.numberOfChannels,
     samples = buffer.length,

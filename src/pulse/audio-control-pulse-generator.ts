@@ -1,5 +1,4 @@
 import { ToneSeries, ToneOverlaySeries } from "../player/audio-graph-player";
-import { AudioContext } from 'standardized-audio-context';
 import {
   Glyph,
   RampType

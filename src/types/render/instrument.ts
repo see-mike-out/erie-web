@@ -1,7 +1,9 @@
+import { OctaveKey } from "../sampling";
 
 export const SupportedInstruments = ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"];
 export const MultiNoteInstruments = ["piano", "pianoElec", "violin", "metal", "guitar"];
 export const SingleNoteInstruments = ["hithat", "snare", "highKick", "lowKick", "clap"];
+
 // below is for detuning
 export type OctaveDefinition = {
   octave: number,
@@ -19,6 +21,7 @@ export type OctaveDefinition = {
   f: number,
   fs: number,
 }
+
 export const noteFreqRange: OctaveDefinition[] = [
   {
     octave: 0,
@@ -149,7 +152,9 @@ export const noteFreqRange: OctaveDefinition[] = [
     fs: 2959.96
   }
 ];
+
 export const noteScaleOrder = ['gf', 'g', 'af', 'a', 'bf', 'b', 'c', 'cs', 'd', 'ds', 'e', 'f', 'fs'];
+
 export const detuneAmmount = {
   gf: -600,
   g: -500,
@@ -171,4 +176,28 @@ export type RoundedNote = {
   next_note: typeof noteScaleOrder[number],
   note_freq: number,
   detune: number
+}
+
+// sample
+export type LoadedMonoSample = {
+  mono: AudioBuffer,
+  multiNote: false
+};
+export type LoadedMultiSample = {
+  multiNote: true
+} & {
+  [key in OctaveKey]: AudioBuffer
+};
+
+export type LoadedSample = LoadedMonoSample | LoadedMultiSample;
+
+export type NoiseCoefficient = {
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  p4: number,
+  p5: number,
+  p6: number,
+  o: number
 }

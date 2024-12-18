@@ -1,12 +1,11 @@
 // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
 
-import { AudioContext, BiquadFilterNode, IAudioNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
 import { Glyph } from "../types";
 
 export class BiquadFilter extends AudioFilterPrototype {
-  filter: BiquadFilterNode<AudioContext>;
-  destination: BiquadFilterNode<AudioContext>;
+  filter: BiquadFilterNode;
+  destination: BiquadFilterNode;
   useGain: boolean;
 
   constructor(ctx: AudioContext) {
@@ -19,10 +18,10 @@ export class BiquadFilter extends AudioFilterPrototype {
   initialize(time: number) {
     this.filter.gain.setValueAtTime(1, time);
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.filter.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.filter.disconnect(node);
   }
 }
@@ -33,10 +32,10 @@ export class LowpassBiquadFilter extends BiquadFilter {
     this.filter.type = 'lowpass';
     this.destination = this.filter;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -47,10 +46,10 @@ export class HighpassBiquadFilter extends BiquadFilter {
     this.filter.type = 'highpass';
     this.destination = this.filter;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -61,10 +60,10 @@ export class BandpassBiquadFilter extends BiquadFilter {
     this.filter.type = 'bandpass';
     this.destination = this.filter;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -76,10 +75,10 @@ export class LowshelfBiquadFilter extends BiquadFilter {
     this.destination = this.filter;
     this.useGain = true;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -91,10 +90,10 @@ export class HighshelfBiquadFilter extends BiquadFilter {
     this.destination = this.filter;
     this.useGain = true;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -106,10 +105,10 @@ export class PeakingBiquadFilter extends BiquadFilter {
     this.destination = this.filter;
     this.useGain = true;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -120,10 +119,10 @@ export class NotchBiquadFilter extends BiquadFilter {
     this.filter.type = 'notch';
     this.destination = this.filter;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }
@@ -134,10 +133,10 @@ export class AllpassBiquadFilter extends BiquadFilter {
     this.filter.type = 'allpass';
     this.destination = this.filter;
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.destination.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.destination.disconnect(node);
   }
 }

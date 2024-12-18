@@ -1,9 +1,12 @@
 import * as tts from "@google-cloud/text-to-speech";
-import { bcp47language } from "./audio-graph-player-proto";
+import { AudioGraphSpeechItem, bcp47language, ConfigInterface } from "../types";
 
 const SSMLGENDERS = [`NEUTRAL`, `FEMALE`, `MALE`];
 
-export async function GoogleCloudTTSGenerator(sound, config) {
+export async function GoogleCloudTTSGenerator(
+  sound: AudioGraphSpeechItem,
+  config: ConfigInterface
+): Promise<string | Uint8Array<ArrayBufferLike> | null | undefined> {
   if (typeof window === 'undefined') {
     // node
     let text = sound.speech;

@@ -1,11 +1,10 @@
-import { AudioContext, GainNode, IAudioNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
 import { Glyph } from "../types";
 
 export class GainerFilter extends AudioFilterPrototype {
   attackTime: number;
   releaseTime: number;
-  filter: GainNode<AudioContext>;
+  filter: GainNode;
 
   constructor(ctx: AudioContext) {
     super(ctx);
@@ -22,10 +21,10 @@ export class GainerFilter extends AudioFilterPrototype {
   finisher(time: number, duration: number) {
     this.filter.gain.linearRampToValueAtTime(0, (time || 0) + (duration || 1) - this.releaseTime);
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.filter.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.filter.disconnect(node);
   }
 }

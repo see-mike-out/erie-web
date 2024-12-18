@@ -1,9 +1,7 @@
-import { AudioContext, IAudioNode } from "standardized-audio-context";
-
 export class AudioFilterPrototype {
   ctx: AudioContext;
-  filter: IAudioNode<AudioContext>;
-  destination: IAudioNode<AudioContext>;
+  filter: AudioNode;
+  destination: AudioNode;
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
@@ -12,10 +10,10 @@ export class AudioFilterPrototype {
   }
   initialize(...args: any[]) {
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.filter.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.filter.disconnect(node);
   }
 }

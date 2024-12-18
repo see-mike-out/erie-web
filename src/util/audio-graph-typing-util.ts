@@ -1,4 +1,8 @@
-import { EncodingType, ORD, QUANT } from "../types/encoding";
+import {
+  EncodingType,
+  ORD,
+  QUANT
+} from "../types";
 
 export function isJSON(d: string) {
   try {

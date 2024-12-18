@@ -1,11 +1,15 @@
 export const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
 export const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
-import { AudioBuffer } from 'standardized-audio-context';
+import { NoiseCoefficient } from '../types';
 
 // inspired by : https://noisehack.com/generate-noise-web-audio-api/ (but it's not using audioscriptprocess, which is deprecated)
 // and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
 
-export function makeNoiseNode(ctx, type, duration, sound) {
+export function makeNoiseNode(
+  ctx: AudioContext,
+  type: string,
+  duration: number
+): AudioBufferSourceNode {
   // here, duration is the noise node's duration, for continuous tone it's the entire length;
   const bufferSize = ctx.sampleRate * duration;
   // Create an empty buffer
@@ -18,7 +22,7 @@ export function makeNoiseNode(ctx, type, duration, sound) {
   const data0 = noiseBuffer.getChannelData(0);
   const data1 = noiseBuffer.getChannelData(0);
   // for pink
-  let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
+  let coeffs: NoiseCoefficient = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
   for (let i = 0; i < bufferSize; i++) {
     if (type === PinkNoise) {
       PinkNoiseFunction(coeffs);
@@ -36,11 +40,13 @@ export function makeNoiseNode(ctx, type, duration, sound) {
   return noise;
 }
 
-function WhiteNoiseFunction() {
+function WhiteNoiseFunction(): number {
   return Math.random() * 2 - 1;
 }
 
-function PinkNoiseFunction(c) {
+function PinkNoiseFunction(
+  c: NoiseCoefficient
+): void {
   let w = WhiteNoiseFunction();
   c.p0 = 0.99886 * c.p0 + w * 0.0555179;
   c.p1 = 0.99332 * c.p1 + w * 0.0750759;
@@ -53,7 +59,9 @@ function PinkNoiseFunction(c) {
   c.p6 = w * 0.115926; // gain compensation
 }
 
-function BrownNoiseFunction(c) {
+function BrownNoiseFunction(
+  c: NoiseCoefficient
+): void {
   let w = WhiteNoiseFunction();
   c.o = (c.p0 + (0.02 * w)) / 1.02;
   c.p0 = c.o;

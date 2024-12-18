@@ -1,9 +1,8 @@
-import { AudioContext, IAudioNode, WaveShaperNode } from "standardized-audio-context";
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
 import { Glyph } from "../types";
 
 export class DistortionFilter extends AudioFilterPrototype {
-  filter: WaveShaperNode<AudioContext>;
+  filter: WaveShaperNode;
 
   constructor(ctx: AudioContext) {
     super(ctx);
@@ -17,10 +16,10 @@ export class DistortionFilter extends AudioFilterPrototype {
   }
   finisher() {
   }
-  connect(node: IAudioNode<AudioContext>) {
+  connect(node: AudioNode) {
     this.filter.connect(node);
   }
-  disconnect(node: IAudioNode<AudioContext>) {
+  disconnect(node: AudioNode) {
     this.filter.disconnect(node);
   }
 }

@@ -1,7 +1,7 @@
 import { isBrowserEventPossible } from "../util/audio-graph-check-env";
 
 // event-related
-export function sendToneStartEvent(detail) {
+export function sendToneStartEvent(detail: any) {
   if (isBrowserEventPossible()) {
     let playEvent = new CustomEvent("erieOnPlayTone", { detail });
     document.body.dispatchEvent(playEvent);
@@ -9,7 +9,7 @@ export function sendToneStartEvent(detail) {
     document.body.dispatchEvent(chnageEvent);
   }
 }
-export function sendToneFinishEvent(detail) {
+export function sendToneFinishEvent(detail: any) {
   if (isBrowserEventPossible()) {
     let playEvent = new CustomEvent("erieOnFinishTone", { detail });
     document.body.dispatchEvent(playEvent);
@@ -17,7 +17,7 @@ export function sendToneFinishEvent(detail) {
     document.body.dispatchEvent(chnageEvent);
   }
 }
-export function sendSpeechStartEvent(detail) {
+export function sendSpeechStartEvent(detail: any) {
   if (isBrowserEventPossible()) {
     let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
     document.body.dispatchEvent(playEvent);
@@ -25,7 +25,7 @@ export function sendSpeechStartEvent(detail) {
     document.body.dispatchEvent(chnageEvent);
   }
 }
-export function sendSpeechFinishEvent(detail) {
+export function sendSpeechFinishEvent(detail: any) {
   if (isBrowserEventPossible()) {
     let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
     document.body.dispatchEvent(playEvent);
@@ -33,7 +33,7 @@ export function sendSpeechFinishEvent(detail) {
     document.body.dispatchEvent(chnageEvent);
   }
 }
-export function sendQueueStartEvent(detail) {
+export function sendQueueStartEvent(detail: any) {
   if (isBrowserEventPossible()) {
     let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
     document.body.dispatchEvent(playEvent);
@@ -41,7 +41,7 @@ export function sendQueueStartEvent(detail) {
     document.body.dispatchEvent(chnageEvent);
   }
 }
-export function sendQueueFinishEvent(detail) {
+export function sendQueueFinishEvent(detail: any) {
   if (isBrowserEventPossible()) {
     let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
     document.body.dispatchEvent(playEvent);

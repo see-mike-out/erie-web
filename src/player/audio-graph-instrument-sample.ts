@@ -1,5 +1,20 @@
-import { AudioContext } from "standardized-audio-context";
-import { ConfigInterface, detuneAmmount, noteFreqRange, noteScaleOrder, OctaveDefinition, RoundedNote } from "../types";
+import {
+  ConfigInterface,
+  detuneAmmount,
+  LoadedMonoSample,
+  LoadedMultiSample,
+  LoadedSample,
+  MultiNoteInstruments,
+  noteFreqRange,
+  noteScaleOrder,
+  OctaveDefinition,
+  OctaveKey,
+  RecordObject,
+  RoundedNote,
+  SamplingItem,
+  SingleNoteInstruments,
+  HashedSampledToneObject
+} from "../types";
 
 export function roundToNote(
   freq: number,
@@ -104,25 +119,28 @@ export function determineNoteRange(freq: number, config: ConfigInterface) {
   }
 }
 
-export async function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
-  let samples = {};
+export async function loadSamples(
+  ctx: AudioContext,
+  instrument_name: string,
+  smaplingDef: HashedSampledToneObject,
+  baseUrl: string
+): Promise<LoadedSample> {
+  let samples!: LoadedSample;
   if (MultiNoteInstruments.includes(instrument_name)) {
+    samples = { multiNote: true } as LoadedMultiSample;
     for (const octave of noteFreqRange) {
       let sampleRes = await fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
       let sampleBuffer = await sampleRes.arrayBuffer();
       let source = await ctx.decodeAudioData(sampleBuffer)
-      samples[`C${octave.octave}`] = source;
+      samples[`C${octave.octave}` as OctaveKey] = source;
     }
-    samples.multiNote = true;
   } else if (SingleNoteInstruments.includes(instrument_name)) {
     samples = await makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
-    samples.multiNote = false;
   } else if (smaplingDef[instrument_name]) {
     if (smaplingDef[instrument_name].sample?.mono) {
       // single
       try {
         samples = await makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono);
-        samples.multiNote = false;
       } catch (e) {
         console.error(e);
       }
@@ -141,27 +159,37 @@ export async function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
   return samples;
 }
 
-export async function makeMultiScaleSamplingNode(ctx, def) {
-  let samples = {}, keys = Object.keys(def);
+export async function makeMultiScaleSamplingNode(
+  ctx: AudioContext,
+  def: SamplingItem
+): Promise<LoadedMultiSample> {
+  let samples: RecordObject = { multiNote: true },
+    keys = Object.keys(def) as Array<keyof SamplingItem>;
   if (!keys.every(scaleKeyCheck)) {
     console.error("A sampling note must be 'C' in octave 0 to 7");
   }
   for (const key of keys) {
-    let sampleRes = await fetch(def[key]);
-    let sampleBuffer = await sampleRes.arrayBuffer();
-    let source = await ctx.decodeAudioData(sampleBuffer)
-    samples[key] = source;
+    if (def[key]) {
+      let sampleRes = await fetch(def[key]);
+      let sampleBuffer = await sampleRes.arrayBuffer();
+      let source = await ctx.decodeAudioData(sampleBuffer)
+      samples[key as OctaveKey] = source;
+    }
   }
-  return samples;
+  return samples as LoadedMultiSample;
 }
 
-export async function makeSingleScaleSamplingNode(ctx: AudioContext, def: string) {
-  let samples = {};
+export async function makeSingleScaleSamplingNode(
+  ctx: AudioContext,
+  def: string
+): Promise<LoadedMonoSample> {
   let sampleRes = await fetch(def);
   let sampleBuffer = await sampleRes.arrayBuffer();
   let source = await ctx.decodeAudioData(sampleBuffer)
-  samples.mono = source;
-  return samples;
+  return {
+    mono: source,
+    multiNote: false
+  };
 }
 
 function scaleKeyCheck(key: string) {

@@ -1,5 +1,7 @@
-import { AudioContext, IAudioNode, OfflineAudioContext, OscillatorNode } from "standardized-audio-context";
-import { makeInstrument, makeOfflineContext } from "../player/audio-graph-player-proto";
+import {
+  makeInstrument,
+  makeOfflineContext
+} from "../player/audio-graph-player-proto";
 import { round } from "../util";
 import { TickDefinition } from "../types";
 import { AudioPrimitiveBuffer } from "../pulse";
@@ -14,7 +16,7 @@ export function makeTick(
   ctx: AudioContext | OfflineAudioContext,
   def: TickDefinition,
   duration: number
-): null | IAudioNode<AudioContext> {
+): null | AudioNode {
   // ticker definition;
   if (!def) return null;
   else if (duration) {
@@ -71,7 +73,7 @@ export async function playTick(
 ) {
   let ctx = _ctx;
   if (bufferPrimitve) ctx = makeOfflineContext(duration);
-  let tick = makeTick(ctx, def, duration) as OscillatorNode<AudioContext>;
+  let tick = makeTick(ctx, def, duration) as OscillatorNode;
   if (tick) {
     tick.start(start);
     tick.stop(end);

@@ -1,6 +1,9 @@
 import { isBrowserEventPossible } from "../util/audio-graph-check-env";
 
-export function emitNotePlayEvent(type, note) {
+export function emitNotePlayEvent(
+  type: string,
+  note: any
+) {
   if (isBrowserEventPossible()) {
     document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
       detail: {
@@ -11,7 +14,10 @@ export function emitNotePlayEvent(type, note) {
   }
 }
 
-export function emitNoteStopEvent(type, note) {
+export function emitNoteStopEvent(
+  type: string,
+  note: any
+) {
   if (isBrowserEventPossible()) {
     document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
       detail: {

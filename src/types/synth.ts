@@ -20,3 +20,5 @@ export interface SynthObject {
   attackTime: number;
   releaseTime: number;
 }
+
+export const DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 0.5, DefaultModGainFM = 10;

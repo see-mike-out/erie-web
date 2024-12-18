@@ -1,5 +1,7 @@
-import { ConfigInterface } from "../types";
-import { SystemSpeechItem } from "../types/render/system-speech";
+import {
+  ConfigInterface,
+  SystemSpeechItem
+} from "../types";
 
 export async function playSystemSpeech(
   sound: SystemSpeechItem,
