@@ -23,10 +23,6 @@ export function isCSV(d: string) {
   return d.match(CSV_format);
 }
 
-export function jType(v: any): string {
-  return v?.constructor.name;
-}
-
 export function detectType(values: any[]): EncodingType {
   if (values.every((d) => d?.constructor.name === "Number")) return QUANT;
   else return ORD;

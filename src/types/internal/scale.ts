@@ -72,6 +72,10 @@ export type ScaleCollection = {
 
 export type ParsedScaleDescription = {
   type: typeof TextType,
+  speech: string | undefined,
+  speechRate: number
+} | {
+  type: typeof TextType,
   channel: string,
   speech: string | undefined,
   speechRate: number
@@ -86,7 +90,7 @@ export type ParsedScaleDescription = {
   channel: string,
   sound: Glyph,
   instrument_type: string
-}
+};
 
 export const timeUnitDomainDefs = {
   monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],

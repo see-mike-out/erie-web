@@ -7,7 +7,6 @@ import { QuantPreferredRange } from "./audio-graph-palletes";
 import { scaleLinear, scaleSymlog, scaleLog, scaleSqrt, scalePow } from "d3";
 import {
   noteToFreq,
-  jType,
   deepcopy,
   getFirstDefined
 } from "../util";
@@ -92,7 +91,7 @@ export function makeQuantitativeScaleFunction(
   if ((channel === PAN_chn || extraChannelType === PAN_chn) && !rangeProvided && domain.length == 3) {
     range.splice(1, 0, 0);
   }
-  if ((channel === PITCH_chn || extraChannelType === PITCH_chn) && !range.every(d => jType(d) === "Number")) {
+  if ((channel === PITCH_chn || extraChannelType === PITCH_chn) && !range.every(d => typeof d === 'number')) {
     range = range.map(noteToFreq);
   }
   range = range.map((d) => {

@@ -7,7 +7,6 @@ import {
 
 import { scaleTime } from "d3";
 import {
-  jType,
   noteToFreq,
   deepcopy,
   getFirstDefined
@@ -121,7 +120,7 @@ export function makeTemporalScaleFunction(
   if ((channel === PAN_chn || extraChannelType === PAN_chn) && !rangeProvided && domain.length == 3) {
     range.splice(1, 0, 0);
   }
-  if ((channel === PITCH_chn || extraChannelType === PITCH_chn) && !range.every(d => jType(d) === "Number")) {
+  if ((channel === PITCH_chn || extraChannelType === PITCH_chn) && !range.every(d => typeof d === 'number')) {
     range = range.map(noteToFreq);
   }
   range = range.map((d) => {

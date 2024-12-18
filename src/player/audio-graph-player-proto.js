@@ -8,7 +8,7 @@ import { WebSpeechGenerator } from './audio-graph-web-speech-generator';
 import { GoogleCloudTTSGenerator } from './audio-graph-google-tts-generator';
 
 import { ErieFilters } from '../classes';
-import { TAPSPD_chn, TAPCNT_chn } from '../types';
+import { TAPSPD_chn, TAPCNT_chn, ToneType, SpeechType, OscTypes, DefaultFrequency, Stopped, Playing, MultiPlaying } from '../types';
 import { makeTick, playTick } from '../tick';
 import { deepcopy, genRid, notifyStop } from '../util';
 import { AudioPrimitiveBuffer } from '../pulse';
@@ -16,6 +16,7 @@ import { AudioPrimitiveBuffer } from '../pulse';
 export function makeContext() {
   return new AudioContext();
 }
+
 const SampleRate = 44100, BufferChannels = 2;
 export function makeOfflineContext(length) {
   return new OfflineAudioContext(BufferChannels, SampleRate * length, SampleRate);
@@ -26,7 +27,10 @@ export function setCurrentTime(ctx) {
 }
 
 
-export const OscTypes = ['sine', 'sawtooth', 'square', 'triangle'];
+export const DefaultFrequency = 523.25;
+export const Stopped = 'stopped',
+  Playing = 'playing',
+  MultiPlaying = 'milti-playing';
 
 export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, sound, contEndTime) {
   if (!detail || detail === "default") {
@@ -81,12 +85,6 @@ export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, so
   }
 }
 
-export const DefaultFrequency = 523.25;
-export const Stopped = 'stopped',
-  Playing = 'playing',
-  MultiPlaying = 'milti-playing',
-  Tone = 'tone',
-  Speech = 'speech';
 export let ErieGlobalControl, ErieGlobalState;
 
 export function setErieGlobalControl(ctrl) {
@@ -105,7 +103,7 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
-  setErieGlobalControl({ type: Tone, player: ctx });
+  setErieGlobalControl({ type: ToneType, player: ctx });
 
   // sort queue to mark the last node for sequence end check
   let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
@@ -143,7 +141,7 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
       inst.stop(ct + sound.time + 0.01);
 
       inst.onended = async () => {
-        if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
+        if (config?.falseTiming && ErieGlobalControl?.type === SpeechType) {
           ErieGlobalControl?.player?.cancel();
         }
         await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
@@ -180,7 +178,7 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, instSampl
   }
 
   // set audio context controls
-  setErieGlobalControl({ type: Tone, player: ctx });
+  setErieGlobalControl({ type: ToneType, player: ctx });
 
   // rampers 
   let rampers = {};
@@ -401,7 +399,7 @@ export async function playSingleTone(ctx, sound, config, instSamples, synthDefs,
   ErieGlobalState = undefined;
 
   // set audio context controls
-  setErieGlobalControl({ type: Tone, player: ctx });
+  setErieGlobalControl({ type: ToneType, player: ctx });
 
   let sid;
   if (!config.subpart) {
@@ -595,13 +593,13 @@ export async function playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFu
   }
 
   let onstart = () => {
-    emitNotePlayEvent('speech', sound);
+    emitNotePlayEvent(SpeechType, sound);
   }
   let onend = () => {
     window.removeEventListener('keypress', stop);
     setErieGlobalControl(undefined);
     ErieGlobalState = undefined;
-    emitNoteStopEvent('speech', sound);
+    emitNoteStopEvent(SpeechType, sound);
     if (!config.subpart) {
       sendSpeechFinishEvent({ sid });
     }
@@ -655,7 +653,7 @@ export async function playAbsoluteSpeeches(ctx, queue, config, ttsFetchFunction)
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
-  setErieGlobalControl({ type: Tone, player: ctx });
+  setErieGlobalControl({ type: ToneType, player: ctx });
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(ctx.destination);
@@ -692,7 +690,7 @@ export async function playAbsoluteSpeeches(ctx, queue, config, ttsFetchFunction)
 
       // play the sound
       inst.onended = () => {
-        if (config?.falseTiming && ErieGlobalControl?.type === Speech) {
+        if (config?.falseTiming && ErieGlobalControl?.type === SpeechType) {
           ErieGlobalControl?.player?.cancel();
         }
         playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction);
@@ -712,9 +710,9 @@ export function setPlayerEvents(queue, config) {
       if (event.key == 'x') {
         ErieGlobalState = Stopped;
         queue.state = Stopped;
-        if (ErieGlobalControl?.type === Tone) {
+        if (ErieGlobalControl?.type === ToneType) {
           ErieGlobalControl.player.close();
-        } else if (ErieGlobalControl?.type === Speech) {
+        } else if (ErieGlobalControl?.type === SpeechType) {
           ErieGlobalControl.player.cancel();
         }
         notifyStop(config);

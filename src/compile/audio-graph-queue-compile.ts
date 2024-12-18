@@ -1,14 +1,11 @@
-import {
-  OverlayStream,
-  UnitStream
-} from './audio-graph-datatype';
+import { UnitStream } from './audio-graph-unit-stream';
+import { isOverlayStreamObject, OverlayStream } from './audio-graph-overlay-stream';
 import {
   makeRepeatStreamTree,
   postprocessRepeatStreams
 } from './audio-graph-repeat-stream';
 import { Def_tone } from './audio-graph-normalize-single';
 import {
-  jType,
   asc,
   deepcopy,
   unique,
@@ -380,7 +377,7 @@ export async function compileSingleLayerAuidoGraph(
       if (hasTick) {
         s.setConfig("tick", tick);
       }
-      if ('overlays' in s && jType(s) === OverlayStream.name) {
+      if ('overlays' in s && isOverlayStreamObject(s)) {
         Object.assign(s.config, s.overlays[0].config);
         s.duration = Math.max(...s.overlays.map((d) => d.duration));
         s.overlays.forEach((o, i) => {

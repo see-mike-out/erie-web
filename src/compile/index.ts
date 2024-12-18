@@ -1,4 +1,3 @@
-export * from "./audio-graph-datatype";
 export * from "./audio-graph-normalize-scale";
 export * from "./audio-graph-normalize-single";
 export * from "./audio-graph-normalize";
@@ -7,3 +6,7 @@ export * from "./audio-graph-queue-compile";
 export * from "./audio-graph-repeat-stream";
 export * from "./audio-graph-spec-type-check";
 export * from "./audio-graph-update-scale";
+export * from "./audio-graph-sequence-stream";
+export * from "./audio-graph-speech-stream";
+export * from "./audio-graph-unit-stream";
+export * from "./audio-graph-overlay-stream"

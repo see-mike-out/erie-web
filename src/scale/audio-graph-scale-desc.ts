@@ -29,16 +29,21 @@ import {
   TimeUnitUnits,
   TU_SEC,
   TickObject,
-  NormalizedTone
+  NormalizedTone,
+  DefaultGlyphFeatures,
+  isDefaultGlyphFeature,
+  CompressedPreGraphItem
 } from "../types";
 
-export function makeScaleDescription(scale: ParsedScaleFunction,
+export function makeScaleDescription(
+  scale: ParsedScaleFunction,
   encoding: NormalizedEncodingItem,
   dataInfo: TableInfoObject | undefined,
   tickDef: TickObject | undefined,
   tone_spec: NormalizedTone,
   config: ConfigInterface,
-  beat?: BeatObject) {
+  beat?: BeatObject
+): ParsedScaleDescription[] | null {
   let properties = scale.properties;
   let channel = properties.channel, field = properties.field, encodingType = properties.encodingType;
   let timeUnit: TimeUnitUnits = beat ? 'beat' : (config?.timeUnit?.unit || TU_SEC);
@@ -183,7 +188,12 @@ export function makeScaleDescription(scale: ParsedScaleFunction,
   return descList;
 }
 
-function makeConinuousAudioLegend(channel: string, domain: any[], scale: ParsedScaleFunction, duration: number): Glyph[] {
+function makeConinuousAudioLegend(
+  channel: string,
+  domain: any[],
+  scale: ParsedScaleFunction,
+  duration: number
+): Glyph[] {
   let min = Math.min(...domain), max = Math.max(...domain);
   let normalizer = (d: number) => (d - min) / (max - min) * duration;
 
@@ -191,24 +201,34 @@ function makeConinuousAudioLegend(channel: string, domain: any[], scale: ParsedS
   let sounds: Glyph[] = [];
   let i = 0;
   for (const d of domain) {
-    sounds.push({
-      start: timing(d),
-      [channel]: scale(d),
-      duration: (i == domain.length - 1 ? 0.15 : 0)
-    });
+    if (isDefaultGlyphFeature(channel)) {
+      sounds.push({
+        start: timing(d),
+        [channel]: scale(d),
+        duration: (i == domain.length - 1 ? 0.15 : 0)
+      } as Glyph)
+    } else {
+      sounds.push({
+        start: timing(d),
+        others: { [channel]: scale(d) },
+        duration: (i == domain.length - 1 ? 0.15 : 0)
+      } as Glyph);
+    }
     i++;
   }
   return sounds;
 }
 
 function makeSingleDiscAudioLegend(channel: string, value: any, scale: ParsedScaleFunction, duration: number): Glyph {
-  let sound: Glyph = {
+  let sound: Glyph = isDefaultGlyphFeature(channel) ? {
     start: 0,
     [channel]: scale(value),
+  } : {
+    start: 0,
+    others: { [channel]: scale(value) },
   };
   if (sound.duration == undefined) {
     sound.duration = duration || 0.2;
   }
-
   return sound;
 }

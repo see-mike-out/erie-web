@@ -201,3 +201,11 @@ export type NoiseCoefficient = {
   p6: number,
   o: number
 }
+
+export const DefaultFrequency = 523.25
+
+export type TapPattern = {
+  pattern: number[],
+  totalLength: number,
+  patternString: string
+};

@@ -37,8 +37,7 @@ import {
 } from "../types";
 import {
   deepcopy,
-  genRid,
-  jType
+  genRid
 } from "../util";
 
 
@@ -66,7 +65,7 @@ export function normalizeSingleSpec(
   // tone
   if (typeof spec.tone === "string") {
     tone = { type: spec.tone };
-  } else if (jType(spec.tone) === "Object") {
+  } else if (spec.tone instanceof Object) {
     tone = deepcopy(spec.tone);
   } else {
     tone = { type: Def_tone };

@@ -16,13 +16,13 @@ import {
   TapValue,
   PuaseMarker,
   SingleTapPosType,
-  SINGLE_TAP_END
+  SINGLE_TAP_END,
+  TapPattern
 } from "../types";
-import { jType } from "./audio-graph-typing-util";
 import { round } from "./audio-graph-util";
 
 export function makeParamFilter(expr: string): ((d: any) => boolean) | null {
-  if (jType(expr) !== "String") return null;
+  if (typeof expr !== 'string') return null;
   let base = expr.includes("datum.") ? "datum" : "d";
   if (base === "datum") {
     return Function('datum', "return (" + expr + ");") as ((d: any) => boolean);
@@ -40,7 +40,8 @@ export function makeTapPattern(
   pause: PuaseMarker | undefined,
   tappingDur: number | undefined,
   singleTappingPosition: SingleTapPosType | undefined,
-  beat: BeatObject) {
+  beat: BeatObject
+): TapPattern {
   // tapValue: whatever value computed out of a scale function
   // tapType: 'tapCount' or 'tapSpeed'
   // duration: for 'tapSpeed' channel, it is the total length; for 'tapCount' channel it is each tap's length,
@@ -153,7 +154,10 @@ export function makeTapPattern(
   }
 }
 
-export function mergeTapPattern(tapCount: TapCountValue, tapSpeed: TapSpeedValue) {
+export function mergeTapPattern(
+  tapCount?: TapCountValue,
+  tapSpeed?: TapSpeedValue
+): TapPattern | undefined {
   if (tapCount && tapSpeed) {
     return makeTapPattern({ count: tapCount?.value, speed: tapSpeed?.value }, 'both', tapCount.tapLength, undefined, tapSpeed.tappingUnit, tapSpeed.singleTappingPosition, tapCount.beat);
   } else if (tapCount) {

@@ -11,14 +11,18 @@ export interface SynthObject {
   type: SynthType;
   carrierType: OscType;
   carrierPitch: number;
-  carrierDetune: number,
+  carrierDetune: number;
+  carrierVolume: number;
   modulatorType: OscType;
   modulatorPitch: number;
   modulatorVolume: number;
   modulation: number;
   harmonicity: number;
-  attackTime: number;
-  releaseTime: number;
+  attackTime?: number;
+  releaseTime?: number;
+  sustain?: number;
+  decayTime?: number;
 }
 
 export const DefCarrierPitch = 220, DefModPitch = 440, DefaultModGainAM = 0.5, DefaultModGainFM = 10;
+export type AudioParamType = 'a-rate' | 'k-rate';

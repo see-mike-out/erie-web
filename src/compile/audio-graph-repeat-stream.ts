@@ -1,13 +1,22 @@
-import { jType } from "../util";
-import { SEQUENCE, OVERLAY, RepeatMembershipItem, RepeatTree, RepeatTreeLeaf, RepeatTreeNonLeaf, RepeatTreePost } from "../types"
-import { OverlayStream, UnitStream } from "./audio-graph-datatype";
+import { OverlayStream } from "./audio-graph-overlay-stream";
+import { isUnitStreamObject, UnitStream } from "./audio-graph-unit-stream";
+
+import {
+  SEQUENCE,
+  OVERLAY,
+  RepeatMembershipItem,
+  RepeatTree,
+  RepeatTreeLeaf,
+  RepeatTreeNonLeaf,
+  RepeatTreePost
+} from "../types"
+
 
 export function makeRepeatStreamTree(
   level: number,
   values: RepeatMembershipItem[],
   directions: Array<typeof SEQUENCE | typeof OVERLAY>
 ): RepeatTree {
-
   if (level === undefined) level = 0;
   if (directions.length <= level) return { direction: 'leaf', nodes: [] } as RepeatTreeLeaf;
   let memberships = values.map((v) => v.membership[level]);
@@ -43,7 +52,7 @@ export function postprocessRepeatStreams(
 ): Array<UnitStream | OverlayStream> {
   let flat_streams: RepeatTreePost = postprocessRstreamTree(tree);
   return flat_streams.nodes.map((s) => {
-    if (jType(s) === UnitStream.name) return s;
+    if (isUnitStreamObject(s)) return s;
     else if (s instanceof Array && s.length == 1) return s[0];
     else if (s instanceof Array && s.length > 1) {
       let overlay = new OverlayStream();

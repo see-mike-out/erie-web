@@ -1,38 +1,29 @@
 import {
-  ToneType,
-  TextType,
-  ToneSeries,
-  ToneOverlaySeries,
-  AudioGraphQueue
+  AudioGraphQueue,
+  isAudioGraphQueue
 } from '../player/audio-graph-player';
-import { DefaultFrequency } from '../player/audio-graph-player-proto';
 import {
   AfterAll,
   AfterThis,
-  AudioGraph,
-  AudioGraphSpeech,
   BeforeAll,
   BeforeThis,
   ConfigInterface,
   ForceRepeatScale,
   PlayAt,
-  PreGraphSpeech,
-  PreGraphSpeechItem,
-  PreGraphUnit,
-  RampType,
-  RecordObject,
-  ScaleCollection,
   HashedSampledToneObject,
   HashedSynthObject,
-  HashedWaveObject
+  HashedWaveObject,
+  TextType,
+  ToneSeries,
+  PreGraphUnit,
 } from '../types';
 import {
   toOrdinalNumbers,
-  deepcopy,
-  jType
+  deepcopy
 } from '../util';
-
-const OmitDesc = ['time2'];
+import { OverlayStream } from './audio-graph-overlay-stream';
+import { SpeechStream } from './audio-graph-speech-stream';
+import { UnitStream } from './audio-graph-unit-stream';
 
 export class SequenceStream {
   streams: Array<UnitStream | OverlayStream>;
@@ -46,7 +37,7 @@ export class SequenceStream {
   title!: string;
   description!: string;
   introStream?: SpeechStream;
-  queue!: AudioGraphQueue;
+  queue!: AudioGraphQueue | void;
   scaleQueue!: AudioGraphQueue;
 
   constructor() {
@@ -99,7 +90,7 @@ export class SequenceStream {
     this.queue = new AudioGraphQueue();
     if (this.config) {
       Object.keys(this.config).forEach((key) => {
-        this.queue.setConfig(key, this.config[key]);
+        this.queue?.setConfig(key, this.config[key]);
       })
     }
     this.queue.setSampling(this.samplings);
@@ -114,7 +105,7 @@ export class SequenceStream {
     // in case of a separate intro stream
     if (this.introStream) {
       this.introStream.stream.forEach((d) => {
-        this.queue.add(TextType, { speech: d.speech, speechRate: this.config?.speechRate }, this.config);
+        this.queue?.add(TextType, { speech: d.speech, speechRate: this.config?.speechRate }, this.config);
       })
     } else {
       if (this.title && !this.config.skipTitle) {
@@ -129,8 +120,8 @@ export class SequenceStream {
 
     // 2. making queues
     let titles_queues: AudioGraphQueue[] = [],
-      scales_queues: AudioGraphQueue[] = [],
-      audio_queues: AudioGraphQueue[] = [],
+      scales_queues: Array<AudioGraphQueue> = [],
+      audio_queues: Array<AudioGraphQueue | PreGraphUnit> = [],
       scale_count = 0,
       announced_scales: string[] = [];
 
@@ -185,8 +176,6 @@ export class SequenceStream {
           scales_queue.addMulti(scales_to_announce, { ..._c, tick: null });
           scale_count++;
           scales_queues.push(scales_queue);
-        } else {
-          scales_queues.push(null);
         }
       } else if ('overlays' in stream) {
         // each overlay title
@@ -238,8 +227,6 @@ export class SequenceStream {
         });
         if (scales_queue.queue.length > 0) {
           scales_queues.push(scales_queue);
-        } else {
-          scales_queues.push(null);
         }
         scale_count++;
       }
@@ -255,7 +242,7 @@ export class SequenceStream {
     // 4. queueing
     let streamIndex = 0;
     let preaddPos = this.queue.queue.length || 0;
-    let preadd = [], postadd = [];
+    let preadd: AudioGraphQueue[] = [], postadd: AudioGraphQueue[] = [];
     for (const stream of this.streams) {
       let _c = deepcopy(this.config || {});
       Object.assign(_c, stream.config || {});
@@ -275,8 +262,8 @@ export class SequenceStream {
       if (!_c.skipStartPlaySpeech) {
         this.queue.add(TextType, { speech: `Start playing. `, speechRate }, _c);
       }
-      if (jType(prerender_series) === AudioGraphQueue.name) {
-        this.queue.addMulti(prerender_series.queue, _c);
+      if (isAudioGraphQueue(prerender_series)) {
+        this.queue.addQueue(prerender_series);
       } else {
         this.queue.add(ToneSeries, prerender_series, _c);
       }
@@ -298,7 +285,7 @@ export class SequenceStream {
     }
 
     if (postadd.length > 0) {
-      for (const pq of preadd) {
+      for (const pq of postadd) {
         this.queue.addQueue(pq);
       }
     }
@@ -351,269 +338,6 @@ export class SequenceStream {
   }
 
   destroy() {
-    this.queue = this.queue.destroy();
-  }
-}
-
-export class OverlayStream {
-  overlays: UnitStream[];
-  playing: boolean;
-  prerendered: boolean;
-  config: ConfigInterface;
-  name!: string;
-  title!: string;
-  description!: string;
-  queue!: AudioGraphQueue;
-  duration!: number;
-
-  constructor() {
-    this.overlays = [];
-    this.playing = false;
-    this.prerendered = false;
-    this.config = {};
-    this.name;
-  }
-
-  setName(name: string) {
-    this.name = name;
-  }
-
-  setTitle(title: string) {
-    this.title = title;
-  }
-
-  setDescription(desc: string) {
-    this.description = desc;
-  }
-
-  addStream(stream: UnitStream) {
-    this.overlays.push(stream);
-  }
-
-  addStreams(streams: UnitStream[]) {
-    this.overlays.push(...streams);
-  }
-
-  setConfig(key: string, value: any) {
-    this.config[key] = value;
-  }
-
-  setFilters(audioFilters: string[]) {
-    this.overlays.forEach((s: UnitStream) => {
-      s.setFilters(audioFilters);
-    });
-  }
-
-  async prerender(subpart?: boolean) {
-    this.queue = new AudioGraphQueue();
-    // order: scale > title--repeated
-
-    // main title & description
-    if (!subpart) {
-      if (this.title && !this.config.skipTitle) {
-        this.queue.add(TextType, { speech: this.title, speechRate: this.config?.speechRate }, this.config);
-      } else if (this.name && !this.config.skipTitle) {
-        this.queue.add(TextType, { speech: this.name, speechRate: this.config?.speechRate }, this.config);
-      }
-      if (this.description && !this.config.skipDescription) {
-        this.queue.add(TextType, { speech: this.description, speechRate: this.config?.speechRate }, this.config);
-      }
-    }
-
-
-    // overlay descriptions
-    if (this.overlays.length > 1) {
-      if (!subpart && !this.config.skipStartSpeech) {
-        this.queue.add(TextType, { speech: `This sonification has ${this.overlays.length} overlaid streams.`, speechRate: this.config?.speechRate });
-
-        let oi = 1;
-        let titles_queues = [], scales_queues = [], scale_count = 0;
-        for (const stream of this.overlays) {
-
-          let title_queue = new AudioGraphQueue();
-
-          if ((stream.title || stream.name) && !stream.config.skipTitle) {
-            title_queue.add(TextType, { speech: `The ${toOrdinalNumbers(oi)} overlay stream is about ${(stream.title || stream.name)}. `, speechRate: this.config?.speechRate }, stream.config);
-          }
-          if (stream.description && !stream.config.skipDescription) {
-            title_queue.add(TextType, { speech: stream.description, speechRate: this.config?.speechRate }, stream.config);
-          }
-          titles_queues.push(title_queue);
-
-          let scale_text = stream.make_scale_text().filter((d) => d);
-          if (!stream.config.skipScaleSpeech && scale_text.length > 0) {
-            let scales_queue = new AudioGraphQueue()
-            scales_queue.add(TextType, { speech: `This stream has the following sound mappings. `, speechRate: this.config?.speechRate }, stream.config);
-            scales_queue.addMulti(scale_text, { ...stream.config, tick: null });
-            scale_count++;
-            scales_queues.push(scales_queue);
-          }
-          oi++;
-        }
-        if (scale_count > 1) {
-          for (let i = 0; i < oi - 1; i++) {
-            if (titles_queues[i]) this.queue.addQueue(titles_queues[i]);
-            if (scales_queues[i]) this.queue.addQueue(scales_queues[i]);
-          }
-        } else {
-          for (let i = 0; i < oi - 1; i++) {
-            if (titles_queues[i]) this.queue.addQueue(titles_queues[i]);
-          }
-          for (let i = 0; i < oi - 1; i++) {
-            if (scales_queues[i]) this.queue.addQueue(scales_queues[i]);
-          }
-        }
-      }
-    }
-
-    let overlays: PreGraphUnit[] = [];
-    this.overlays.forEach(async (stream: UnitStream) => {
-      overlays.push(await stream.prerender());
-    });
-
-    this.queue.add(ToneOverlaySeries,
-      { overlays }
-    );
-
-    this.prerendered = true;
-
-    return this.queue;
-  }
-
-
-  make_scale_text(channel?: string, i?: number) {
-    if (i !== undefined) {
-      let stream = this.overlays[i];
-      if (stream && !stream.config.skipScaleSpeech) return stream.make_scale_text(channel);
-      else return [];
-    } else {
-      return this.overlays.map((stream) => {
-        if (!stream.config.skipScaleSpeech) return stream.make_scale_text(channel);
-        else return [];
-      }).flat();
-    }
-  }
-
-  async playQueue() {
-    if (!this.prerendered) await this.prerender();
-    this.queue?.play();
-  }
-
-  async stopQueue() {
-    this.queue?.stop();
-  }
-}
-
-export class UnitStream {
-  instrument_type: string;
-  stream: AudioGraph;
-  option: RecordObject;
-  scales: ScaleCollection;
-  config: ConfigInterface;
-  name!: string;
-  title!: string;
-  description!: string;
-  ramp: { [key: string]: RampType | undefined };
-  audioFilters!: string[];
-  duration!: number;
-
-  constructor(
-    instrument_type: string,
-    stream: AudioGraph,
-    scales: ScaleCollection,
-    opt: RecordObject
-  ) {
-    this.instrument_type = instrument_type;
-    this.stream = stream;
-    this.option = opt || {};
-    this.scales = scales;
-    this.config = {};
-    this.name;
-    this.ramp = {};
-  }
-  setTitle(t: string) {
-    this.title = t;
-  }
-  setDescription(d: string) {
-    this.description = d;
-  }
-  setName(name: string) {
-    this.name = name;
-  }
-  setConfig(key: string, value: any) {
-    this.config[key] = value;
-  }
-  setFilters(audioFilters: string[]) {
-    this.audioFilters = audioFilters
-  }
-  setRamp(ramp: { [key: string]: RampType | undefined }) {
-    this.ramp = deepcopy(ramp);
-  }
-
-  make_tone_text(i: number) {
-    let text = [];
-    let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`)
-    if (this.name) text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: this.config?.speechRate });
-    else text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: this.config?.speechRate });
-    text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
-    return text;
-  }
-
-  make_scale_text(channel?: string) {
-    let scales = this.scales;
-    let text = Object.keys(scales)
-      .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
-      .map((c: string) => {
-        return {
-          id: scales[c]?.scaleId,
-          channel: c,
-          description: scales[c]?.description
-        };
-      });
-    return text.flat();
-  }
-
-  async prerender(): Promise<PreGraphUnit> {
-    return {
-      instrument_type: this.instrument_type,
-      sounds: this.stream,
-      continued: this.option?.is_continued,
-      relative: this.option?.relative,
-      filters: this.audioFilters,
-      ramp: this.ramp,
-      duration: this.duration
-    };
-  }
-}
-
-export class SpeechStream {
-  stream: AudioGraphSpeech;
-  config: ConfigInterface;
-
-  constructor(stream: AudioGraphSpeech) {
-    this.stream = stream;
-    this.config = {};
-  }
-
-  setConfig(key: string, value: any) {
-    this.config[key] = value;
-  }
-
-  make_scale_text() {
-    return [];
-  }
-
-  async prerender(): Promise<PreGraphSpeech> {
-    let text: PreGraphSpeech = [];
-    for (const stream of this.stream) {
-      if (stream.speech) {
-        text.push({
-          type: TextType,
-          speech: stream.speech,
-          speechRate: stream.speechRate ?? this.config?.speechRate
-        } as PreGraphSpeechItem);
-      }
-    }
-    return text;
+    this.queue = this.queue?.destroy();
   }
 }

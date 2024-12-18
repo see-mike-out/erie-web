@@ -1,25 +1,30 @@
-import { ToneSeries, ToneOverlaySeries } from "../player/audio-graph-player";
 import {
+  AudioGraphQueueItem,
+  AudioGraphQueueItemToneSeries,
+  DefaultFrequency,
   Glyph,
+  isToneOverlaySeriesQueueItem,
+  isToneSeriesQueueItem,
   RampType
 } from "../types";
 
 const channels = 2;
 // TODO
-export async function generatePCMCode(queue) {
+export async function generatePCMCode(queue: AudioGraphQueueItem) {
   // currently only support sine wave
   // this is an experimental feature. currently only works for non-overlaid tone-series queues.
   // queue: a discrete or continous queue data
   // supported channels: time, pitch, loudness, pan
   let ctx = new AudioContext();
   let sampleRate = ctx.sampleRate;
-  let queues = [];
-  if (queue.type === ToneSeries) {
+  let queues: Array<AudioGraphQueueItemToneSeries> = [];
+  if (isToneSeriesQueueItem(queue)) {
     queues.push(queue)
-  } else if (queue.type === ToneOverlaySeries) {
+  } else if (isToneOverlaySeriesQueueItem(queue)) {
     queues.push(...queue.overlays);
   }
-  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d: Glyph) => d.time + d.duration + (d.postReverb || 0))));
+
+  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d: Glyph) => (d.time ?? 0) + (d.duration ?? 0) + (d.postReverb || 0))));
   let length = Math.max(...queue_lengths);
   let frameCount = sampleRate * length;
   let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
@@ -36,10 +41,10 @@ export async function generatePCMCode(queue) {
     if (!queue.continued) {
       // discrete sounds
       for (const sound of sounds) {
-        let f = sound.time * sampleRate,
-          t = (sound.time + sound.duration + sound.postReverb) * sampleRate;
+        let f = (sound.time ?? 0) * sampleRate,
+          t = ((sound.time ?? 0) + (sound.duration ?? 0) + (sound.postReverb ?? 0)) * sampleRate;
         let length = t - f;
-        let data = populatePCMforFreq(sound.pitch, length, sampleRate);
+        let data = populatePCMforFreq((sound.pitch ?? DefaultFrequency), length, sampleRate);
         let gain = sound.loudness;
         if (gain === undefined) gain = 1;
         let pan = sound.pan;
@@ -55,15 +60,15 @@ export async function generatePCMCode(queue) {
       let ramp_pan = getRampFunction(queue.ramp?.pan),
         ramp_gain = getRampFunction(queue.ramp?.loudness);
       if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
-        sounds.sort((a: Glyph, b: Glyph) => a.time - b.time);
+        sounds.sort((a: Glyph, b: Glyph) => (a.time ?? 0) - (b.time ?? 0));
         let acc_prev = 0;
         for (let i = 0; i < sounds.length - 1; i++) {
           let sound = sounds[i], next_sound = sounds[i + 1];
-          let f = Math.round(sound.time * sampleRate),
-            t = Math.round(next_sound.time * sampleRate);
+          let f = Math.round((sound.time ?? 0) * sampleRate),
+            t = Math.round((next_sound.time ?? 0) * sampleRate);
           let length = t - f;
 
-          let pcm_pop = populatePCMforFreqRamp(sound.pitch, next_sound.pitch, queue.ramp?.pitch, acc_prev, length, sampleRate);
+          let pcm_pop = populatePCMforFreqRamp((sound.pitch ?? DefaultFrequency), (next_sound.pitch ?? DefaultFrequency), queue.ramp?.pitch, acc_prev, length, sampleRate);
           if (pcm_pop) {
             let data = pcm_pop?.data, acc = pcm_pop?.acc;
             acc_prev = acc;

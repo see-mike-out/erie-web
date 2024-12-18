@@ -12,6 +12,7 @@ export class SynthTone {
   _carrierType: OscType;
   _carrierPitch: number;
   _carrierDetune: number;
+  _carrierVolume: number;
   _modulatorType: OscType;
   _modulatorPitch: number;
   _modulatorVolume: number;
@@ -19,6 +20,8 @@ export class SynthTone {
   _harmonicity: number;
   _attackTime: number;
   _releaseTime: number;
+  _sustain: number;
+  _decayTime: number;
 
   constructor(name: string) {
     this._name = name;
@@ -26,6 +29,7 @@ export class SynthTone {
     this._carrierType = 'sine';
     this._carrierPitch = 220;
     this._carrierDetune = 0;
+    this._carrierVolume = 1;
     this._modulatorType = 'sine';
     this._modulatorPitch = 440;
     this._modulatorVolume = 0.2;
@@ -33,6 +37,8 @@ export class SynthTone {
     this._harmonicity = 1;
     this._attackTime = 0;
     this._releaseTime = 0;
+    this._sustain = 0.8;
+    this._decayTime = 0.1;
   }
 
   name(n: string) {
@@ -144,13 +150,16 @@ export class SynthTone {
       carrierType: this._carrierType,
       carrierPitch: this._carrierPitch,
       carrierDetune: this._carrierDetune,
+      carrierVolume: this._carrierVolume,
       modulatorType: this._modulatorType,
       modulatorPitch: this._modulatorPitch,
       modulatorVolume: this._modulatorVolume,
       modulation: this._modulation,
       harmonicity: this._harmonicity,
       attackTime: this._attackTime,
-      releaseTime: this._releaseTime
+      releaseTime: this._releaseTime,
+      sustain: this._sustain,
+      decayTime: this._decayTime
     }
   }
 
@@ -160,6 +169,7 @@ export class SynthTone {
     _c._carrierType = this._carrierType;
     _c._carrierPitch = this._carrierPitch;
     _c._carrierDetune = this._carrierDetune;
+    _c._carrierVolume = this._carrierVolume;
     _c._modulatorType = this._modulatorType;
     _c._modulatorPitch = this._modulatorPitch;
     _c._modulatorVolume = this._modulatorVolume;
@@ -167,6 +177,8 @@ export class SynthTone {
     _c._harmonicity = this._harmonicity;
     _c._attackTime = this._attackTime;
     _c._releaseTime = this._releaseTime;
+    _c._sustain = this._sustain;
+    _c._decayTime = this._decayTime;
 
     return _c;
   }

@@ -9,7 +9,7 @@ export class AudioPrimitiveBuffer {
   compiledBuffer?: AudioBuffer;
   primitive: Array<BufferDataItem>;
 
-  constructor(length: number, sampleRate: number) {
+  constructor(length: number, sampleRate?: number) {
     // in seconds
     this.length = length;
     this.sampleRate = sampleRate || SampleRate;
