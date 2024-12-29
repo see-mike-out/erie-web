@@ -11,7 +11,7 @@ import {
 } from "../types";
 
 export function makeSynth(
-  ctx: AudioContext,
+  ctx: AudioContext | OfflineAudioContext,
   definition: SynthObject
 ): ErieSynth {
   let synth = new ErieSynth(ctx, definition.type || FM);
@@ -21,7 +21,7 @@ export function makeSynth(
 
 export class ErieSynth {
   // definition
-  ctx: AudioContext;
+  ctx: AudioContext | OfflineAudioContext;
   frequency: ErieSynthFrequency;
   onended!: (a: Event) => {};
   type: string;
@@ -48,7 +48,7 @@ export class ErieSynth {
 
 
   constructor(
-    ctx: AudioContext,
+    ctx: AudioContext | OfflineAudioContext,
     type: string
   ) {
     this.ctx = ctx;

@@ -1,10 +1,10 @@
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types";
+import { AudioFilterEncoder, AudioFilterFinisher, Glyph } from "../types";
 
 export class DistortionFilter extends AudioFilterPrototype {
   filter: WaveShaperNode;
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.ctx = ctx;
     this.filter = ctx.createWaveShaper();
@@ -38,14 +38,14 @@ function makeDistortionCurve(amount: number) {
   return curve;
 }
 
-export function DistortionEncoder(filter: DistortionFilter, sound: Glyph, startTime: number) {
+export const DistortionEncoder = function (filter: DistortionFilter, sound: Glyph, startTime: number) {
   if (sound.others?.distortion !== undefined) {
     filter.filter.curve = makeDistortionCurve(sound.others.distortion);
   } else {
     filter.filter.curve = makeDistortionCurve(100);
   }
-}
+} as AudioFilterEncoder
 
-export function DistortionFinisher(filter: DistortionFilter, sound: Glyph, startTime: number, duration: number) {
+export const DistortionFinisher = function (filter: DistortionFilter, sound: Glyph, startTime: number, duration: number) {
   filter.filter.curve = makeDistortionCurve(50);
-}
+} as AudioFilterFinisher

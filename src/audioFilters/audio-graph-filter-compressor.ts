@@ -1,10 +1,10 @@
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types";
+import { AudioFilterEncoder, AudioFilterFinisher, Glyph } from "../types";
 
 export class DefaultDynamicCompressor extends AudioFilterPrototype {
   filter: DynamicsCompressorNode;
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.ctx = ctx;
     this.filter = ctx.createDynamicsCompressor();
@@ -27,14 +27,14 @@ export class DefaultDynamicCompressor extends AudioFilterPrototype {
   }
 }
 
-export function CompressorEncoder(filter: DefaultDynamicCompressor, sound: Glyph, startTime: number) {
+export const CompressorEncoder = function (filter: DefaultDynamicCompressor, sound: Glyph, startTime: number) {
   if (sound.others?.dcAttack !== undefined) filter.filter.attack.linearRampToValueAtTime(sound.others.dcAttack || 1, startTime);
   if (sound.others?.dcKnee !== undefined) filter.filter.knee.linearRampToValueAtTime(sound.others.dcKnee || 1, startTime);
   if (sound.others?.dcRatio !== undefined) filter.filter.ratio.linearRampToValueAtTime(sound.others.dcRatio || 1, startTime);
   if (sound.others?.dcReduction !== undefined) filter.filter.release.linearRampToValueAtTime(sound.others.dcReduction || 1, startTime);
   if (sound.others?.dcThreshold !== undefined) filter.filter.threshold.linearRampToValueAtTime(sound.others.dcThreshold || 1, startTime);
-}
+} as AudioFilterEncoder
 
-export function CompressorFinisher(filter: DefaultDynamicCompressor, sound: Glyph, startTime: number, duration: number) {
+export const CompressorFinisher = function (filter: DefaultDynamicCompressor, sound: Glyph, startTime: number, duration: number) {
 
-}
+} as AudioFilterFinisher;

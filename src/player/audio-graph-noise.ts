@@ -6,7 +6,7 @@ import { NoiseCoefficient } from '../types';
 // and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
 
 export function makeNoiseNode(
-  ctx: AudioContext,
+  ctx: AudioContext | OfflineAudioContext,
   type: string,
   duration: number
 ): AudioBufferSourceNode {

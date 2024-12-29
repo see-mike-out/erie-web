@@ -9,3 +9,4 @@ export * from "./speech";
 export * from "./system-speech";
 export * from "./status";
 export * from "./queue";
+export * from "./instrument-type";

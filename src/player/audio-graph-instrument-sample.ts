@@ -13,7 +13,10 @@ import {
   RoundedNote,
   SamplingItem,
   SingleNoteInstruments,
-  HashedSampledToneObject
+  HashedSampledToneObject,
+  NoteRange,
+  OctaveValue,
+  NoteValue
 } from "../types";
 
 export function roundToNote(
@@ -59,7 +62,7 @@ export function roundToNoteScale(freq: number): number | null {
   }
 }
 
-export function determineNoteRange(freq: number, config: ConfigInterface) {
+export function determineNoteRange(freq: number, config: ConfigInterface): NoteRange | null {
   let octave!: OctaveDefinition;
   for (const range of noteFreqRange) {
     if (range.octave == 0 && range.c <= freq && freq < range.fs) {
@@ -74,10 +77,10 @@ export function determineNoteRange(freq: number, config: ConfigInterface) {
     let rounded_note = roundToNote(freq, octave);
     if (config?.round) {
       return {
-        octave: octave.octave,
+        octave: octave.octave as OctaveValue,
         original_freq: freq,
         freq: rounded_note.note_freq,
-        note: rounded_note.note_name,
+        note: rounded_note.note_name as NoteValue,
         detune: rounded_note.detune
       };
     } else {
@@ -109,7 +112,7 @@ export function determineNoteRange(freq: number, config: ConfigInterface) {
       } else {
         detune = detune_base;
       }
-      return { octave: octave.octave, freq, detune };
+      return { octave: octave.octave as OctaveValue, freq, detune };
     }
   } else {
     console.warn(

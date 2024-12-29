@@ -7,9 +7,11 @@ import {
   playSingleSpeech,
   playRelativeDiscreteTonesAndSpeeches,
   playPause,
-  makeContext,
-  ErieGlobalControl
 } from "./audio-graph-player-proto";
+
+import { makeContext } from "./audio-graph-make";
+import { ErieGlobalControl } from "./audio-graph-player-global";
+
 import {
   loadSamples
 } from "./audio-graph-instrument-sample";
@@ -62,7 +64,8 @@ import {
   RecordObject,
   isToneSpeechSeriesQueueItem,
   isSeriesQueueItem,
-  CompressedPreGraphItem
+  CompressedPreGraphItem,
+  LoadedSampleCollection
 } from "../types";
 import {
   notifyStop,
@@ -79,7 +82,7 @@ export class AudioGraphQueue {
   playAt!: number | undefined;
   config: ConfigInterface;
   sampledInstruments: string[];
-  sampledInstrumentSources: any;
+  sampledInstrumentSources: LoadedSampleCollection;
   samplings: HashedSampledToneObject;
   synths: HashedSynthObject;
   waves: HashedWaveObject;
@@ -402,9 +405,9 @@ export class AudioGraphQueue {
     // button-based stop
     // for event stop ==> audio-graph-player-proto.js
     if (this.state === Playing) {
-      if (ErieGlobalControl?.type === ToneType || ErieGlobalControl?.player?.close) {
+      if (ErieGlobalControl?.type === ToneType && ErieGlobalControl?.player instanceof AudioContext && ErieGlobalControl?.player?.close) {
         ErieGlobalControl.player.close();
-      } else if (ErieGlobalControl?.type === SpeechType || ErieGlobalControl?.player?.cancel) {
+      } else if (ErieGlobalControl?.type === SpeechType && ErieGlobalControl?.player instanceof SpeechSynthesis && ErieGlobalControl?.player?.cancel) {
         ErieGlobalControl.player.cancel();
       }
       // @ts-ignore

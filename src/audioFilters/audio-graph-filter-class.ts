@@ -1,9 +1,9 @@
 export class AudioFilterPrototype {
-  ctx: AudioContext;
+  ctx: AudioContext | OfflineAudioContext;
   filter: AudioNode;
   destination: AudioNode;
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     this.ctx = ctx;
     this.filter = ctx.createGain();
     this.destination = this.filter;

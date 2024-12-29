@@ -1,3 +1,4 @@
+import { ErieSynth } from "../../player";
 import { OctaveKey } from "../sampling";
 
 export const SupportedInstruments = ["piano", "pianoElec", "violin", "metal", "guitar", "hithat", "snare", "highKick", "lowKick", "clap"];
@@ -191,6 +192,8 @@ export type LoadedMultiSample = {
 
 export type LoadedSample = LoadedMonoSample | LoadedMultiSample;
 
+export type LoadedSampleCollection = {[key: string]: LoadedSample};
+
 export type NoiseCoefficient = {
   p0: number,
   p1: number,
@@ -209,3 +212,5 @@ export type TapPattern = {
   totalLength: number,
   patternString: string
 };
+
+export type InstrumentNode = OscillatorNode | AudioBufferSourceNode | ErieSynth;

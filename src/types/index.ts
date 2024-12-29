@@ -13,3 +13,5 @@ export * from "./wave";
 export * from "./internal"
 export * from "./spec";
 export * from "./render";
+export * from "./player";
+export * from "./internal";

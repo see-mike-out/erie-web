@@ -1,6 +1,4 @@
-import { determineNoteRange, MultiNoteInstruments, SingleNoteInstruments } from './audio-graph-instrument-sample';
-import { AM, ErieSynth, FM, makeSynth } from './audio-graph-synth';
-import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
+import { ErieSynth } from './audio-graph-synth';
 import { PresetFilters } from './audio-graph-audio-filter';
 import { sendSpeechFinishEvent, sendSpeechStartEvent, sendToneFinishEvent, sendToneStartEvent } from './audio-graph-player-event';
 import { emitNotePlayEvent, emitNoteStopEvent } from "./audio-graph-note-event";
@@ -8,109 +6,72 @@ import { WebSpeechGenerator } from './audio-graph-web-speech-generator';
 import { GoogleCloudTTSGenerator } from './audio-graph-google-tts-generator';
 
 import { ErieFilters } from '../classes';
-import { TAPSPD_chn, TAPCNT_chn, ToneType, SpeechType, OscTypes, DefaultFrequency, Stopped, Playing, MultiPlaying } from '../types';
-import { makeTick, playTick } from '../tick';
-import { deepcopy, genRid, notifyStop } from '../util';
+import {
+  TAPSPD_chn,
+  TAPCNT_chn,
+  ToneType,
+  SpeechType,
+  DefaultFrequency,
+  Stopped,
+  AM,
+  FM,
+  RampAbrupt,
+  RampLinear,
+  RampExp,
+  ConfigInterface,
+  LoadedSampleCollection,
+  HashedSynthObject,
+  HashedWaveObject,
+  Glyph,
+  Glyphs2,
+  RampMethods,
+  AudioFilterFinisher,
+  AudioFilterEncoder
+} from '../types';
+import {
+  makeTick,
+  playTick
+} from '../tick';
+import {
+  deepcopy,
+  genRid,
+  notifyStop
+} from '../util';
 import { AudioPrimitiveBuffer } from '../pulse';
-
-export function makeContext() {
-  return new AudioContext();
-}
-
-const SampleRate = 44100, BufferChannels = 2;
-export function makeOfflineContext(length) {
-  return new OfflineAudioContext(BufferChannels, SampleRate * length, SampleRate);
-}
-
-export function setCurrentTime(ctx) {
-  return ctx.currentTime;
-}
-
-
-export const DefaultFrequency = 523.25;
-export const Stopped = 'stopped',
-  Playing = 'playing',
-  MultiPlaying = 'milti-playing';
-
-export function makeInstrument(ctx, detail, instSamples, synthDefs, waveDefs, sound, contEndTime) {
-  if (!detail || detail === "default") {
-    return ctx.createOscillator();
-  } else if (OscTypes.includes(detail)) {
-    let osc = ctx.createOscillator();
-    osc.type = detail;
-    return osc;
-  } else if (NoiseTypes.includes(detail)) {
-    let dur = contEndTime || sound.duration;
-    if (sound?.detune > 0) dur += dur * (sound?.detune / 600);
-    return makeNoiseNode(ctx, detail, dur * 1.1);
-  } else if (MultiNoteInstruments.includes(detail)) {
-    let note = determineNoteRange(sound.pitch || DefaultFrequency, {});
-    let sample = instSamples[detail]['C' + note.octave];
-    let source = ctx.createBufferSource();
-    source.buffer = sample;
-    source.detune.value = note.detune;
-    return source;
-  } else if (SingleNoteInstruments.includes(detail)) {
-    let sample = instSamples[detail].mono;
-    let source = ctx.createBufferSource();
-    source.buffer = sample;
-    return source;
-  } else if (Object.keys(waveDefs || {})?.includes(detail)) {
-    let real_parsed = new Float32Array(waveDefs[detail].real);
-    let imag_parsed = new Float32Array(waveDefs[detail].imag);
-    const wave = ctx.createPeriodicWave(
-      real_parsed,
-      imag_parsed,
-      { disableNormalization: waveDefs[detail].disableNormalization || false });
-    let osc = ctx.createOscillator();
-    osc.setPeriodicWave(wave);
-    return osc;
-  } else if (Object.keys(instSamples || {})?.includes(detail)) {
-    let sample;
-    if (instSamples[detail].multiNote) {
-      let note = determineNoteRange(sound.pitch, {});
-      sample = instSamples[detail]['C' + note?.octave];
-    } else {
-      sample = instSamples[detail].mono;
-    }
-    let source = ctx.createBufferSource();
-    source.buffer = sample;
-    if (instSamples[detail].multiNote) {
-      source.detune.value = note.detune;
-    }
-    return source;
-  } else if (Object.keys(synthDefs || {})?.includes(detail)) {
-    let synth = makeSynth(ctx, synthDefs[detail]);
-    return synth;
-  }
-}
-
-export let ErieGlobalControl, ErieGlobalState;
-
-export function setErieGlobalControl(ctrl) {
-  ErieGlobalControl = ctrl;
-}
+import { makeOfflineContext, makeInstrument } from './audio-graph-make';
+import { isErieGlobalControlType, isErieGlobalState, setCurrentTime, setErieGlobalControl, setErieGlobalState } from './audio-graph-player-global';
+import { GlobalControlSpeech } from '../types/player/global';
+import { AudioFilterPrototype } from '../audioFilters';
 
 const RamperNames = {
-  abrupt: 'setValueAtTime',
-  linear: 'linearRampToValueAtTime',
-  linear: 'exponentialRampToValueAtTime'
+  [RampAbrupt]: 'setValueAtTime',
+  [RampLinear]: 'linearRampToValueAtTime',
+  [RampExp]: 'exponentialRampToValueAtTime'
 }
 
-export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+export async function playAbsoluteDiscreteTonesAlt(
+  ctx: AudioContext,
+  queue: Glyphs2,
+  config: ConfigInterface,
+  instSamples: LoadedSampleCollection,
+  synthDefs: HashedSynthObject,
+  waveDefs: HashedWaveObject,
+  filters: string[],
+  bufferPrimitve: AudioPrimitiveBuffer
+) {
   // clear previous state
-  ErieGlobalState = undefined;
+  setErieGlobalState(undefined);
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
   setErieGlobalControl({ type: ToneType, player: ctx });
 
   // sort queue to mark the last node for sequence end check
-  let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
+  let q: Glyph[] = queue.toSorted((a: Glyph, b: Glyph) => (a.time ?? 0) + (a.duration ?? 0) - ((b.time ?? 0) + (b.duration ?? 0)));
   q[0].isFirst = true;
   q[q.length - 1].isLast = true;
   config.subpart = true;
-  let endTime = q[q.length - 1].time + q[q.length - 1].duration;
+  let endTime = (q[q.length - 1].time ?? 0) + (q[q.length - 1].duration ?? 0);
   // play as async promise
   let sid = genRid();
   sendToneStartEvent({ sid });
@@ -123,12 +84,12 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   gain.connect(timingCtx.destination);
   gain.gain.value = 0;
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise(async (resolve: Function, reject: Function) => {
     // get the current time
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
     // set and play sounds
     for (let sound of q) {
-      if (ErieGlobalState === Stopped) {
+      if (isErieGlobalState(Stopped)) {
         // resolve();
         break;
       }
@@ -141,8 +102,8 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
       inst.stop(ct + sound.time + 0.01);
 
       inst.onended = async () => {
-        if (config?.falseTiming && ErieGlobalControl?.type === SpeechType) {
-          ErieGlobalControl?.player?.cancel();
+        if (config?.falseTiming && isErieGlobalControlType(SpeechType)) {
+          (window.ErieGlobalControl as GlobalControlSpeech)?.player?.cancel();
         }
         await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
         if (sound.isLast) {
@@ -157,20 +118,30 @@ export async function playAbsoluteDiscreteTonesAlt(ctx, queue, config, instSampl
   });
 }
 
-export async function playAbsoluteContinuousTones(_ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+
+export async function playAbsoluteContinuousTones(
+  _ctx: AudioContext,
+  queue: Glyphs2,
+  config: ConfigInterface,
+  instSamples: LoadedSampleCollection,
+  synthDefs: HashedSynthObject,
+  waveDefs: HashedWaveObject,
+  filters: string[],
+  bufferPrimitve: AudioPrimitiveBuffer
+) {
   // clear previous state
-  ErieGlobalState = undefined;
+  setErieGlobalState(undefined);
 
   // sort queue to mark the last node for sequence end check
-  let q = queue.sort((a, b) => a.time + a.duration - (b.time + b.duration));
+  let q: Glyph[] = queue.toSorted((a: Glyph, b: Glyph) => (a.time ?? 0) + (a.duration ?? 0) - ((b.time ?? 0) + (b.duration ?? 0)));
   q[0].isFirst = true;
   q[q.length - 1].isLast = true;
 
   // get the last tone's finish time
-  let endTime = q[q.length - 1].time + q[q.length - 1].duration;
+  let endTime = (q[q.length - 1].time ?? 0) + (q[q.length - 1].duration ?? 0);
 
   // get the context
-  let ctx = _ctx, offline = false;
+  let ctx: AudioContext | OfflineAudioContext = _ctx, offline = false;
   if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
     offline = true;
     ctx = makeOfflineContext(endTime);
@@ -181,32 +152,36 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, instSampl
   setErieGlobalControl({ type: ToneType, player: ctx });
 
   // rampers 
-  let rampers = {};
+  let rampers: { [key: string]: string } = {};
   if (config.ramp) {
     Object.keys(config.ramp || {}).forEach((chn) => {
-      let name = RamperNames[config.ramp[chn]];
-      if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
-        rampers.tap = name;
-      } else {
-        rampers[chn] = name;
+      let name = config.ramp[chn] in RamperNames ? RamperNames[config.ramp[chn] as keyof typeof RamperNames] : undefined;
+      if (name) {
+        if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
+          rampers.tap = name;
+        } else {
+          rampers[chn] = name;
+        }
       }
     });
   }
 
   // filters
-  let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
-  for (const filterName of filters) {
-    if (PresetFilters[filterName]) {
+  let filterEncoders: { [key: string]: AudioFilterEncoder } = {},
+    filterFinishers: { [key: string]: AudioFilterFinisher } = {},
+    filterNodes: { [key: string]: AudioFilterPrototype } = {};
+  for (const filterName of (filters as Array<keyof typeof PresetFilters>)) {
+    if (filterName in PresetFilters && PresetFilters[filterName]) {
       filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
-      filterEncoders[filterName] = PresetFilters[filterName].encoder;
-      filterFinishers[filterName] = PresetFilters[filterName].finisher
-    } else if (ErieFilters[filterName]) {
+      filterEncoders[filterName] = PresetFilters[filterName].encoder as AudioFilterEncoder;
+      filterFinishers[filterName] = PresetFilters[filterName].finisher as AudioFilterFinisher;
+    } else if ('filterName' in ErieFilters[filterName]) {
       filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
-      filterEncoders[filterName] = ErieFilters[filterName].encoder;
-      filterFinishers[filterName] = ErieFilters[filterName].finisher
+      filterEncoders[filterName] = ErieFilters[filterName].encoder as AudioFilterEncoder;
+      filterFinishers[filterName] = ErieFilters[filterName].finisher as AudioFilterFinisher;
     }
   }
-  let destination = ctx.destination;
+  let destination: AudioNode = ctx.destination;
   for (const filterName of filters) {
     let filter = filterNodes[filterName];
     if (filter) {
@@ -230,7 +205,7 @@ export async function playAbsoluteContinuousTones(_ctx, queue, config, instSampl
   // get instrument
   const inst = makeInstrument(ctx, config?.instrument_type, instSamples, synthDefs, waveDefs, q[0], endTime);
   inst.connect(panner);
-  let startTime;
+  let startTime!: number;
   // get the current time
   let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
   for (let sound of q) {

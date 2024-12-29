@@ -1,12 +1,12 @@
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types";
+import { AudioFilterEncoder, AudioFilterFinisher, Glyph } from "../types";
 
 export class GainerFilter extends AudioFilterPrototype {
   attackTime: number;
   releaseTime: number;
   filter: GainNode;
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.ctx = ctx;
     this.attackTime = 0.1;
@@ -29,10 +29,10 @@ export class GainerFilter extends AudioFilterPrototype {
   }
 }
 
-export function GainerEncoder(filter: GainerFilter, sound: Glyph, startTime: number) {
+export const GainerEncoder = function (filter: GainerFilter, sound: Glyph, startTime: number) {
   filter.filter.gain.linearRampToValueAtTime(sound.others?.gain2 || 1, startTime + filter.attackTime);
-}
+} as AudioFilterEncoder
 
-export function GainerFinisher(filter: GainerFilter, sound: Glyph, startTime: number, duration: number) {
+export const GainerFinisher = function (filter: GainerFilter, sound: Glyph, startTime: number, duration: number) {
   filter.filter.gain.linearRampToValueAtTime(0, (startTime || 0) + (duration || 1) - filter.releaseTime);
-}
+} as AudioFilterFinisher

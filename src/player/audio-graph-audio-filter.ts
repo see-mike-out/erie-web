@@ -2,9 +2,9 @@ import { AllpassBiquadFilter, BandpassBiquadFilter, BiquadEncoder, BiquadFinishe
 import { CompressorEncoder, CompressorFinisher, DefaultDynamicCompressor } from "../audioFilters/audio-graph-filter-compressor";
 import { DistortionEncoder, DistortionFilter, DistortionFinisher } from "../audioFilters/audio-graph-filter-distortion";
 import { GainerFilter, GainerEncoder, GainerFinisher } from "../audioFilters/audio-graph-filter-gainer";
-import { DETUNE_chn, LOUDNESS_chn, PITCH_chn } from "../types";
+import { AudioFilterEncoder, DETUNE_chn, ErieFilterCollection, LOUDNESS_chn, PITCH_chn } from "../types";
 
-export const PresetFilters = {
+export const PresetFilters: ErieFilterCollection = {
   'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
   'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
   'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },

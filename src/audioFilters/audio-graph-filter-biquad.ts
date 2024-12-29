@@ -1,14 +1,14 @@
 // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
 
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { Glyph } from "../types";
+import { AudioFilterEncoder, AudioFilterFinisher, Glyph } from "../types";
 
 export class BiquadFilter extends AudioFilterPrototype {
   filter: BiquadFilterNode;
   destination: BiquadFilterNode;
   useGain: boolean;
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.ctx = ctx;
     this.filter = ctx.createBiquadFilter();
@@ -27,7 +27,7 @@ export class BiquadFilter extends AudioFilterPrototype {
 }
 
 export class LowpassBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'lowpass';
     this.destination = this.filter;
@@ -41,7 +41,7 @@ export class LowpassBiquadFilter extends BiquadFilter {
 }
 
 export class HighpassBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'highpass';
     this.destination = this.filter;
@@ -55,7 +55,7 @@ export class HighpassBiquadFilter extends BiquadFilter {
 }
 
 export class BandpassBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'bandpass';
     this.destination = this.filter;
@@ -69,7 +69,7 @@ export class BandpassBiquadFilter extends BiquadFilter {
 }
 
 export class LowshelfBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'lowshelf';
     this.destination = this.filter;
@@ -84,7 +84,7 @@ export class LowshelfBiquadFilter extends BiquadFilter {
 }
 
 export class HighshelfBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'highshelf';
     this.destination = this.filter;
@@ -99,7 +99,7 @@ export class HighshelfBiquadFilter extends BiquadFilter {
 }
 
 export class PeakingBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'peaking';
     this.destination = this.filter;
@@ -114,7 +114,7 @@ export class PeakingBiquadFilter extends BiquadFilter {
 }
 
 export class NotchBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'notch';
     this.destination = this.filter;
@@ -128,7 +128,7 @@ export class NotchBiquadFilter extends BiquadFilter {
 }
 
 export class AllpassBiquadFilter extends BiquadFilter {
-  constructor(ctx: AudioContext) {
+  constructor(ctx: AudioContext | OfflineAudioContext) {
     super(ctx);
     this.filter.type = 'allpass';
     this.destination = this.filter;
@@ -141,7 +141,7 @@ export class AllpassBiquadFilter extends BiquadFilter {
   }
 }
 
-export function BiquadEncoder(filter: BiquadFilter, sound: Glyph, startTime: number) {
+export const BiquadEncoder = function (filter: BiquadFilter, sound: Glyph, startTime: number) {
   if (filter.useGain) {
     if (startTime > 0) filter.filter.gain.linearRampToValueAtTime((sound?.others?.biquadGain || 1), startTime);
     else filter.filter.gain.setValueAtTime((sound?.others?.biquadGain || 1), startTime);
@@ -158,9 +158,9 @@ export function BiquadEncoder(filter: BiquadFilter, sound: Glyph, startTime: num
     if (startTime > 0) filter.filter.detune.linearRampToValueAtTime((sound.others.biquadDetune || 1), startTime);
     else filter.filter.detune.setValueAtTime((sound.others.biquadDetune || 1), startTime);
   }
-}
+} as AudioFilterEncoder
 
-export function BiquadFinisher(filter: BiquadFilter, sound: Glyph, startTime: number, duration: number) {
+export const BiquadFinisher = function (filter: BiquadFilter, sound: Glyph, startTime: number, duration: number) {
   if (filter.useGain) {
     filter.filter.gain.setValueAtTime((sound?.others?.biquadGain || 1), startTime + duration);
   }
@@ -173,4 +173,4 @@ export function BiquadFinisher(filter: BiquadFilter, sound: Glyph, startTime: nu
   if (sound?.others?.biquadDetune !== undefined) {
     filter.filter.detune.setValueAtTime((sound.others.biquadDetune || 1), startTime + duration);
   }
-}
+} as AudioFilterFinisher

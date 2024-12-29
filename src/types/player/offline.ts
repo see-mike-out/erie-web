@@ -1,0 +1,1 @@
+export const SampleRate = 44100, BufferChannels = 2;

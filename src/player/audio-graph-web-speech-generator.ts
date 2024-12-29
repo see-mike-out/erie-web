@@ -1,13 +1,12 @@
-import {
-  Speech,
-  setErieGlobalControl
-} from "./audio-graph-player-proto";
+import { setErieGlobalControl } from "./audio-graph-player-global";
 
 import {
   AudioGraphSpeechItem,
   bcp47language,
-  ConfigInterface
+  ConfigInterface,
+  SpeechType
 } from "../types";
+
 
 let ErieGlobalSynth: SpeechSynthesis;
 
@@ -28,7 +27,7 @@ export async function WebSpeechGenerator(
   else utterance.lang = ((typeof document !== undefined ? document : {}).documentElement?.lang) as string;
   onstart();
   ErieGlobalSynth.speak(utterance);
-  setErieGlobalControl({ type: Speech, player: ErieGlobalSynth });
+  setErieGlobalControl({ type: SpeechType, player: ErieGlobalSynth });
   utterance.onend = () => {
     onend();
     if (resolve) resolve();
