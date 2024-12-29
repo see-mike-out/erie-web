@@ -44,9 +44,9 @@ import { GlobalControlSpeech } from '../types/player/global';
 import { AudioFilterPrototype } from '../audioFilters';
 
 const RamperNames = {
-  [RampAbrupt]: 'setValueAtTime',
-  [RampLinear]: 'linearRampToValueAtTime',
-  [RampExp]: 'exponentialRampToValueAtTime'
+  [RampAbrupt]: 'setValueAtTime' as keyof AudioParam,
+  [RampLinear]: 'linearRampToValueAtTime' as keyof AudioParam,
+  [RampExp]: 'exponentialRampToValueAtTime' as keyof AudioParam
 }
 
 export async function playAbsoluteDiscreteTonesAlt(
@@ -152,16 +152,14 @@ export async function playAbsoluteContinuousTones(
   setErieGlobalControl({ type: ToneType, player: ctx });
 
   // rampers 
-  let rampers: { [key: string]: string } = {};
+  let rampers: { [key: string]: keyof AudioParam } = {};
   if (config.ramp) {
     Object.keys(config.ramp || {}).forEach((chn) => {
-      let name = config.ramp[chn] in RamperNames ? RamperNames[config.ramp[chn] as keyof typeof RamperNames] : undefined;
-      if (name) {
-        if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
-          rampers.tap = name;
-        } else {
-          rampers[chn] = name;
-        }
+      let name = config.ramp[chn] in RamperNames ? RamperNames[config.ramp[chn] as keyof typeof RamperNames] : RamperNames[RampAbrupt];
+      if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
+        rampers.tap = name;
+      } else {
+        rampers[chn] = name;
       }
     });
   }
@@ -211,9 +209,9 @@ export async function playAbsoluteContinuousTones(
   for (let sound of q) {
     if (sound.isFirst) {
       // set for the first value
-      if (inst?.constructor.name === OscillatorNode.name) {
+      if (inst instanceof OscillatorNode) {
         inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
-      } else if (inst?.constructor.name === ErieSynth.name) {
+      } else if (inst instanceof ErieSynth) {
         inst.frequency.setValueAtTime(sound.pitch || DefaultFrequency, ct + sound.time);
         if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
           inst.modulator.frequency.setValueAtTime((inst.modulatorVolume / sound.modulation), ct + sound.time);
@@ -231,7 +229,7 @@ export async function playAbsoluteContinuousTones(
         }
       }
 
-      if (sound.detune && inst.detune) {
+      if (sound.detune && 'detune' in inst && inst.detune) {
         inst.detune.setValueAtTime(sound.detune || 0, ct + sound.time);
       }
 
@@ -244,7 +242,7 @@ export async function playAbsoluteContinuousTones(
       // play the first
       startTime = ct + sound.time;
     } else {
-      if (inst?.constructor.name === OscillatorNode.name) {
+      if (inst instanceof OscillatorNode) {
         if (rampers.pitch) {
           inst.frequency[rampers.pitch](sound.pitch || DefaultFrequency, ct + sound.time);
         } else {
