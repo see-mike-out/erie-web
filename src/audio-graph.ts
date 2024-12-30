@@ -31,8 +31,8 @@ export function readyRecording() {
 }
 
 export async function compileAudioGraph(audio_spec: TopLevelSpec, options: ConfigInterface) {
-  // at here
-  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec);
+  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec, options);
+
   // 1. load datasets first! && filling missing data type
   let loaded_datasets: LoadedDatasets = {};
   let scalesToRemove = [];

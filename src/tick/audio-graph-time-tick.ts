@@ -1,10 +1,7 @@
-import {
-  makeInstrument,
-  makeOfflineContext
-} from "../player/audio-graph-player-proto";
 import { round } from "../util";
-import { TickDefinition } from "../types";
+import { InstrumentNode, TickDefinition } from "../types";
 import { AudioPrimitiveBuffer } from "../pulse";
+import { makeInstrument, makeOfflineContext } from "../player/audio-graph-make";
 
 export const Def_Tick_Interval = 0.5,
   Def_Tick_Interval_Beat = 2,
@@ -16,7 +13,7 @@ export function makeTick(
   ctx: AudioContext | OfflineAudioContext,
   def: TickDefinition,
   duration: number
-): null | AudioNode {
+): InstrumentNode | null {
   // ticker definition;
   if (!def) return null;
   else if (duration) {
@@ -41,9 +38,9 @@ export function makeTick(
       tickPattern.push({ pause: duration - totalTime });
     }
     let tickInst = makeInstrument(ctx, 'default');
-    tickInst.frequency.value = 150;
-    if (def.pitch) tickInst.frequency.value = def.pitch;
-    if (def.oscType) tickInst.type = def.oscType;
+    if ('frequency' in tickInst) tickInst.frequency.value = 150;
+    if (def.pitch && 'frequency' in tickInst) tickInst.frequency.value = def.pitch;
+    if (def.oscType && 'type' in tickInst) tickInst.type = def.oscType;
     let gain = ctx.createGain();
     tickInst.connect(gain);
     gain.connect(ctx.destination);
@@ -69,7 +66,7 @@ export async function playTick(
   duration: number,
   start: number,
   end: number,
-  bufferPrimitve: AudioPrimitiveBuffer
+  bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
   let ctx = _ctx;
   if (bufferPrimitve) ctx = makeOfflineContext(duration);

@@ -1,6 +1,4 @@
 import {
-  setPlayerEvents,
-  clearPlayerEvents,
   playAbsoluteDiscreteTonesAlt,
   playAbsoluteContinuousTones,
   playSingleTone,
@@ -8,10 +6,12 @@ import {
   playRelativeDiscreteTonesAndSpeeches,
   playPause,
 } from "./audio-graph-player-proto";
-
 import { makeContext } from "./audio-graph-make";
-import { ErieGlobalControl } from "./audio-graph-player-global";
-
+import {
+  clearPlayerEvents,
+  closeErieGlobalControl,
+  setPlayerEvents
+} from "./audio-graph-player-global";
 import {
   loadSamples
 } from "./audio-graph-instrument-sample";
@@ -34,7 +34,6 @@ import {
   ToneSpeechSeries,
   Pause,
   ToneOverlaySeries,
-  SpeechType,
   DefaultFrequency,
   Stopped,
   Paused,
@@ -73,7 +72,8 @@ import {
   notifyResume,
   deepcopy,
   genRid,
-  mergeTapPattern
+  mergeTapPattern,
+  getStartTime1
 } from "../util";
 
 export class AudioGraphQueue {
@@ -150,13 +150,16 @@ export class AudioGraphQueue {
       if (type === TextType && isTextQueueItem(item) && isTextInfo(info)) {
         item.text = info?.speech ?? '';
         if (info?.speechRate) item.speechRate = info?.speechRate;
+        item.language = info.language;
+        item.pitch = info.pitch;
+        item.loudness = info.loudness;
       } else if (type === ToneType && isToneQueueItem(item) && isSoundInfo(info)) {
         item.instrument_type = info.instrument_type;
         if (this.isSupportedInst(item.instrument_type)) checkInstrumentSampling.add(item.instrument_type);
         else if (this.isSampling(item.instrument_type)) userSampledInstruments.add(item.instrument_type);
         item.time = info.sound?.start ?? (info as Glyph).start ?? 0;
-        item.end = info.sound?.end ?? (item.time + (info.sound?.duration || 0.2));
-        item.duration = info.sound?.duration ?? (item.end - item.time) ?? 0.2; // in seconds
+        item.end = info.sound?.end ?? (getStartTime1(item) + (info.sound?.duration ?? 0.2));
+        item.duration = info.sound?.duration ?? (item.end - getStartTime1(item)) ?? 0.2; // in seconds
         item.pitch = info.sound?.pitch ?? DefaultFrequency;
         item.detune = info.sound?.detune;
         item.loudness = info.sound?.loudness ?? 1;
@@ -335,7 +338,7 @@ export class AudioGraphQueue {
     }
     let ttsFetchFunction = options?.ttsFetchFunction
     if (isTextQueueItem(item)) {
-      await playSingleSpeech(item.text, config, bufferPrimitve, ttsFetchFunction);
+      await playSingleSpeech(item, config, bufferPrimitve, ttsFetchFunction);
     } else if (isToneQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
@@ -343,7 +346,7 @@ export class AudioGraphQueue {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
-      await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+      await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters ?? [], bufferPrimitve);
       ctx.close();
     } else if (isPauseQueueItem(item)) {
       await playPause(item.duration * 1000, config);
@@ -387,7 +390,7 @@ export class AudioGraphQueue {
         } else if (!stream.relative) {
           promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else {
-          promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
+          promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve, ttsFetchFunction));
         }
       }
       await Promise.all(promises);
@@ -405,11 +408,7 @@ export class AudioGraphQueue {
     // button-based stop
     // for event stop ==> audio-graph-player-proto.js
     if (this.state === Playing) {
-      if (ErieGlobalControl?.type === ToneType && ErieGlobalControl?.player instanceof AudioContext && ErieGlobalControl?.player?.close) {
-        ErieGlobalControl.player.close();
-      } else if (ErieGlobalControl?.type === SpeechType && ErieGlobalControl?.player instanceof SpeechSynthesis && ErieGlobalControl?.player?.cancel) {
-        ErieGlobalControl.player.cancel();
-      }
+      closeErieGlobalControl()
       // @ts-ignore
       // this can be changed over time!
       if (this.state !== Stopped) {
@@ -482,7 +481,7 @@ function makeSingleStreamQueueValues(
   let queue_values: Glyph[] = [];
   for (const sound of sounds) {
     let time = sound.start !== undefined ? sound.start : sound.time;
-    let dur = sound.duration !== undefined ? sound.duration : ((sound.end ?? 0) - (time ?? 0));
+    let dur = sound.duration !== undefined ? sound.duration : ((sound.end ?? 0) - getStartTime1({ time }));
     let tap = mergeTapPattern(sound.tapCount, sound.tapSpeed);
     if (sound.tapCount || sound.tapSpeed) {
       if (tap?.totalLength !== undefined) dur = tap.totalLength;
@@ -519,7 +518,7 @@ function makeSingleStreamQueueValues(
     }
     queue_values.push(ith_q);
   }
-  queue_values = queue_values.sort((a: Glyph, b: Glyph) => ((a.time ?? 0) + (a.duration ?? 0)) - ((b.time ?? 0) + (b.duration ?? 0)));
+  queue_values = queue_values.sort((a: Glyph, b: Glyph) => (getStartTime1(a) - getStartTime1(b)));
 
   return queue_values as Glyphs2;
 }

@@ -28,7 +28,8 @@ export function makeTimeChannelScale(
   values: any[],
   info: RecordObject,
   scaleType: RecordObject,
-  beat: BeatObject | undefined) {
+  beat: BeatObject | undefined
+) {
   let encoding = deepcopy(_encoding);
   let scaleDef = encoding?.scale;
   if (encoding.type === NOM && !scaleDef.timing) {

@@ -1,6 +1,7 @@
 import { setErieGlobalControl } from "./audio-graph-player-global";
 
 import {
+  AudioGraphQueueItemText,
   AudioGraphSpeechItem,
   bcp47language,
   ConfigInterface,
@@ -11,14 +12,14 @@ import {
 let ErieGlobalSynth: SpeechSynthesis;
 
 export async function WebSpeechGenerator(
-  sound: AudioGraphSpeechItem,
+  sound: AudioGraphSpeechItem | AudioGraphQueueItemText,
   config: ConfigInterface,
   onstart: Function,
   onend: Function,
   resolve: Function
 ): Promise<void> {
   if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
-  var utterance = new SpeechSynthesisUtterance(sound.speech);
+  var utterance = new SpeechSynthesisUtterance('speech' in sound ? sound.speech : sound.text);
   if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
   else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
   if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;

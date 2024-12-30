@@ -1,6 +1,9 @@
 import { determineNoteRange } from './audio-graph-instrument-sample';
 import { makeSynth } from './audio-graph-synth';
-import { makeNoiseNode, NoiseTypes } from './audio-graph-noise';
+import {
+  makeNoiseNode,
+  NoiseTypes
+} from './audio-graph-noise';
 import {
   SampleRate,
   BufferChannels,

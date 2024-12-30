@@ -186,6 +186,10 @@ export class ErieSynth {
     this.carrier.stop(time + this.attackTime + this.releaseTime);
     this.modulator.stop(time + this.attackTime + this.releaseTime);
   }
+
+  get adTime() {
+    return (this.attackTime ?? 0) + (this.decayTime ?? 0)
+  }
 }
 
 export class ErieSynthFrequency {

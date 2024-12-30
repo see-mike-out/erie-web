@@ -2,8 +2,8 @@ import { RecordObject } from "../generic";
 import { bcp47language, TapCountValue, TapPattern, TapSpeedValue } from "../render";
 
 export type Glyph = {
-  start?: number;
-  time?: number;
+  start?: number| 'after_previous';
+  time?: number | 'after_previous';
   end?: number;
   duration?: number;
   key?: string;

@@ -16,7 +16,6 @@ import {
   NormalizedTone,
   NormalizedEncoding,
   NormalizedEncodingItem,
-  RampExp,
   RampLinear,
   TransformItem,
   AggregateItem,
@@ -33,7 +32,8 @@ import {
   TransformList,
   Auto,
   ConfigInterface,
-  DataSpec3
+  DataSpec3,
+  RampAbrupt
 } from "../types";
 import {
   deepcopy,
@@ -125,7 +125,7 @@ export function normalizeSingleSpec(
     let _ramp: RampType | undefined = undefined;
     if (o_enc.ramp && RampMethods.includes(o_enc.ramp)) {
       if (typeof o_enc.ramp === 'string') _ramp = o_enc.ramp;
-      else _ramp = o_enc.ramp ? RampLinear : RampExp;
+      else _ramp = o_enc.ramp ? RampLinear : RampAbrupt;
     } else {
       _ramp = 'linear'
     }
@@ -271,7 +271,7 @@ export function normalizeSingleSpec(
     scaleDefinitions.forEach((d) => {
       if (d.channel === TIME_chn && d.id === encoding[TIME_chn]?.scale?.id) {
         if (!d.hasTime2) d.hasTime2 = [];
-        d.hasTime2.push(normalized.id);
+        d.hasTime2.push(id);
       }
     })
   }
@@ -279,7 +279,7 @@ export function normalizeSingleSpec(
   if (encoding[REPEAT_chn]) {
     scaleDefinitions.forEach((d) => {
       if (!d.isRepeated) d.isRepeated = [];
-      d.isRepeated.push(normalized.id);
+      d.isRepeated.push(id);
     });
   }
   // makr used channels

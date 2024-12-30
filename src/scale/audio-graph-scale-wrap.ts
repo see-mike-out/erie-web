@@ -67,8 +67,16 @@ export function getAudioScales(
   //   domainMax = domainSorted[domainSorted.length - 1];
   //   domainMin = domainSorted[0];
   // } else
-  if (values) {
+  if (values && values.length == 2 && values[0] instanceof Array && values[1] instanceof Array) {
     let domainSorted = values[0].concat(values[1]).toSorted(asc);
+    domainMax = domainSorted[domainSorted.length - 1];
+    domainMin = domainSorted[0];
+  } else if (values && values.length == 1 && values[0] instanceof Array) {
+    let domainSorted = values[0].toSorted(asc);
+    domainMax = domainSorted[domainSorted.length - 1];
+    domainMin = domainSorted[0];
+  } else if (values instanceof Array) {
+    let domainSorted = values.toSorted(asc);
     domainMax = domainSorted[domainSorted.length - 1];
     domainMin = domainSorted[0];
   }

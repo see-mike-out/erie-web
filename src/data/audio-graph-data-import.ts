@@ -13,9 +13,11 @@ import {
   ParsedDatasetObject
 } from "../types";
 
-export async function getData(dataDef: DataSpec,
+export async function getData(
+  dataDef: DataSpec,
   loaded_datasets: { [key: string]: any[] },
-  datasets: { [key: string]: ParsedDatasetObject }) {
+  datasets: { [key: string]: ParsedDatasetObject }
+) {
   let data;
   if ('values' in dataDef && dataDef.values) {
     return deepcopy(dataDef.values);

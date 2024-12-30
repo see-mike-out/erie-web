@@ -1,11 +1,12 @@
 // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
 
 import { AudioFilterPrototype } from "./audio-graph-filter-class";
-import { AudioFilterEncoder, AudioFilterFinisher, Glyph } from "../types";
+import { AudioFilterEncoder, AudioFilterFinisher, Glyph, RamperCollection } from "../types";
+import { rampBy } from "../player/audio-graph-ramp";
 
 export class BiquadFilter extends AudioFilterPrototype {
   filter: BiquadFilterNode;
-  destination: BiquadFilterNode;
+  destination: BiquadFilterNode ;
   useGain: boolean;
 
   constructor(ctx: AudioContext | OfflineAudioContext) {
@@ -141,36 +142,32 @@ export class AllpassBiquadFilter extends BiquadFilter {
   }
 }
 
-export const BiquadEncoder = function (filter: BiquadFilter, sound: Glyph, startTime: number) {
+export const BiquadEncoder = function (filter: BiquadFilter, sound: Glyph, startTime: number, rampers?: RamperCollection) {
   if (filter.useGain) {
-    if (startTime > 0) filter.filter.gain.linearRampToValueAtTime((sound?.others?.biquadGain || 1), startTime);
-    else filter.filter.gain.setValueAtTime((sound?.others?.biquadGain || 1), startTime);
+    rampBy(startTime == 0 ? 'setValueAtTime' : rampers?.biquadGain, filter.filter.gain, (sound?.others?.biquadGain ?? 1), startTime);
   }
   if (sound?.others?.biquadPitch !== undefined) {
-    if (startTime > 0) filter.filter.frequency.linearRampToValueAtTime((sound.others.biquadPitch || 1), startTime);
-    else filter.filter.frequency.setValueAtTime((sound.others.biquadPitch || 1), startTime);
+    rampBy(startTime == 0 ? 'setValueAtTime' : rampers?.biquadPitch, filter.filter.frequency, (sound.others.biquadPitch ?? 1), startTime);
   }
   if (sound?.others?.biquadQ !== undefined) {
-    if (startTime > 0) filter.filter.Q.linearRampToValueAtTime((sound.others.biquadQ || 1), startTime);
-    else filter.filter.Q.setValueAtTime((sound.others.biquadQ || 1), startTime);
+    rampBy(startTime == 0 ? 'setValueAtTime' : rampers?.biquadQ, filter.filter.Q, (sound.others.biquadQ ?? 1), startTime);
   }
   if (sound?.others?.biquadDetune !== undefined) {
-    if (startTime > 0) filter.filter.detune.linearRampToValueAtTime((sound.others.biquadDetune || 1), startTime);
-    else filter.filter.detune.setValueAtTime((sound.others.biquadDetune || 1), startTime);
+    rampBy(startTime == 0 ? 'setValueAtTime' : rampers?.biquadDetune, filter.filter.detune, (sound.others.biquadDetune ?? 1), startTime);
   }
 } as AudioFilterEncoder
 
-export const BiquadFinisher = function (filter: BiquadFilter, sound: Glyph, startTime: number, duration: number) {
+export const BiquadFinisher = function (filter: BiquadFilter, sound: Glyph, startTime: number, duration: number, rampers?: RamperCollection) {
   if (filter.useGain) {
-    filter.filter.gain.setValueAtTime((sound?.others?.biquadGain || 1), startTime + duration);
+    filter.filter.gain.setValueAtTime((sound?.others?.biquadGain ?? 1), startTime + duration);
   }
   if (sound?.others?.biquadPitch !== undefined) {
-    filter.filter.frequency.setValueAtTime((sound.others.biquadPitch || 1), startTime + duration);
+    filter.filter.frequency.setValueAtTime((sound.others.biquadPitch ?? 1), startTime + duration);
   }
   if (sound?.others?.biquadQ !== undefined) {
-    filter.filter.Q.setValueAtTime((sound.others.biquadQ || 1), startTime + duration);
+    filter.filter.Q.setValueAtTime((sound.others.biquadQ ?? 1), startTime + duration);
   }
   if (sound?.others?.biquadDetune !== undefined) {
-    filter.filter.detune.setValueAtTime((sound.others.biquadDetune || 1), startTime + duration);
+    filter.filter.detune.setValueAtTime((sound.others.biquadDetune ?? 1), startTime + duration);
   }
 } as AudioFilterFinisher

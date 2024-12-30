@@ -7,6 +7,7 @@ import {
   isToneSeriesQueueItem,
   RampType
 } from "../types";
+import { getEndTime1, getStartTime1 } from "../util";
 
 const channels = 2;
 // TODO
@@ -24,7 +25,7 @@ export async function generatePCMCode(queue: AudioGraphQueueItem) {
     queues.push(...queue.overlays);
   }
 
-  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d: Glyph) => (d.time ?? 0) + (d.duration ?? 0) + (d.postReverb || 0))));
+  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d: Glyph) => getEndTime1(d) + (d.postReverb || 0))));
   let length = Math.max(...queue_lengths);
   let frameCount = sampleRate * length;
   let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
@@ -41,8 +42,8 @@ export async function generatePCMCode(queue: AudioGraphQueueItem) {
     if (!queue.continued) {
       // discrete sounds
       for (const sound of sounds) {
-        let f = (sound.time ?? 0) * sampleRate,
-          t = ((sound.time ?? 0) + (sound.duration ?? 0) + (sound.postReverb ?? 0)) * sampleRate;
+        let f = getStartTime1(sound) * sampleRate,
+          t = (getEndTime1(sound) + (sound.postReverb ?? 0)) * sampleRate;
         let length = t - f;
         let data = populatePCMforFreq((sound.pitch ?? DefaultFrequency), length, sampleRate);
         let gain = sound.loudness;
@@ -60,12 +61,12 @@ export async function generatePCMCode(queue: AudioGraphQueueItem) {
       let ramp_pan = getRampFunction(queue.ramp?.pan),
         ramp_gain = getRampFunction(queue.ramp?.loudness);
       if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
-        sounds.sort((a: Glyph, b: Glyph) => (a.time ?? 0) - (b.time ?? 0));
+        sounds.sort((a: Glyph, b: Glyph) => getStartTime1(a) - getStartTime1(b));
         let acc_prev = 0;
         for (let i = 0; i < sounds.length - 1; i++) {
           let sound = sounds[i], next_sound = sounds[i + 1];
-          let f = Math.round((sound.time ?? 0) * sampleRate),
-            t = Math.round((next_sound.time ?? 0) * sampleRate);
+          let f = Math.round(getStartTime1(sound) * sampleRate),
+            t = Math.round(getStartTime1(next_sound) * sampleRate);
           let length = t - f;
 
           let pcm_pop = populatePCMforFreqRamp((sound.pitch ?? DefaultFrequency), (next_sound.pitch ?? DefaultFrequency), queue.ramp?.pitch, acc_prev, length, sampleRate);

@@ -1,9 +1,11 @@
 import { AudioFilterPrototype } from "../../audioFilters";
+import { RampFunctionName } from "../encoding";
 import { Glyph } from "../internal";
+import { RamperCollection } from "./ramp";
 
-export type AudioFilterEncoder = (filter: AudioFilterPrototype, sound: Glyph, startTime: number) => void;
+export type AudioFilterEncoder = (filter: AudioFilterPrototype, sound: Glyph, startTime: number, rampers?: RamperCollection) => void;
 
-export type AudioFilterFinisher = (filter: AudioFilterPrototype, sound: Glyph, startTime: number, duration: number) => void;
+export type AudioFilterFinisher = (filter: AudioFilterPrototype, sound: Glyph, startTime: number, duration: number, rampers?: RamperCollection) => void;
 
 
 export interface ErieFilterCollectionItem {

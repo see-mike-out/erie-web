@@ -1,8 +1,36 @@
-import { AllpassBiquadFilter, BandpassBiquadFilter, BiquadEncoder, BiquadFinisher, HighpassBiquadFilter, HighshelfBiquadFilter, LowpassBiquadFilter, LowshelfBiquadFilter, NotchBiquadFilter, PeakingBiquadFilter } from "../audioFilters/audio-graph-filter-biquad";
-import { CompressorEncoder, CompressorFinisher, DefaultDynamicCompressor } from "../audioFilters/audio-graph-filter-compressor";
-import { DistortionEncoder, DistortionFilter, DistortionFinisher } from "../audioFilters/audio-graph-filter-distortion";
-import { GainerFilter, GainerEncoder, GainerFinisher } from "../audioFilters/audio-graph-filter-gainer";
-import { AudioFilterEncoder, DETUNE_chn, ErieFilterCollection, LOUDNESS_chn, PITCH_chn } from "../types";
+import {
+  AllpassBiquadFilter,
+  BandpassBiquadFilter,
+  BiquadEncoder,
+  BiquadFinisher,
+  HighpassBiquadFilter,
+  HighshelfBiquadFilter,
+  LowpassBiquadFilter,
+  LowshelfBiquadFilter,
+  NotchBiquadFilter,
+  PeakingBiquadFilter
+} from "../audioFilters/audio-graph-filter-biquad";
+import {
+  CompressorEncoder,
+  CompressorFinisher,
+  DefaultDynamicCompressor
+} from "../audioFilters/audio-graph-filter-compressor";
+import {
+  DistortionEncoder,
+  DistortionFilter,
+  DistortionFinisher
+} from "../audioFilters/audio-graph-filter-distortion";
+import {
+  GainerFilter,
+  GainerEncoder,
+  GainerFinisher
+} from "../audioFilters/audio-graph-filter-gainer";
+import {
+  DETUNE_chn,
+  ErieFilterCollection,
+  LOUDNESS_chn,
+  PITCH_chn
+} from "../types";
 
 export const PresetFilters: ErieFilterCollection = {
   'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },

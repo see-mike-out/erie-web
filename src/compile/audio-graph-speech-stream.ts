@@ -28,7 +28,10 @@ export class SpeechStream {
       if (stream.speech) {
         text.push({
           speech: stream.speech,
-          speechRate: stream.speechRate ?? this.config?.speechRate
+          speechRate: stream.speechRate ?? this.config?.speechRate,
+          language: stream.language,
+          pitch: stream.pitch,
+          loudness: stream.loudness
         } as PreGraphSpeechItem);
       }
     }

@@ -19,9 +19,13 @@ import {
 } from "../types";
 
 import * as aq from "arquero";
-const fromTidy = aq.from, op = aq.op, escape = aq.escape, aqTable = aq.table;
+const fromTidy = aq.from, escape = aq.escape, aqTable = aq.table;
 
-export function transformData(data: any[], transforms: TransformList, dimensions: string[]): InternalData {
+export function transformData(
+  data: any[],
+  transforms: TransformList,
+  dimensions: string[]
+): InternalData {
   let table: AqTableType = fromTidy(data);
   let tableInfo: TableInfoObject = {};
   if (transforms?.constructor.name === "Array" && transforms.length > 0) {
@@ -37,9 +41,7 @@ export function transformData(data: any[], transforms: TransformList, dimensions
         let new_field_name2 = transform.end || old_field_name + "__bin_end";
         if (!dimensions.includes(new_field_name)) dimensions.push(new_field_name);
         if (!dimensions.includes(new_field_name2)) dimensions.push(new_field_name2);
-        // @ts-ignore
-        let { start, end, nBuckets, equiBin } = createBin(table.column(old_field_name)?.data, transform);
-        // the above line is correct, just Arquero does not make some types available.
+        let { start, end, nBuckets, equiBin } = createBin((table.column(old_field_name) ?? []) as number[], transform);
         let binned = aqTable({ [new_field_name]: start, [new_field_name2]: end });
         table = table.assign(binned);
         // drop na
@@ -113,7 +115,7 @@ export function transformData(data: any[], transforms: TransformList, dimensions
       }
     }
   }
-  let output: InternalData = new InternalData(table.objects());
+  let output: InternalData = InternalData.from(table.objects());
   output.tableInfo = tableInfo;
   return output;
 }

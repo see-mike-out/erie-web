@@ -26,6 +26,8 @@ export type RampType = boolean
 
 export const RampMethods = [true, false, RampAbrupt, RampLinear, RampExp];
 
+export type RampFunctionName = 'setValueAtTime' | 'linearRampToValueAtTime' | 'exponentialRampToValueAtTime' | 'setTargetAtTime';
+
 // SCALE
 // polarity
 export const POS = 'positive',

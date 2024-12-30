@@ -7,7 +7,7 @@ import {
 import { BinObject } from "../types";
 
 export function createBin(col: number[], transform: BinObject): {
-  start: number[], end: number[], nBukcets: number, equiBin: boolean
+  start: number[], end: number[], nBuckets: number, equiBin: boolean
 } {
   let is_nice = transform.nice;
   if (is_nice === undefined) is_nice = true;
@@ -35,5 +35,5 @@ export function createBin(col: number[], transform: BinObject): {
   }
   let binned = col.map(binAssigner);
   let start = binned.map(d => d.start), end = binned.map(d => d.end);
-  return { start, end, nBukcets: buckets.length, equiBin };
+  return { start, end, nBuckets: buckets.length, equiBin };
 }

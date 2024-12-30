@@ -17,7 +17,8 @@ import {
   PuaseMarker,
   SingleTapPosType,
   SINGLE_TAP_END,
-  TapPattern
+  TapPattern,
+  Glyph
 } from "../types";
 import { round } from "./audio-graph-util";
 
@@ -332,3 +333,23 @@ export function noteToFreq(note: number | string) {
   }
   else { return null; }
 }
+
+export function getEndTime1(a: Glyph) {
+  if (a.time === 'after_previous') {
+    return (a.duration ?? 0);
+  } else {
+    return (a.time ?? 0) + (a.duration ?? 0);
+  }
+}
+
+export function getDuration1(a: Glyph) {
+  return (a.duration ?? 0) + (a.postReverb ?? 0);
+}
+
+export function getStartTime1(a: Glyph) {
+  if (typeof a.time === 'number') return a.time;
+  else return 0;
+}
+
+export const glyphSorterByEnd = (a: Glyph, b: Glyph) => getEndTime1(a) - getEndTime1(b)
+export const glyphSorterByStart = (a: Glyph, b: Glyph) => getStartTime1(a) - getStartTime1(b)

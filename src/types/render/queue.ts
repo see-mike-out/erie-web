@@ -13,6 +13,7 @@ import {
   ToneType
 } from "../internal";
 import { TapPattern } from "./instrument";
+import { bcp47language } from "./speech";
 import { TapCountValue, TapSpeedValue } from "./tapping";
 
 // to Play
@@ -28,6 +29,9 @@ export type AudioGraphQueueItemText = {
   duration?: number;
   text?: string;
   speechRate?: number;
+  language?: typeof bcp47language[number],
+  pitch?: number,
+  loudness?: number
 }
 
 export type AudioGraphQueueItemTone = {
@@ -35,7 +39,7 @@ export type AudioGraphQueueItemTone = {
   config?: ConfigInterface;
   instrument_type: string;
   duration?: number;
-  time?: number;
+  time?: number | 'after_previous';
   end?: number;
   pitch?: number;
   detune?: number;

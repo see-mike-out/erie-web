@@ -36,11 +36,19 @@ import {
   deepcopy,
   genRid,
   unique,
-  toHashedObject
+  toHashedObject,
+  addURLtoDataObject
 } from "../util";
+import { setSampleBaseUrl } from "../base";
 
-export async function normalizeSpecification(_spec: TopLevelSpec): Promise<NormalizedStream> {
+export async function normalizeSpecification(_spec: TopLevelSpec, options: ConfigInterface): Promise<NormalizedStream> {
   let spec = deepcopy(_spec);
+  // treat options
+  let dataBaseUrl = options.dataBaseUrl;
+  let sampleBaseUrl = options.sampleBaseUrl;
+  if (sampleBaseUrl) {
+    setSampleBaseUrl(sampleBaseUrl);
+  }
   let streams: NormalizedStreamItem[] = [],
     datasets: ParsedDatasetObject[] = 'datasets' in spec ? deepcopy(spec.datasets || []) : [],
     synths: SynthObject[] = deepcopy(spec.synth || []),
@@ -58,7 +66,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec): Promise<Norma
         let new_data_name = "data__" + (datasets.length + 1)
         datasets.push({
           name: new_data_name,
-          ...deepcopy(spec.data)
+          ...addURLtoDataObject(spec.data, dataBaseUrl)
         });
         spec.data = { name: new_data_name } as DataSpec3;
       }
@@ -78,7 +86,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec): Promise<Norma
       new_data_name = "data__" + (datasets.length + 1);
       datasets.push({
         name: new_data_name,
-        ...deepcopy(spec.data)
+        ...addURLtoDataObject(spec.data, dataBaseUrl)
       });
     }
     if (isOverlayStream(spec) && 'overlay' in spec) {
@@ -93,12 +101,12 @@ export async function normalizeSpecification(_spec: TopLevelSpec): Promise<Norma
         toplevel_data_name = `data__${((datasets.length ?? 0) + 1)}`;
         // then pass it as a dataset;
         toplevel_data = { name: toplevel_data_name } as DataSpec3;
-        datasets.push({ name: toplevel_data_name, ...deepcopy(spec.data) } as ParsedDatasetObject);
+        datasets.push({ name: toplevel_data_name, ...addURLtoDataObject(spec.data, dataBaseUrl) } as ParsedDatasetObject);
       }
       // or if the spec's data has a name
       else if ('data' in spec && spec.data
         && ('name' in spec.data && spec.data.name)) {
-        toplevel_data = deepcopy(spec.data);
+        toplevel_data = addURLtoDataObject(spec.data, dataBaseUrl);
         if (!('dataset' in spec) || !spec.dataset) {
           console.warn("Dataset name can't be used with a specified dataset");
         }
@@ -252,7 +260,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec): Promise<Norma
           let overlay_id = 'overlay-' + genRid();
 
           // run a recursion
-          let n = await normalizeSpecification(o as TopLevelSpec);
+          let n = await normalizeSpecification(o as TopLevelSpec, options);
 
           // as it should generate only a single overlay stream
           let over = n.normalized[0] as NormalizedOverlayItem;

@@ -24,8 +24,8 @@ export type TableInfoObject = {
 export class InternalData extends Array {
   tableInfo?: RecordObject;
 
-  constructor(arr: Array<any>) {
-    super();
+  constructor(...arr: Array<any>) {
+    super(...arr);
   }
 }
 

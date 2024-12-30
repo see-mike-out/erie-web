@@ -60,7 +60,8 @@ export async function compileSingleLayerAuidoGraph(
   _data: any[],
   config: ConfigInterface | undefined,
   tickDef: { [key: string]: TickObject },
-  common_scales: ScaleCollection) {
+  common_scales: ScaleCollection
+) {
   let layer_spec = {
     name: audio_spec.name,
     encoding: audio_spec.encoding,
@@ -85,7 +86,7 @@ export async function compileSingleLayerAuidoGraph(
     }
   }).filter((d) => d !== undefined).flat();
 
-  let data: InternalData;
+  let data: InternalData = _data;
   if (audio_spec.common_transform) {
     data = transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions);
   } else {
@@ -107,15 +108,15 @@ export async function compileSingleLayerAuidoGraph(
   let is_repeated = encoding[REPEAT_chn] !== undefined;
   let has_repeat_speech = is_repeated && encoding[REPEAT_chn].speech;
   if (has_repeat_speech === undefined) has_repeat_speech = true;
-  if (encoding[REPEAT_chn].field === undefined) {
+  if (is_repeated && encoding[REPEAT_chn]?.field === undefined) {
     console.error("Repeat field must be provided.")
   }
-  let _rf: string | string[] = encoding[REPEAT_chn].field as string | string[];
+  let _rf: string | string[] | undefined = 'REPEAT_chn' in encoding ? encoding[REPEAT_chn].field as string | string[] : undefined;
   if (typeof _rf === 'string') _rf = [_rf];
-  let repeat_field: string[] = _rf;
+  let repeat_field: string[] | undefined = _rf;
   let _rd: typeof SEQUENCE | typeof OVERLAY | Array<typeof SEQUENCE | typeof OVERLAY> | undefined = encoding[REPEAT_chn]?.by;
   let repeat_direction: Array<typeof SEQUENCE | typeof OVERLAY> = [];
-  if (is_repeated) {
+  if (is_repeated && repeat_field) {
     if (_rd === undefined) _rd = [SEQUENCE];
     else if (typeof _rd === 'string') _rd = [_rd];
     repeat_direction = _rd;
@@ -146,11 +147,11 @@ export async function compileSingleLayerAuidoGraph(
     });
   }
 
-  if (is_repeated && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.order) {
+  if (is_repeated && repeat_field && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.order) {
     data_order.push({
       key: repeat_field[0], order: encoding[REPEAT_chn].scale?.order
     });
-  } else if (is_repeated && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.sort) {
+  } else if (is_repeated && repeat_field && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.sort) {
     data_order.push({
       key: repeat_field[0], sort: encoding[REPEAT_chn].scale?.sort
     });
@@ -174,7 +175,7 @@ export async function compileSingleLayerAuidoGraph(
     repeat_values!: RepeatMembershipItem[],
     repeat_level: number = 0;
 
-  if (is_repeated) {
+  if (is_repeated && repeat_field) {
     repeat_level = repeat_field.length;
     repeat_values = unique(data.map((d) => repeat_field.map((k) => d[k]).join("_$_")))
       .map((d) => ({
@@ -256,7 +257,7 @@ export async function compileSingleLayerAuidoGraph(
     if (i === 'tableInfo') continue;
     let datum = data[i];
     // if (datum[encoding[TIME_chn].field] !== undefined) continue;
-    let repeat_index = is_repeated ? repeated_graph_map[repeat_field.map(k => datum[k]).join("&")] : -1;
+    let repeat_index = is_repeated && repeat_field ? repeated_graph_map[repeat_field.map(k => datum[k]).join("&")] : -1;
     let glyph = scales.time(
       (datum[encoding[TIME_chn].field as string] !== undefined ? datum[encoding[TIME_chn].field as string] : parseInt(i)),
       (hasTime2 ?

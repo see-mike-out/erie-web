@@ -1,5 +1,6 @@
 import * as tts from "@google-cloud/text-to-speech";
 import {
+  AudioGraphQueueItemText,
   AudioGraphSpeechItem,
   bcp47language,
   ConfigInterface
@@ -8,13 +9,13 @@ import {
 const SSMLGENDERS = [`NEUTRAL`, `FEMALE`, `MALE`];
 
 export async function GoogleCloudTTSGenerator(
-  sound: AudioGraphSpeechItem,
+  sound: AudioGraphSpeechItem | AudioGraphQueueItemText,
   config: ConfigInterface
   // @ts-ignore (this is typescript bug, works okay)
 ): Promise<string | Uint8Array<ArrayBufferLike> | null | undefined> {
   if (typeof window === 'undefined') {
     // node
-    let text = sound.speech;
+    let text = 'speech' in sound ? sound.speech : sound.text;
     let lang = sound.language || config.language;
     let languageCode = bcp47language.includes(lang) ? lang : 'en-US';
     let ssmlGender = SSMLGENDERS.includes(config.ssmlGender) ? config.ssmlGender : 'NEUTRAL';
