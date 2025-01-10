@@ -240,8 +240,7 @@ async function __playSingleTone(
     }
   }
 
-  rampBy('setTargetAtTime', gain.gain,
-    ct + (et - ct) * 0.95, 0.015);
+  rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
 
   if (sound.pan !== undefined) {
     panner.pan.setValueAtTime(sound.pan, ct);
