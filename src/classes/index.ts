@@ -3,7 +3,6 @@ export * from "./erie-channel";
 export * from "./erie-channels";
 export * from "./erie-config";
 export * from "./erie-data";
-export * from "./erie-datasets";
 export * from "./erie-overlay";
 export * from "./erie-sampling";
 export * from "./erie-sequence";

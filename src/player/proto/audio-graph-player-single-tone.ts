@@ -39,8 +39,7 @@ import {
 import {
   deepcopy,
   genRid,
-  getDuration1,
-  getStartTime1
+  getDuration1
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
 import { AudioFilterPrototype } from '../../audioFilters';

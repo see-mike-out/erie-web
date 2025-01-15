@@ -1,4 +1,3 @@
-import { aRange } from "../../util";
 import { ABS, Condition, EncodingType, FormatType, NEG, POS, REL, ScaleTransformType, ScaleType, SIM, SortValues } from "../encoding";
 import { OVERLAY, SEQUENCE } from "../stream";
 import { Glyph, QueueItemTypes, TextType, ToneSeries } from "./stream";
@@ -91,6 +90,15 @@ export type ParsedScaleDescription = {
   sound: Glyph,
   instrument_type: string
 };
+
+function aRange(s: number, e: number, incl?: boolean): number[] {
+  let o = [];
+  if (incl) e = e + 1;
+  for (let i = s; i < e; i++) {
+    o.push(i);
+  }
+  return o;
+}
 
 export const timeUnitDomainDefs = {
   monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],

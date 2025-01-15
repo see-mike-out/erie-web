@@ -6,8 +6,10 @@ import {
 } from "./erie-util";
 import { Config } from "./erie-config";
 import { Synth } from "./erie-synth";
-import { Data } from "./erie-data";
-import { Datasets } from "./erie-datasets";
+import {
+  Data,
+  Datasets
+} from "./erie-data";
 import { Sampling } from "./erie-sampling";
 import { TickList } from "./erie-tick";
 import { Transform } from "./erie-transform";

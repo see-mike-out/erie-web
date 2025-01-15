@@ -2,10 +2,13 @@
   "name": "erie-web",
   "version": "1.0.0",
   "description": "A declarative grammar for data sonification for web",
-  "main": "src/index.js",
-  "module": "src/index.js",
+  "main": "build/erie-web.min.js",
+  "module": "dist/index.js",
   "unpkg": "build/erie-web.min.js",
   "jsdelivr": "build/erie-web.min.js",
+  "browser": {
+    "build/erie-web.min.js": "build/erie-web-umd.min.js"
+  },
   "scripts": {
     "test": "vitest",
     "build": "tsc && rollup -c && scripts/post_build.sh"
