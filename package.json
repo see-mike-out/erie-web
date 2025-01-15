@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A declarative grammar for data sonification for web",
   "main": "build/erie-web.min.js",
-  "module": "dist/index.js",
+  "module": "src/index.ts",
   "unpkg": "build/erie-web.min.js",
   "jsdelivr": "build/erie-web.min.js",
   "browser": {

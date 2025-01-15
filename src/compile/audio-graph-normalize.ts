@@ -41,11 +41,11 @@ import {
 } from "../util";
 import { setSampleBaseUrl } from "../base";
 
-export async function normalizeSpecification(_spec: TopLevelSpec, options: ConfigInterface): Promise<NormalizedStream> {
+export async function normalizeSpecification(_spec: TopLevelSpec, options?: ConfigInterface): Promise<NormalizedStream> {
   let spec = deepcopy(_spec);
   // treat options
-  let dataBaseUrl = options.dataBaseUrl;
-  let sampleBaseUrl = options.sampleBaseUrl;
+  let dataBaseUrl = options?.dataBaseUrl;
+  let sampleBaseUrl = options?.sampleBaseUrl;
   if (sampleBaseUrl) {
     setSampleBaseUrl(sampleBaseUrl);
   }

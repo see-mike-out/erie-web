@@ -1493,8 +1493,8 @@ function normalizeSpecification(_spec, options) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _p, _q;
         let spec = deepcopy(_spec);
         // treat options
-        let dataBaseUrl = options.dataBaseUrl;
-        let sampleBaseUrl = options.sampleBaseUrl;
+        let dataBaseUrl = options === null || options === void 0 ? void 0 : options.dataBaseUrl;
+        let sampleBaseUrl = options === null || options === void 0 ? void 0 : options.sampleBaseUrl;
         if (sampleBaseUrl) {
             setSampleBaseUrl(sampleBaseUrl);
         }

@@ -41,7 +41,7 @@ export function transformData(
         let new_field_name2 = transform.end || old_field_name + "__bin_end";
         if (!dimensions.includes(new_field_name)) dimensions.push(new_field_name);
         if (!dimensions.includes(new_field_name2)) dimensions.push(new_field_name2);
-        let { start, end, nBuckets, equiBin } = createBin((table.column(old_field_name) ?? []) as number[], transform);
+        let { start, end, nBuckets, equiBin } = createBin((table.array(old_field_name) ?? []) as number[], transform);
         let binned = aqTable({ [new_field_name]: start, [new_field_name2]: end });
         table = table.assign(binned);
         // drop na
