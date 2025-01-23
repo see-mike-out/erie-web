@@ -13,5 +13,5 @@ test('list element generation', () => {
     }
   ];
   
-  expect(compileDescriptionMarkup(test_markup, 'pitch', {}, 1.75, 'second')).toBe(expected);
+  expect(compileDescriptionMarkup(test_markup, 'pitch', {}, 1.75, 'second')).toStrictEqual(expected);
 })
