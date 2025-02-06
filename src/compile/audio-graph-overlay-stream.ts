@@ -125,9 +125,9 @@ export class OverlayStream {
     }
 
     let overlays: PreGraphUnit[] = [];
-    this.overlays.forEach(async (stream: UnitStream) => {
+    for (const stream of this.overlays) {
       overlays.push(await stream.prerender());
-    });
+    }
 
     this.queue.add(ToneOverlaySeries,
       { overlays }

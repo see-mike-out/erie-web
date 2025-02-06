@@ -49,9 +49,9 @@ import { roundToNoteScale } from "../player";
 export function getAudioScales(
   channel: string,
   encoding: NormalizedEncodingItem & ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined,
   beat: BeatObject | undefined,
-  data: any[]
+  data: any[] | undefined
 ): ParsedScaleFunction | null {
   // extract default information
   let polarity = encoding.scale?.polarity || POS;
@@ -89,7 +89,11 @@ export function getAudioScales(
 
   // get scale functions
   if (scaleType.fieldRange) {
-    _scale = makeFieldedScaleFunction(channel, encoding, values, info, data);
+    if (!data) {
+      console.error("A scale that has range as a field must have a dataset.")
+    } else {
+      _scale = makeFieldedScaleFunction(channel, encoding, values, info, data);
+    }
   } else if (scaleType.isTime) {
     // time scales
     _scale = makeTimeChannelScale(channel, encoding, values, info, scaleType, beat);
@@ -131,7 +135,7 @@ export function getAudioScales(
         } as TapCountValue);
       } else if (channel === TAPSPD_chn) {
         // tapping speed
-        let tapSpeedValues = values.map((d) => _scale(d));
+        let tapSpeedValues = (values ?? []).map((d) => _scale(d));
         let tapBand = encoding.scale?.band || (beat ? DEF_TAP_DUR_BEAT : DEF_TAP_DUR)
         let maxTapSpeed = round(Math.max(...tapSpeedValues) * tapBand, 0);
         let tappingUnit = tapBand / (maxTapSpeed + (maxTapSpeed - 1) * (pause.rate !== undefined ? pause.rate : DEF_TAP_PAUSE_RATE));
@@ -198,14 +202,14 @@ export function getAudioScales(
 function getScaleType(
   channel: string,
   encoding: NormalizedEncodingItem & ParsedScaleDefinition,
-  values: any[]
+  values: any[] | undefined
 ): RecordObject {
   let isTime = TimeChannels.includes(channel) || TimeChannels.includes(channel[0]);
   let isSpeech = SpeechChannels.includes(channel);
   let encodingType = encoding.type;
   if (!encodingType) {
     if (encoding.value) encodingType = STATIC;
-    else encodingType = detectType(values);
+    else encodingType = values ? detectType(values) : STATIC;
   }
   let field = encoding.original_field || encoding.field;
   let binned = encoding.binned;

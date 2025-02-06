@@ -21,7 +21,7 @@ import { FilterExtraChannelTypes } from "../player";
 export function makeNominalScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined, 
   info: RecordObject,
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
@@ -39,7 +39,7 @@ export function makeNominalScaleFunction(
   // domain
   let domain = deepcopy(scaleDef?.domain || null);
   if (!domain) {
-    domain = unique(values);
+    domain = unique(values ?? []);
   }
   scaleProperties.domain = domain;
 

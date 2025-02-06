@@ -305,7 +305,6 @@ export class AudioGraphQueue {
       this.fireStartEvent();
       let k = 0;
       for (const item of queue) {
-        console.log(item, this.state, options);
         // @ts-ignore
         // why? the below condition can change over time
         if (this.state === Stopped || this.state === Paused) break;
