@@ -5,11 +5,15 @@ import { UnitStream } from './audio-graph-unit-stream';
 import {
   CompressedPreGraphItem,
   ConfigInterface,
+  HashedSampledToneObject,
+  HashedSynthObject,
+  HashedWaveObject,
   PreGraphUnit,
   TextType,
   ToneOverlaySeries,
 } from '../types';
 import {
+  deepcopy,
   toOrdinalNumbers
 } from '../util';
 
@@ -23,6 +27,9 @@ export class OverlayStream {
   description!: string;
   queue!: AudioGraphQueue;
   duration!: number;
+  synths: HashedSynthObject;
+  samplings: HashedSampledToneObject;
+  waves: HashedWaveObject;
 
   constructor() {
     this.overlays = [];
@@ -30,6 +37,9 @@ export class OverlayStream {
     this.prerendered = false;
     this.config = {};
     this.name;
+    this.synths = {};
+    this.samplings = {};
+    this.waves = {};
   }
 
   setName(name: string) {
@@ -52,6 +62,18 @@ export class OverlayStream {
     this.overlays.push(...streams);
   }
 
+
+  setSampling(samplings: HashedSampledToneObject) {
+    this.samplings = deepcopy(samplings);
+  }
+
+  setSynths(synths: HashedSynthObject) {
+    this.synths = synths;
+  }
+  setWaves(waves: HashedWaveObject) {
+    this.waves = waves;
+  }
+
   setConfig(key: string, value: any) {
     this.config[key] = value;
   }
@@ -64,6 +86,11 @@ export class OverlayStream {
 
   async prerender(subpart?: boolean) {
     this.queue = new AudioGraphQueue();
+
+    this.queue.setSampling(this.samplings);
+    this.queue.setSynths(this.synths);
+    this.queue.setWaves(this.waves);
+
     // order: scale > title--repeated
 
     // main title & description

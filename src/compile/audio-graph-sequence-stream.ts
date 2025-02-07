@@ -68,7 +68,7 @@ export class SequenceStream {
   }
 
   setSampling(samplings: HashedSampledToneObject) {
-    this.samplings = samplings;
+    this.samplings = deepcopy(samplings);
   }
 
   setSynths(synths: HashedSynthObject) {
@@ -93,6 +93,7 @@ export class SequenceStream {
         this.queue?.setConfig(key, this.config[key]);
       })
     }
+
     this.queue.setSampling(this.samplings);
     this.queue.setSynths(this.synths);
     this.queue.setWaves(this.waves);
