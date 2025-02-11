@@ -281,8 +281,7 @@ export async function makeScales(
     let channel = scaleDef.channel;
 
     let o: ParsedScaleDefinition = deepcopy(scaleDef);
-
-    if (scaleDef.values === undefined || scaleDef.data === undefined) {
+    if (scaleDef.values === undefined && scaleDef.data === undefined && scaleDef.value === undefined) {
       console.error("Value not assigned", scaleDef);
     } else {
       let s = getAudioScales(channel, o, scaleDef.values, beat, scaleDef.data);
@@ -300,7 +299,8 @@ export async function makeScales(
 function scaleInfoUpdater(
   channel: NormalizedEncodingItem,
   scaleInfo: { [key: string]: ParsedScaleDefinition },
-  data: any[]): void {
+  data: any[]
+): void {
   let field = channel.field;
   let scaleId = channel?.scale?.id;
   if (scaleId && scaleInfo[scaleId]) {

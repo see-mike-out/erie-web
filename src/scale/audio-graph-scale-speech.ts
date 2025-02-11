@@ -9,7 +9,7 @@ import {
 export function makeSpeechChannelScale(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined,
   info: RecordObject,
 ): ParsedScaleFunction {
   // consider details

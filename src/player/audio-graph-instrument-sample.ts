@@ -166,6 +166,7 @@ export async function makeMultiScaleSamplingNode(
   ctx: AudioContext,
   def: SamplingItem
 ): Promise<LoadedMultiSample> {
+  console.log(def)
   let samples: RecordObject = { multiNote: true },
     keys = Object.keys(def) as Array<keyof SamplingItem>;
   if (!keys.every(scaleKeyCheck)) {
@@ -186,6 +187,7 @@ export async function makeSingleScaleSamplingNode(
   ctx: AudioContext,
   def: string
 ): Promise<LoadedMonoSample> {
+  console.log(def)
   let sampleRes = await fetch(def);
   let sampleBuffer = await sampleRes.arrayBuffer();
   let source = await ctx.decodeAudioData(sampleBuffer)

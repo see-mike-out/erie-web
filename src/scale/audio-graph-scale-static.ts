@@ -15,7 +15,7 @@ import {
 export function makeStaticScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined,
   info: RecordObject
 ): ParsedScaleFunction {
   let value = encoding.value;

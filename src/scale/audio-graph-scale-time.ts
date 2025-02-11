@@ -25,7 +25,7 @@ import { deepcopy } from "../util";
 export function makeTimeChannelScale(
   channel: string,
   _encoding: ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined,
   info: RecordObject,
   scaleType: RecordObject,
   beat: BeatObject | undefined
