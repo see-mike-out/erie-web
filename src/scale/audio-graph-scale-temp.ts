@@ -29,7 +29,7 @@ import { FilterExtraChannelTypes } from "../player";
 export function makeTemporalScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined,
   info: RecordObject
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;

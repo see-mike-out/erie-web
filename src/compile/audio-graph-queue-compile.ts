@@ -111,7 +111,7 @@ export async function compileSingleLayerAuidoGraph(
   if (is_repeated && encoding[REPEAT_chn]?.field === undefined) {
     console.error("Repeat field must be provided.")
   }
-  let _rf: string | string[] | undefined = 'REPEAT_chn' in encoding ? encoding[REPEAT_chn].field as string | string[] : undefined;
+  let _rf: string | string[] | undefined = REPEAT_chn in encoding ? encoding[REPEAT_chn].field as string | string[] : undefined;
   if (typeof _rf === 'string') _rf = [_rf];
   let repeat_field: string[] | undefined = _rf;
   let _rd: typeof SEQUENCE | typeof OVERLAY | Array<typeof SEQUENCE | typeof OVERLAY> | undefined = encoding[REPEAT_chn]?.by;

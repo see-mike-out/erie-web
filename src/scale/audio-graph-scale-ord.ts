@@ -34,7 +34,7 @@ import { FilterExtraChannelTypes } from "../player";
 export function makeOrdinalScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[],
+  values: any[] | undefined,
   info: RecordObject,
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
@@ -64,7 +64,7 @@ export function makeOrdinalScaleFunction(
   // domain
   let domain = deepcopy(scaleDef?.domain || null);
   if (!domain) {
-    domain = unique(values).toSorted(sortFunction);
+    domain = unique(values ?? []).toSorted(sortFunction);
   }
   scaleProperties.domain = domain;
 

@@ -11,7 +11,7 @@ import {
 export function makeFieldedScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[], // for the shape
+  values: any[] | undefined, // for the shape
   info: RecordObject, // for the shape
   data: any[]) {
   let scaleProperties: ParsedScaleProperties = {

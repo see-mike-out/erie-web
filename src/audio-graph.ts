@@ -127,6 +127,12 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
       if (stream.stream.description) sequence.setDescription(stream.stream.description);
     } else if ('overlay' in stream && stream.overlay) {
       let overlays = new OverlayStream();
+
+      // registering
+      overlays.setSampling(toHashedObject(samplings, 'name'));
+      overlays.setSynths(toHashedObject(synths, 'name'));
+      overlays.setWaves(toHashedObject(waves, 'name'));
+
       let i = 0;
       for (const overlay of stream.overlay) {
         let data = deepcopy(loaded_datasets[overlay.data.name]);
