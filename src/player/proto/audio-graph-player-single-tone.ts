@@ -44,6 +44,7 @@ import {
 import { AudioPrimitiveBuffer } from '../../pulse';
 import { AudioFilterPrototype } from '../../audioFilters';
 import { rampBy } from '../audio-graph-ramp';
+import { make3DScaleFunction } from '../../audio-graph-scale-3d';
 
 export async function playSingleTone(
   ctx: AudioContext | OfflineAudioContext,
@@ -166,9 +167,29 @@ async function __playSingleTone(
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(destination);
-  // streo panner == pan
-  const panner = ctx.createStereoPanner();
-  panner.connect(gain);
+
+  // decide between stereo or 3d pan
+  const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
+  let panner: AudioNode;
+
+  if (cartesianInputs == 1) {
+    const stereoPanner = ctx.createStereoPanner();
+    stereoPanner.connect(gain);
+    panner = stereoPanner;
+  } else{
+    const panner3D = ctx.createPanner();
+    panner3D.connect(gain);
+    panner3D.panningModel = 'HRTF';
+    panner3D.distanceModel = 'inverse';
+    panner3D.refDistance = 1;
+    panner3D.maxDistance = 10000;
+    panner3D.rolloffFactor = 1;
+    panner3D.coneInnerAngle = 360;
+    panner3D.coneOuterAngle = 0;
+    panner3D.coneOuterGain = 0;
+    panner = panner3D;
+  }
+  
 
   // play as async promise
   // get the current time

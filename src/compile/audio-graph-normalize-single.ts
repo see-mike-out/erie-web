@@ -82,6 +82,31 @@ export function normalizeSingleSpec(
   let further_transforms: TransformItem[] = [];
   let encoding_aggregates: AggregateItem[] = [];
   let encoding: NormalizedEncoding = {};
+
+  // [TODO] Add check for polar vs cartesian 3d pan
+  // - consider saturation, warn and drop. default to cartesian if similar saturation levels
+
+  const cartesianChannels = ['panX', 'panY', 'panZ'];
+  const polarChannels = ['panRadius', 'panPolar', 'panAzimuth'];
+  const cartesianSaturation = cartesianChannels.filter(channel => spec.encoding[channel] !== undefined).length;
+  const polarSaturation = polarChannels.filter(channel => spec.encoding[channel] !== undefined).length;
+
+  if (cartesianSaturation > polarSaturation) {
+    polarChannels.forEach(channel => {
+      if (spec.encoding[channel]) {
+        console.warn(`Dropping polar channel ${channel} in favor of Cartesian channels due to higher saturation.`);
+        delete spec.encoding[channel];
+      }
+    });
+  } else if (polarSaturation > cartesianSaturation) {
+    cartesianChannels.forEach(channel => {
+      if (spec.encoding[channel]) {
+        console.warn(`Dropping Cartesian channel ${channel} in favor of polar channels due to higher saturation.`);
+        delete spec.encoding[channel];
+      }
+    });
+  }
+
   if (spec.encoding[TIME_chn]?.scale?.timing === SIM) {
     if (spec.encoding[SPEECH_BEFORE_chn] && spec.encoding[SPEECH_AFTER_chn]) {
       console.warn(`Speech channels cannot be used for simultaneous timing. ${SPEECH_BEFORE_chn} and ${SPEECH_AFTER_chn} are dropped.`);
