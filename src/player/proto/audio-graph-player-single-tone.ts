@@ -168,15 +168,16 @@ async function __playSingleTone(
   const gain = ctx.createGain();
   gain.connect(destination);
 
-  // decide between stereo or 3d pan
+  // TODO create a function to handle this and call as needed (look at ramp)
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
-  let panner: AudioNode;
+  let panner!: AudioNode;
 
-  if (cartesianInputs == 1) {
+  if (cartesianInputs == 1 && sound.panX !== undefined) {
     const stereoPanner = ctx.createStereoPanner();
     stereoPanner.connect(gain);
     panner = stereoPanner;
   } else{
+    // TODO Update doc, is this standard? could provide config options
     const panner3D = ctx.createPanner();
     panner3D.connect(gain);
     panner3D.panningModel = 'HRTF';

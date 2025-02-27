@@ -126,9 +126,28 @@ export async function playAbsoluteContinuousTones(
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(destination);
-  // streo panner == pan
-  const panner = ctx.createStereoPanner();
-  panner.connect(gain);
+  
+  // decide between stereo or 3d pan
+  const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => queue[0][key] !== undefined).length;
+  let panner!: AudioNode;
+
+  if (cartesianInputs == 1) {
+    const stereoPanner = ctx.createStereoPanner();
+    stereoPanner.connect(gain);
+    panner = stereoPanner;
+  } else {
+    const panner3D = ctx.createPanner();
+    panner3D.connect(gain);
+    panner3D.panningModel = 'HRTF';
+    panner3D.distanceModel = 'inverse';
+    panner3D.refDistance = 1;
+    panner3D.maxDistance = 10000;
+    panner3D.rolloffFactor = 1;
+    panner3D.coneInnerAngle = 360;
+    panner3D.coneOuterAngle = 0;
+    panner3D.coneOuterGain = 0;
+    panner = panner3D;
+  }
 
   let sid = genRid()
   sendToneStartEvent({ sid });

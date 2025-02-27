@@ -27,10 +27,10 @@ export function make3DScaleFunction(
     }
 
     if (panRadius !== undefined && panPolar !== undefined && panAzimuth !== undefined && panX === undefined && panY === undefined && panZ === undefined) {
-      const polarRad = (panPolar % 360) * (Math.PI / 180);
-      const azimuthRad = (panAzimuth % 360) * (Math.PI / 180);
-      panX = panRadius * Math.sin(polarRad) * Math.cos(azimuthRad);
-      panY = panRadius * Math.sin(polarRad) * Math.sin(azimuthRad);
+      const polarRad = panPolar * (Math.PI / 180);
+      const azimuthRad = panAzimuth * (Math.PI / 180);
+      panX = panRadius * (Math.sin(polarRad) * Math.cos(azimuthRad));
+      panY = panRadius * (Math.sin(polarRad) * Math.sin(azimuthRad));
       panZ = panRadius * Math.cos(polarRad);
     }
 

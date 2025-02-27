@@ -1,6 +1,14 @@
 import { expect, test } from 'vitest';
 import { make3DScaleFunction } from '../src/audio-graph-scale-3d';
 
+function sinDeg(degrees) {
+  return Math.sin(degrees * (Math.PI / 180));
+}
+
+function cosDeg(degrees) {
+  return Math.cos(degrees * (Math.PI / 180));
+}
+
 test('3D Scale Function Test', () => {
   const encoding = {
     domain: [-5, 0, 5],
@@ -44,9 +52,9 @@ test('Polar Coordinates Test', () => {
   expect(result3.z).to.be.closeTo(0, 1e-10);
 
   const result4 = scaleFunction(undefined, undefined, undefined, 5, 45, 45);
-  expect(result4.x).to.be.closeTo(5 * Math.sin(45 * Math.PI / 180) * Math.cos(45 * Math.PI / 180), 1e-10);
-  expect(result4.y).to.be.closeTo(5 * Math.sin(45 * Math.PI / 180) * Math.sin(45 * Math.PI / 180), 1e-10);
-  expect(result4.z).to.be.closeTo(5 * Math.cos(45 * Math.PI / 180), 1e-10);
+  expect(result4.x).to.be.closeTo(5 * sinDeg(45) * cosDeg(45), 1e-10);
+  expect(result4.y).to.be.closeTo(5 * sinDeg(45) * sinDeg(45), 1e-10);
+  expect(result4.z).to.be.closeTo(5 * cosDeg(45), 1e-10);
 
   const result5 = scaleFunction(undefined, undefined, undefined, 5, 180, 0);
   expect(result5.x).to.be.closeTo(0, 1e-10);
@@ -64,7 +72,7 @@ test('Polar Coordinates Test', () => {
   expect(result7.z).to.be.closeTo(0, 1e-10);
 
   const result8 = scaleFunction(undefined, undefined, undefined, 5, 135, 45);
-  expect(result8.x).to.be.closeTo(5 * Math.sin(135 * Math.PI / 180) * Math.cos(45 * Math.PI / 180), 1e-10);
-  expect(result8.y).to.be.closeTo(5 * Math.sin(135 * Math.PI / 180) * Math.sin(45 * Math.PI / 180), 1e-10);
-  expect(result8.z).to.be.closeTo(5 * Math.cos(135 * Math.PI / 180), 1e-10);
+  expect(result8.x).to.be.closeTo(5 * sinDeg(135) * cosDeg(45), 1e-10);
+  expect(result8.y).to.be.closeTo(5 * sinDeg(135) * sinDeg(45), 1e-10);
+  expect(result8.z).to.be.closeTo(5 * cosDeg(135), 1e-10);
 });
