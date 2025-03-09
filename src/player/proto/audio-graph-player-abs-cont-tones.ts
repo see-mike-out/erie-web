@@ -199,6 +199,7 @@ export async function playAbsoluteContinuousTones(
       rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
     }
     // panner node
+    // TODO - Check stereo vs 3d
     if (sound.pan !== undefined) {
       // [check output:] panner.pan.setTargetAtTime(sound.pan, st, 0.35);
       // rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pan, panner.pan, sound.pan, st);
