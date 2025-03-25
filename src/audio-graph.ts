@@ -90,7 +90,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   let si = 0;
   for (const stream of normalized) {
     if ('intro' in stream && stream.intro) {
-      let speeches: string[] = [stream.intro.title, stream.intro.description].filter(d => d !== undefined);
+      let speeches: (string | undefined)[] = [stream.intro.title, stream.intro.description].filter(d => d !== undefined);
       let sStream = new SpeechStream(speeches.map((d) => ({ speech: d } as AudioGraphSpeechItem)));
       if ('config' in audio_spec && audio_spec.config) {
         Object.keys(audio_spec.config).forEach((key) => {

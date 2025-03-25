@@ -8,6 +8,12 @@ export type DataSpec3 = {
   name: string
 };
 
+// new spec?
+export type StreamingDataSpec = {
+  stream: true,
+  test?: DataSpec1 | DataSpec2,
+}
+
 export type DataSpec = DataSpec1 | DataSpec2 | DataSpec3;
 
 export type DatasetSpecItem = {
