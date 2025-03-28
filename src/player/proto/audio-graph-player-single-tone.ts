@@ -39,11 +39,12 @@ import {
 import {
   deepcopy,
   genRid,
-  getDuration1
+  getDuration1,
+  createPanner
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
 import { AudioFilterPrototype } from '../../audioFilters';
-import { rampBy } from '../audio-graph-ramp';
+import { rampBy } from '../audio-graph-ramp'; 
 import { make3DScaleFunction } from '../../audio-graph-scale-3d';
 
 export async function playSingleTone(
@@ -168,28 +169,9 @@ async function __playSingleTone(
   const gain = ctx.createGain();
   gain.connect(destination);
 
-  // TODO create a function to handle this and call as needed (look at ramp)
+  // DONE  function to handle this and call as needed (look at ramp)
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
-  let panner!: AudioNode;
-
-  if (cartesianInputs == 1 && sound.panX !== undefined) {
-    const stereoPanner = ctx.createStereoPanner();
-    stereoPanner.connect(gain);
-    panner = stereoPanner;
-  } else{
-    // TODO Update doc, is this standard? could provide config options
-    const panner3D = ctx.createPanner();
-    panner3D.connect(gain);
-    panner3D.panningModel = 'HRTF';
-    panner3D.distanceModel = 'inverse';
-    panner3D.refDistance = 1;
-    panner3D.maxDistance = 10000;
-    panner3D.rolloffFactor = 1;
-    panner3D.coneInnerAngle = 360;
-    panner3D.coneOuterAngle = 0;
-    panner3D.coneOuterGain = 0;
-    panner = panner3D;
-  }
+  const panner = createPanner(ctx as any, cartesianInputs, gain);
   
 
   // play as async promise
@@ -264,7 +246,9 @@ async function __playSingleTone(
   rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
 
   if (sound.pan !== undefined) {
-    panner.pan.setValueAtTime(sound.pan, ct);
+    if (panner instanceof StereoPannerNode) {
+      panner.pan.setValueAtTime(sound.pan, ct);
+    }
   }
 
   // play & stop
