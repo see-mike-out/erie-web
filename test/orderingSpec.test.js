@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { normalizeOrderSpec } from "../src/ordering/order";
-import { overlayOrderingSpec } from "../src/ordering/confidenceEnvelopeExample";
+import { overlayOrderingSpec } from "./confidenceEnvelopeExample";
 import { normalizeSpecification } from "../src/compile/audio-graph-normalize";
 import confidenceEnvelopeSpec from "./confidenceEnvelopeExample.json";
 
