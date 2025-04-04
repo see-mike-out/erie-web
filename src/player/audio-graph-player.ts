@@ -486,6 +486,64 @@ export class AudioGraphQueue {
     // @ts-ignore
     return window.URL.createObjectURL(blob);
   }
+
+  /**
+   * ROUGH BLUEPRINT: Adds and plays streaming data for the AudioGraphQueue
+   * 
+   * @param streamData - The new data to be added to the queue
+   * @param options - Optional configuration for streaming playback
+   * @returns A promise that resolves when the streaming data has been played
+   */
+  async addStreamingData(
+    streamData: PreGraphItem | PreGraphItem[], 
+    options?: {
+      playImmediately?: boolean;
+      appendToExisting?: boolean;
+      continuedPlay?: boolean;
+      lineConfig?: ConfigInterface;
+    }
+  ): Promise<void> {
+    const {
+      playImmediately = true,
+      appendToExisting = true,
+      continuedPlay = true,
+      lineConfig = {}
+    } = options || {};
+
+    // 1. Normalize input to array
+    const dataToAdd = Array.isArray(streamData) ? streamData : [streamData];
+
+    // 2. If not appending (discrete case), clear existing queue
+    if (!appendToExisting) {
+      this.destroy(); // Resets queue and state
+    }
+
+    // 3. Add new items to queue
+    for (const item of dataToAdd) {
+      // Determine insertion position
+      const insertPosition = appendToExisting 
+        ? this.queue.length 
+        : undefined;
+
+      // Add the item to the queue using the existing add method
+      this.add(
+        ToneType, 
+        item, 
+        lineConfig, 
+        insertPosition
+      );
+    }
+
+    // 4. Play the queue if specified
+    if (playImmediately) {
+      // Determine starting point based on continued play option
+      const startIndex = continuedPlay && this.playAt !== undefined 
+        ? this.playAt 
+        : 0;
+
+      await this.play(startIndex);
+    }
+  }
 }
 
 
