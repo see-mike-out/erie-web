@@ -165,7 +165,7 @@ export class AudioGraphQueue {
         else if (this.isSampling(item.instrument_type)) userSampledInstruments.add(item.instrument_type);
         item.time = info.sound?.start ?? (info as Glyph).start ?? 0;
         item.end = info.sound?.end ?? (getStartTime1(item) + (info.sound?.duration ?? 0.2));
-        item.duration = info.sound?.duration ?? (item.end - getStartTime1(item)) ?? 0.2; // in seconds
+        item.duration = info.sound?.duration ?? item.end - getStartTime1(item); // in seconds
         item.pitch = info.sound?.pitch ?? DefaultFrequency;
         item.detune = info.sound?.detune;
         item.loudness = info.sound?.loudness ?? 1;
@@ -334,7 +334,6 @@ export class AudioGraphQueue {
     item: AudioGraphQueueItem,
     options?: RecordObject
   ) {
-    console.log(this.samplings, this.sampledInstruments)
     let config = deepcopy(this.config);
     if ('config' in item && item.config) Object.assign(config, item.config);
     if ('ramp' in item && item.ramp) config.ramp = item.ramp;
