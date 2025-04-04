@@ -45,7 +45,13 @@ import {
   MembershipMarker,
   RepeatTree,
   RepeatTreeLeaf,
-  RepeatTreeNonLeaf
+  RepeatTreeNonLeaf,
+  PAN_X_chn,
+  PAN_Y_chn,
+  PAN_Z_chn,
+  PAN_RADIUS_chn,
+  PAN_POLAR_chn,
+  PAN_AZIMUTH_chn
 } from "../types";
 import { makeScaleDescription } from "../scale";
 import {
@@ -54,6 +60,14 @@ import {
   Def_Tick_Interval,
   Def_Tick_Interval_Beat
 } from '../tick';
+
+function sinDeg(degrees: number): number {
+  return Math.sin(degrees * (Math.PI / 180));
+}
+
+function cosDeg(degrees: number): number {
+  return Math.cos(degrees * (Math.PI / 180));
+}
 
 export async function compileSingleLayerAuidoGraph(
   audio_spec: NormalizedSingleStream,
@@ -279,6 +293,13 @@ export async function compileSingleLayerAuidoGraph(
       if (TapChannels.includes(channel)) {
         glyph.duration = glyph[channel].totalLength;
       }
+    }
+    // TODO - Post processing - convert polar to cartesian (if using polar), else keep cartesian/stereo
+
+    if (glyph[PAN_RADIUS_chn] !== undefined && (glyph[PAN_POLAR_chn] !== undefined || glyph[PAN_AZIMUTH_chn] !== undefined)) {
+      glyph[PAN_X_chn] = glyph[PAN_RADIUS_chn] * sinDeg(glyph[PAN_POLAR_chn] ?? 0) * cosDeg(glyph[PAN_AZIMUTH_chn] ?? 0);
+      glyph[PAN_Y_chn] = glyph[PAN_RADIUS_chn] * sinDeg(glyph[PAN_POLAR_chn] ?? 0) * sinDeg(glyph[PAN_AZIMUTH_chn] ?? 0);
+      glyph[PAN_Z_chn] = glyph[PAN_RADIUS_chn] * cosDeg(glyph[PAN_POLAR_chn] ?? 0);
     }
 
     if (glyph[SPEECH_BEFORE_chn]) {
