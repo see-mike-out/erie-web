@@ -39,11 +39,13 @@ import {
 import {
   deepcopy,
   genRid,
-  getDuration1
+  getDuration1,
+  createPanner
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
 import { AudioFilterPrototype } from '../../audioFilters';
-import { rampBy } from '../audio-graph-ramp';
+import { rampBy } from '../audio-graph-ramp'; 
+import { make3DScaleFunction } from '../../audio-graph-scale-3d';
 
 export async function playSingleTone(
   ctx: AudioContext | OfflineAudioContext,
@@ -166,9 +168,11 @@ async function __playSingleTone(
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(destination);
-  // streo panner == pan
-  const panner = ctx.createStereoPanner();
-  panner.connect(gain);
+
+  // DONE  function to handle this and call as needed (look at ramp)
+  const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
+  const panner = createPanner(ctx as any, cartesianInputs, gain);
+  
 
   // play as async promise
   // get the current time
@@ -242,7 +246,9 @@ async function __playSingleTone(
   rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
 
   if (sound.pan !== undefined) {
-    panner.pan.setValueAtTime(sound.pan, ct);
+    if (panner instanceof StereoPannerNode) {
+      panner.pan.setValueAtTime(sound.pan, ct);
+    }
   }
 
   // play & stop
