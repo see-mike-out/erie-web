@@ -4,4 +4,3 @@ export * from "./audio-graph-scale-util";
 export * from "./audio-graph-speech";
 export * from "./audio-graph-typing-util";
 export * from "./audio-graph-util";
-export * from "./audio-graph-pan-util";

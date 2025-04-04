@@ -17,6 +17,9 @@ import {
   setErieGlobalControl,
   setErieGlobalState
 } from '../audio-graph-player-global';
+import {
+  createPanner
+} from '../audio-graph-panner'
 import { rampBy } from '../audio-graph-ramp';
 
 import { ErieFilters } from '../../classes';
@@ -46,8 +49,7 @@ import {
   getEndTime1,
   getStartTime1,
   glyphSorterByEnd,
-  glyphSorterByStart,
-  createPanner
+  glyphSorterByStart
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
 import { AudioFilterPrototype } from '../../audioFilters';

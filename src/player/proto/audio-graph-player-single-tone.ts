@@ -18,6 +18,9 @@ import {
   setErieGlobalControl,
   setErieGlobalState
 } from '../audio-graph-player-global';
+import {
+  createPanner
+} from "../audio-graph-panner"
 
 import { playPause } from './audio-graph-player-pause';
 
@@ -39,13 +42,12 @@ import {
 import {
   deepcopy,
   genRid,
-  getDuration1,
-  createPanner
+  getDuration1
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
 import { AudioFilterPrototype } from '../../audioFilters';
 import { rampBy } from '../audio-graph-ramp'; 
-import { make3DScaleFunction } from '../../audio-graph-scale-3d';
+import { make3DScaleFunction } from '../../scale/audio-graph-scale-3d';
 
 export async function playSingleTone(
   ctx: AudioContext | OfflineAudioContext,

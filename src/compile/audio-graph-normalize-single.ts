@@ -33,7 +33,13 @@ import {
   Auto,
   ConfigInterface,
   DataSpec3,
-  RampAbrupt
+  RampAbrupt,
+  PAN_X_chn,
+  PAN_Y_chn,
+  PAN_Z_chn,
+  PAN_RADIUS_chn,
+  PAN_POLAR_chn,
+  PAN_AZIMUTH_chn
 } from "../types";
 import {
   deepcopy,
@@ -83,12 +89,9 @@ export function normalizeSingleSpec(
   let encoding_aggregates: AggregateItem[] = [];
   let encoding: NormalizedEncoding = {};
 
-  // if spec.encoding[PAN] exits, delete and change to panX
-
-  // [TODO] Add check for polar vs cartesian 3d pan
-  // - consider saturation, warn and drop. default to cartesian if similar saturation levels
-  const cartesianChannels = ['panX', 'panY', 'panZ'];
-  const polarChannels = ['panRadius', 'panPolar', 'panAzimuth'];
+  // decide whether to use Cartesian or Polar channels for panning
+  const cartesianChannels = [PAN_X_chn, PAN_Y_chn, PAN_Z_chn];
+  const polarChannels = [PAN_RADIUS_chn, PAN_POLAR_chn, PAN_AZIMUTH_chn];
   const cartesianSaturation = cartesianChannels.filter(channel => spec.encoding[channel] !== undefined).length;
   const polarSaturation = polarChannels.filter(channel => spec.encoding[channel] !== undefined).length;
 
@@ -101,7 +104,6 @@ export function normalizeSingleSpec(
       }
     });
   } else if (polarSaturation > cartesianSaturation) {
-    // TODO - can only drop one degree , check, then this is fine. otherwise error off not enough info
     cartesianChannels.forEach(channel => {
       if (spec.encoding[channel]) {
         console.warn(`Dropping Cartesian channel ${channel} in favor of polar channels due to higher saturation.`);
