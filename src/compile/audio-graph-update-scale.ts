@@ -7,8 +7,9 @@ import {
 import {
   BeatObject,
   ConfigInterface,
+  Datum,
+  EncodingItemNormed,
   LoadedDatasets,
-  NormalizedEncodingItem,
   NormalizedSingleStream,
   NormalizedStreamItem,
   ParsedScaleDefinition,
@@ -17,12 +18,13 @@ import {
   ScaleType,
   STATIC,
   TIME_chn,
-  TMP
+  TMP,
+  TransformerFunction
 } from "../types";
 import {
-  deepcopy,
-  detectType
+  deepcopy
 } from "../util";
+import { detectType } from "./audio-graph-compile-utils";
 
 export function tidyUpScaleDefinitions(
   scaleDefinitions: ParsedScaleDefinition[],
@@ -112,7 +114,7 @@ export function tidyUpScaleDefinitions(
 
 function findScaleMatch(
   scaleDefinitions: ParsedScaleDefinition[],
-  encoding: NormalizedEncodingItem,
+  encoding: EncodingItemNormed,
   matchParent: boolean,
   matchData: boolean) {
   // matchParent (whether overlay's scales are consistent to those of parent sequence)
@@ -214,8 +216,13 @@ export async function makeScales(
   // 1. update scale information
   for (const stream of normalized) {
     if ('stream' in stream && stream.stream) {
-      let data = loaded_datasets[stream.stream.data.name];
-      data = applyTransforms(data, stream.stream);
+      let data = !config.is_streaming ? loaded_datasets[stream.stream.data.name] : [];
+      let transformer!: TransformerFunction;
+      if (!config.is_streaming) {
+        data = applyTransforms(data, stream.stream);
+      } else if (config.is_streaming) {
+        data = [];
+      }
       let encoding = stream.stream.encoding;
       for (const cname of Object.keys(encoding)) {
         let scaleId = encoding[cname]?.scale?.id;
@@ -297,9 +304,9 @@ export async function makeScales(
 
 
 function scaleInfoUpdater(
-  channel: NormalizedEncodingItem,
+  channel: EncodingItemNormed,
   scaleInfo: { [key: string]: ParsedScaleDefinition },
-  data: any[]
+  data: Datum[]
 ): void {
   let field = channel.field;
   let scaleId = channel?.scale?.id;

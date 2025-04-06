@@ -1,4 +1,4 @@
-import { RecordObject } from "../types/generic";
+import { HashedObject, RecordObject } from "../types";
 import { deepcopy } from "./audio-graph-util";
 
 export function listString(arr: any[], delim: string, isAnd: boolean, _and?: string): string {
@@ -29,7 +29,7 @@ export function toOrdinalNumbers(n: number): string {
  * @param dp 
  * @returns 
  */
-export function toHashedObject<T extends RecordObject>(a: T[], k: string, dp?: boolean): { [key: string]: T } {
+export function toHashedObject<T extends RecordObject>(a: T[], k: string, dp?: boolean): HashedObject<T> {
   let o: { [key: string]: T } = {};
   a.forEach((d: T) => {
     let key = d[k];

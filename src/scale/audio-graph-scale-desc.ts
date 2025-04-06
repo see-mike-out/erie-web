@@ -19,7 +19,6 @@ import {
   TIME_chn,
   TMP,
   ConfigInterface,
-  NormalizedEncodingItem,
   BeatObject,
   ParsedScaleDescription,
   Glyph,
@@ -29,18 +28,17 @@ import {
   TimeUnitUnits,
   TU_SEC,
   TickObject,
-  NormalizedTone,
-  DefaultGlyphFeatures,
   isDefaultGlyphFeature,
-  CompressedPreGraphItem
+  ToneNormed,
+  EncodingItemNormed,
 } from "../types";
 
 export function makeScaleDescription(
   scale: ParsedScaleFunction,
-  encoding: NormalizedEncodingItem,
+  encoding: EncodingItemNormed,
   dataInfo: TableInfoObject | undefined,
   tickDef: TickObject | undefined,
-  tone_spec: NormalizedTone,
+  tone_spec: ToneNormed,
   config: ConfigInterface,
   beat?: BeatObject
 ): ParsedScaleDescription[] | null {
@@ -62,7 +60,6 @@ export function makeScaleDescription(
       type: TextType, speech: properties?.descriptionDetail, speechRate
     }]
   }
-
   let title = encoding?.scale?.title || listString(unique(properties.field ?? []), ", ", false);
 
   if (channel === TIME_chn) {
@@ -160,7 +157,7 @@ export function makeScaleDescription(
 
   let parsedExprDesc = compileDescriptionMarkup(expression, channel, scale, speechRate, timeUnit);
   let descList: ParsedScaleDescription[] = [];
-  for (const pDesc of parsedExprDesc) {
+  for (const pDesc of parsedExprDesc)
     if (pDesc.type === M_Text) {
       descList.push({
         type: TextType,
@@ -184,7 +181,6 @@ export function makeScaleDescription(
         });
       }
     }
-  }
   return descList;
 }
 

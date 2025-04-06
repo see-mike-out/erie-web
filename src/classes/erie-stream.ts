@@ -43,11 +43,11 @@ import {
   MODULATION_chn,
   HARMONICITY_chn,
   DETUNE_chn
-} from "../types/encoding";
+} from "../types";
 import { TickList } from "./erie-tick";
 import { Channel } from "./erie-channel";
-import { StreamObject } from "../types/stream";
-import { DatasetObject } from "../types/data";
+import { StreamObject } from "../types/api/stream";
+import { DatasetObject } from "../types/api/data";
 
 export class Stream {
   _name?: string;

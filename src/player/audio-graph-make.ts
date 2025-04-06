@@ -13,13 +13,14 @@ import {
   InstrumentNode,
   isOscType,
   LoadedSampleCollection,
-  HashedSynthObject,
-  HashedWaveObject,
   Glyph,
   LoadedMultiSample,
   OctaveKey,
   NoteRange,
   LoadedMonoSample,
+  HashedObject,
+  SynthNormed,
+  WaveNormed,
 } from '../types';
 
 export function makeContext() {
@@ -34,8 +35,8 @@ export function makeInstrument(
   ctx: AudioContext | OfflineAudioContext,
   iType?: string | undefined | null,
   instSamples?: LoadedSampleCollection,
-  synthDefs?: HashedSynthObject,
-  waveDefs?: HashedWaveObject,
+  synthDefs?: HashedObject<SynthNormed>,
+  waveDefs?: HashedObject<WaveNormed>,
   sound?: Glyph,
   contEndTime?: number
 ): InstrumentNode {

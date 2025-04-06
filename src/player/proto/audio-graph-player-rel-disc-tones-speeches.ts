@@ -9,10 +9,11 @@ import {
   AudioGraphQueueItemText,
   ConfigInterface,
   Glyphs2,
-  HashedSynthObject,
-  HashedWaveObject,
+  HashedObject,
   LoadedSampleCollection,
   Stopped,
+  SynthNormed,
+  WaveNormed,
 } from '../../types';
 import {
   deepcopy,
@@ -28,8 +29,8 @@ export async function playRelativeDiscreteTonesAndSpeeches(
   queue: Glyphs2,
   _config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined,
   ttsFetchFunction: any

@@ -71,8 +71,8 @@ export async function playAbsoluteSpeeches(
       inst.connect(gain);
 
       // play & stop
-      inst.start(ct + sound.time - 0.02);
-      inst.stop(ct + sound.time);
+      inst.start(ct + sound.start - 0.02);
+      inst.stop(ct + sound.start);
 
       // play the sound
       inst.onended = () => {

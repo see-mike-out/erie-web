@@ -5,3 +5,9 @@ export * from "./single-stream";
 export * from "./unit-stream";
 export * from "./data";
 export * from "./channel";
+export * from "./streaming-spec";
+export * from "./config";
+export * from "./notify";
+export * from "./tone";
+export * from "./synth";
+export * from "./transform"

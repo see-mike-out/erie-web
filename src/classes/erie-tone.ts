@@ -5,7 +5,7 @@ import {
   isInstanceOf
 } from "./erie-util";
 import { WaveTone } from "./erie-wave";
-import { ToneObject } from "../types/tone";
+import { ToneObject } from "../types";
 
 
 export class Tone {

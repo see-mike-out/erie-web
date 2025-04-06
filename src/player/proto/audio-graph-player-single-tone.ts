@@ -33,11 +33,13 @@ import {
   FM,
   ConfigInterface,
   LoadedSampleCollection,
-  HashedSynthObject,
-  HashedWaveObject,
   Glyph,
   AudioFilterEncoder,
   AudioFilterFinisher,
+  HashedObject,
+  SynthNormed,
+  WaveNormed,
+  AudioFilterPrototype,
 } from '../../types';
 import {
   deepcopy,
@@ -45,17 +47,15 @@ import {
   getDuration1
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
-import { AudioFilterPrototype } from '../../audioFilters';
-import { rampBy } from '../audio-graph-ramp'; 
-import { make3DScaleFunction } from '../../scale/audio-graph-scale-3d';
+import { rampBy } from '../audio-graph-ramp';
 
 export async function playSingleTone(
   ctx: AudioContext | OfflineAudioContext,
   sound: Glyph,
   config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
@@ -130,8 +130,8 @@ async function __playSingleTone(
   sound: Glyph,
   config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
@@ -174,7 +174,7 @@ async function __playSingleTone(
   // DONE  function to handle this and call as needed (look at ramp)
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
   const panner = createPanner(ctx as any, cartesianInputs, gain);
-  
+
 
   // play as async promise
   // get the current time
@@ -258,7 +258,7 @@ async function __playSingleTone(
     inst.start(0);
     inst.stop(getDuration1(sound))
     let rb = await ctx.startRendering();
-    if (sound.time !== 'after_previous') bufferPrimitve.add(sound.time ?? 0, rb);
+    if (sound.start !== 'after_previous') bufferPrimitve.add(sound.start ?? 0, rb);
     else bufferPrimitve.add('next', rb);
   } else {
     return new Promise((resolve: Function, reject: Function) => {

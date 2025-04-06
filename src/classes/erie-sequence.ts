@@ -14,11 +14,11 @@ import { Sampling } from "./erie-sampling";
 import { TickList } from "./erie-tick";
 import { Transform } from "./erie-transform";
 import { Wave } from "./erie-wave";
-import { SequenceObject } from "../types/stream";
+import { SequenceObject } from "../types/api/stream";
 import {
   DataObject,
   DatasetObject
-} from "../types/data";
+} from "../types/api/data";
 
 
 export class Sequence {

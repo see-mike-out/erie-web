@@ -1,7 +1,7 @@
 import {
   WaveItem,
   WaveObject
-} from "../types/wave";
+} from "../types";
 
 
 export class WaveTone {

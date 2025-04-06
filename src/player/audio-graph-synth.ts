@@ -124,8 +124,8 @@ export class ErieSynth {
     this.carrier = this.ctx.createOscillator();
     this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
     this.carrier.frequency.value = this.carrierPitch;
-    this.carrier.type = definition.carrierType || 'sine';
-    this.carrierType = definition.carrierType || 'sine';
+    this.carrier.type = definition.carrierType ?? 'sine';
+    this.carrierType = definition.carrierType ?? 'sine';
     if (definition.carrierDetune) {
       this.carrierDetune = definition.carrierDetune;
       this.carrier.detune.value = definition.carrierDetune;

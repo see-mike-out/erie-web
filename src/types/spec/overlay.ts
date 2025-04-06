@@ -1,24 +1,23 @@
-import { ConfigInterface } from "../config"
-import { TickObject } from "../encoding"
-import { SampledToneObject } from "../sampling"
-import { SynthObject } from "../synth"
-import { TransformList } from "../transform"
-import { WaveObject } from "../wave"
+import { ConfigSpec } from "./config"
+import { TickSpec } from "./channel"
 import { DatasetSpecItem, DataSpec } from "./data"
 import { UnitStreamSpec } from "./unit-stream"
+import { TransformListSpec } from "./transform"
+import { SampledToneSpec, WaveSpec } from "./tone"
+import { SynthSpec } from "./synth"
 
 export type OverlayStreamSpec1 = {
   title?: string,
   description?: string,
   name?: string,
   data: DataSpec,
-  transform?: TransformList,
+  transform?: TransformListSpec,
   overlay: UnitStreamSpec[],
-  tick?: TickObject[],
-  sampling?: SampledToneObject[],
-  synth?: SynthObject[],
-  wave?: WaveObject[],
-  config?: ConfigInterface
+  tick?: TickSpec[],
+  sampling?: SampledToneSpec[],
+  synth?: SynthSpec[],
+  wave?: WaveSpec[],
+  config?: ConfigSpec
 }
 
 export type OverlayStreamSpec2 = {
@@ -26,13 +25,13 @@ export type OverlayStreamSpec2 = {
   description?: string,
   name?: string,
   datasets: DatasetSpecItem[]
-  transform?: TransformList,
+  transform?: TransformListSpec,
   overlay: UnitStreamSpec[],
-  tick?: TickObject[],
-  sampling?: SampledToneObject[],
-  synth?: SynthObject[],
-  wave?: WaveObject[],
-  config?: ConfigInterface
+  tick?: TickSpec[],
+  sampling?: SampledToneSpec[],
+  synth?: SynthSpec[],
+  wave?: WaveSpec[],
+  config?: ConfigSpec
 }
 
 export type OverlayStreamSpec = OverlayStreamSpec1 | OverlayStreamSpec2;
@@ -43,7 +42,7 @@ export type InSeqOverlayStreamSpec = {
   name?: string,
   data?: DataSpec,
   datasets?: DatasetSpecItem[]
-  transform?: TransformList,
+  transform?: TransformListSpec,
   overlay: UnitStreamSpec[],
-  config?: ConfigInterface
+  config?: ConfigSpec
 }

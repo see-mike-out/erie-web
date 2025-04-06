@@ -19,7 +19,7 @@ import {
     PreGraphItem,
     AudioGraphQueueItem
 } from "./types";
-import { StreamingSpec } from "./types/spec/streaming-data";
+import { StreamingSpec } from "./types/spec/streaming-spec";
 import { toHashedObject } from "./util";
 import { rampBy } from "./player";
 // import { InstrumentNode } from './types';

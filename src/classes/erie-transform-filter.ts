@@ -1,4 +1,4 @@
-import { FilterObject } from "../types/transform";
+import { FilterObject } from "../types";
 
 export class Filter {
   _filter: string;

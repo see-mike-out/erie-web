@@ -12,7 +12,6 @@ import {
   unique,
   round,
   listString,
-  detectType,
   deepcopy
 } from "../util";
 import {
@@ -22,9 +21,9 @@ import {
   DEF_TAP_DUR_BEAT,
   DEF_TAP_PAUSE_RATE,
   DUR_chn,
+  EncodingItemNormed,
   MAX_TAPPING_DUR,
   NOM,
-  NormalizedEncodingItem,
   ORD,
   PITCH_chn,
   POS,
@@ -42,16 +41,19 @@ import {
   TapChannels,
   TapCountValue,
   TapSpeedValue,
-  TimeChannels
+  TimeChannels,
+  TransformerFunction
 } from "../types";
 import { roundToNoteScale } from "../player";
+import { detectType } from "../compile/audio-graph-compile-utils";
 
 export function getAudioScales(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: EncodingItemNormed & ParsedScaleDefinition,
   values: any[] | undefined,
   beat: BeatObject | undefined,
-  data: any[] | undefined
+  data: any[] | undefined,
+  transformer?: TransformerFunction
 ): ParsedScaleFunction | null {
   // extract default information
   let polarity = encoding.scale?.polarity || POS;
@@ -161,6 +163,7 @@ export function getAudioScales(
       // 4. default cases (no edits)
       scale = _scale;
     }
+
     // assign scale properties
     if (scale.properties) {
       Object.assign(scale.properties, scaleType);
@@ -201,7 +204,7 @@ export function getAudioScales(
 
 function getScaleType(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: EncodingItemNormed & ParsedScaleDefinition,
   values: any[] | undefined
 ): RecordObject {
   let isTime = TimeChannels.includes(channel) || TimeChannels.includes(channel[0]);

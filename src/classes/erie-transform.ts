@@ -1,4 +1,4 @@
-import { TransformList } from "../types/transform";
+import { TransformList } from "../types";
 import { Aggregate } from "./erie-transform-aggregate";
 import { Bin } from "./erie-transform-bin";
 import { Calculate } from "./erie-transform-calculate";

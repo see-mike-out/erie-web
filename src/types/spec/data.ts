@@ -1,5 +1,8 @@
+export type Datum = {
+  [key: string]: any;
+}
 type DataSpec1 = {
-  values: any[]
+  values: Datum[]
 };
 type DataSpec2 = {
   url: string
@@ -8,18 +11,18 @@ export type DataSpec3 = {
   name: string
 };
 
-// new spec?
-export type StreamingDataSpec = {
-  stream: true,
-  test?: DataSpec1 | DataSpec2,
-}
-
 export type DataSpec = DataSpec1 | DataSpec2 | DataSpec3;
 
 export type DatasetSpecItem = {
   name: string,
-  values: any[]
+  values: Datum[]
 } | {
   name: string,
   url: string
 };
+
+// For streaming data
+export type StreamingDataSpec = {
+  stream: true,
+  test?: DataSpec1 | DataSpec2,
+}

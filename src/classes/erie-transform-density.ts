@@ -1,4 +1,4 @@
-import { DensityObject } from "../types/transform";
+import { DensityObject } from "../types";
 
 export class Density {
   _density: string;

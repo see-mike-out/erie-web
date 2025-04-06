@@ -4,7 +4,7 @@ import {
   makeRepeatStreamTree,
   postprocessRepeatStreams
 } from './audio-graph-repeat-stream';
-import { Def_tone } from './audio-graph-normalize-single';
+import { Def_tone } from '../normalize';
 import {
   asc,
   deepcopy,
@@ -13,7 +13,8 @@ import {
 } from "../util";
 import {
   transformData,
-  orderArray
+  orderArray,
+  getTransformers
 } from "../data";
 import {
   NOM,
@@ -51,7 +52,9 @@ import {
   PAN_Z_chn,
   PAN_RADIUS_chn,
   PAN_POLAR_chn,
-  PAN_AZIMUTH_chn
+  PAN_AZIMUTH_chn,
+  TransformerFunction,
+  Datum
 } from "../types";
 import { makeScaleDescription } from "../scale";
 import {
@@ -71,7 +74,7 @@ function cosDeg(degrees: number): number {
 
 export async function compileSingleLayerAuidoGraph(
   audio_spec: NormalizedSingleStream,
-  _data: any[],
+  _data: Datum[],
   config: ConfigInterface | undefined,
   tickDef: { [key: string]: TickObject },
   common_scales: ScaleCollection
@@ -100,13 +103,9 @@ export async function compileSingleLayerAuidoGraph(
     }
   }).filter((d) => d !== undefined).flat();
 
-  let data: InternalData = _data;
-  if (audio_spec.common_transform) {
-    data = transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions);
-  } else {
-    data = transformData(_data, audio_spec.transform || [], forced_dimensions);
-  }
+  let data: InternalData = transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions);
   let dataInfo = deepcopy(data.tableInfo);
+  let transformer: TransformerFunction = config?.is_streaming ? getTransformers(audio_spec) : (d) => d;
 
   // encoding properties
   let encoding = layer_spec.encoding;
@@ -442,5 +441,5 @@ export async function compileSingleLayerAuidoGraph(
     stream.setRamp(ramp);
     if (audio_spec.description) stream.setDescription(audio_spec.description);
   }
-  return { stream, scales };
+  return { stream, scales, transformer };
 }

@@ -1,5 +1,5 @@
 import { round } from "../util";
-import { InstrumentNode, TickDefinition } from "../types";
+import { InstrumentNode, TickNormed } from "../types";
 import { AudioPrimitiveBuffer } from "../pulse";
 import { makeInstrument, makeOfflineContext } from "../player/audio-graph-make";
 
@@ -11,7 +11,7 @@ export const Def_Tick_Interval = 0.5,
 
 export function makeTick(
   ctx: AudioContext | OfflineAudioContext,
-  def: TickDefinition,
+  def: TickNormed,
   duration: number
 ): InstrumentNode | null {
   // ticker definition;
@@ -62,7 +62,7 @@ export function makeTick(
 
 export async function playTick(
   _ctx: AudioContext | OfflineAudioContext,
-  def: TickDefinition,
+  def: TickNormed,
   duration: number,
   start: number,
   end: number,

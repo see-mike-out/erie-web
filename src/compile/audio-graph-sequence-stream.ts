@@ -10,12 +10,13 @@ import {
   ConfigInterface,
   ForceRepeatScale,
   PlayAt,
-  HashedSampledToneObject,
-  HashedSynthObject,
-  HashedWaveObject,
   TextType,
   ToneSeries,
   PreGraphUnit,
+  HashedObject,
+  SynthNormed,
+  SampledToneNormed,
+  WaveNormed,
 } from '../types';
 import {
   toOrdinalNumbers,
@@ -30,9 +31,9 @@ export class SequenceStream {
   playing: boolean;
   prerendered: boolean;
   config: ConfigInterface;
-  synths: HashedSynthObject;
-  samplings: HashedSampledToneObject;
-  waves: HashedWaveObject;
+  synths: HashedObject<SynthNormed>;
+  samplings: HashedObject<SampledToneNormed>;
+  waves: HashedObject<WaveNormed>;
   name!: string;
   title!: string;
   description!: string;
@@ -67,14 +68,14 @@ export class SequenceStream {
     this.streams.push(...streams);
   }
 
-  setSampling(samplings: HashedSampledToneObject) {
+  setSampling(samplings: HashedObject<SampledToneNormed>) {
     this.samplings = deepcopy(samplings);
   }
 
-  setSynths(synths: HashedSynthObject) {
+  setSynths(synths: HashedObject<SynthNormed>) {
     this.synths = synths;
   }
-  setWaves(waves: HashedWaveObject) {
+  setWaves(waves: HashedObject<WaveNormed>) {
     this.waves = waves;
   }
 
@@ -341,4 +342,8 @@ export class SequenceStream {
   destroy() {
     this.queue = this.queue?.destroy();
   }
+}
+
+export function isSequenceStreamObject(o: any): o is SequenceStream {
+  return o?.constructor?.name === SequenceStream.name;
 }

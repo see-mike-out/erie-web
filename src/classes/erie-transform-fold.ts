@@ -1,4 +1,4 @@
-import { FoldObject } from "../types/transform";
+import { FoldObject } from "../types";
 import { deepcopy } from "../util";
 
 export class Fold {

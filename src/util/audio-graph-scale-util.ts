@@ -20,8 +20,7 @@ import {
   TapPattern,
   Glyph,
   ScaleType,
-  KeyDomain,
-  KeyDomainMax
+  KeyDomain
 } from "../types";
 import { round } from "./audio-graph-util";
 

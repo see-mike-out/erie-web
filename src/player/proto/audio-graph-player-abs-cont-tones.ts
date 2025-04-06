@@ -32,14 +32,16 @@ import {
   FM,
   ConfigInterface,
   LoadedSampleCollection,
-  HashedSynthObject,
-  HashedWaveObject,
   Glyph,
   Glyphs2,
   AudioFilterFinisher,
   AudioFilterEncoder,
   RamperCollection,
-  RamperNames
+  RamperNames,
+  HashedObject,
+  SynthNormed,
+  WaveNormed,
+  AudioFilterPrototype
 } from '../../types';
 import {
   makeTick,
@@ -51,8 +53,8 @@ import {
   glyphSorterByEnd,
   glyphSorterByStart
 } from '../../util';
-import { AudioPrimitiveBuffer } from '../../pulse';
-import { AudioFilterPrototype } from '../../audioFilters';
+import { AudioPrimitiveBuffer } from '../../pulse'
+
 
 
 export async function playAbsoluteContinuousTones(
@@ -60,8 +62,8 @@ export async function playAbsoluteContinuousTones(
   queue: Glyphs2,
   config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {

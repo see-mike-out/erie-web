@@ -1,5 +1,5 @@
 import TransformStreamManager from './streaming-audio-graph';
-import { StreamingSpec } from './types/spec/streaming-data';
+import { StreamingSpec } from './types/spec/streaming-spec';
 import { ConfigInterface, NormalizedSingleStream, ScaleType } from "./types";
 import { validateScale } from './util';
 import { normalizeSpecification } from './compile';

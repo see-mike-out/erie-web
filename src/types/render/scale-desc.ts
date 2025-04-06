@@ -73,12 +73,14 @@ export type DescriptionMarkupQueueTextItem = {
   text?: string;
   speechRate?: number;
 };
+
 export type DescriptionMarkupQueueSoundItem = {
   type: typeof M_Sound;
   continuous: boolean;
   value: string | number | undefined | Array<string | number | undefined>;
   duration: number;
 };
+
 export type DescriptionMarkupQueueItem
   = DescriptionMarkupQueueTextItem
   | DescriptionMarkupQueueSoundItem;

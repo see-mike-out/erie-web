@@ -13,10 +13,11 @@ import {
   RoundedNote,
   SamplingItem,
   SingleNoteInstruments,
-  HashedSampledToneObject,
   NoteRange,
   OctaveValue,
-  NoteValue
+  NoteValue,
+  HashedObject,
+  SampledToneNormed
 } from "../types";
 
 export function roundToNote(
@@ -125,7 +126,7 @@ export function determineNoteRange(freq: number, config: ConfigInterface): NoteR
 export async function loadSamples(
   ctx: AudioContext,
   instrument_name: string,
-  smaplingDef: HashedSampledToneObject,
+  smaplingDef: HashedObject<SampledToneNormed>,
   baseUrl: string
 ): Promise<LoadedSample> {
   let samples!: LoadedSample;

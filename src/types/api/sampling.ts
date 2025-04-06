@@ -1,0 +1,1 @@
+export { SampledToneSpec as SampledToneObject } from "../spec";

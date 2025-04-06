@@ -1,16 +1,20 @@
-export * from "./config";
-export * from "./data";
-export * from "./encoding";
-export * from "./notes";
-export * from "./sampling";
-export * from "./stream";
-export * from "./synth";
-export * from "./time";
-export * from "./tone";
-export * from "./transform";
-export * from "./generic";
-export * from "./wave";
-export * from "./internal"
+// JSON spec
 export * from "./spec";
+
+// JS Spec
+export * from "./api";
+
+// Generic stuff
+export * from "./generic";
+export * from "./object"
+
+// Compiling (Normalization)
+export * from "./normalized"
+export * from "./internal";
+
+// Rendering (Audio values -> Played sound)
 export * from "./render";
+export * from "./compiled";
+
+// Player (itself)
 export * from "./player";
