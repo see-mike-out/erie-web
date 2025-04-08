@@ -1,5 +1,5 @@
 export {
-  SynthSpec as SynthObject,
-  ToneSpec as ToneObject,
-  WaveSpec as WaveObject
+  type SynthSpec as SynthObject,
+  type ToneSpec as ToneObject,
+  type WaveSpec as WaveObject
 } from "../spec";

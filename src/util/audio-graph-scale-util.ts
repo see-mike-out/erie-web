@@ -362,9 +362,17 @@ export function validateScale(scale: ScaleType | undefined): boolean {
 
   // Check if the domain is informative?
   if (!scale[KeyDomain] || !Array.isArray(scale[KeyDomain]) || scale[KeyDomain].length === 0) return false;
-  
+
   // OR check if domain min and max are provided
   if (!scale.domainMax || !scale.domainMin) return false;
-  
+
   return true;
+}
+
+export function sinDeg(degrees: number): number {
+  return Math.sin(degrees * (Math.PI / 180));
+}
+
+export function cosDeg(degrees: number): number {
+  return Math.cos(degrees * (Math.PI / 180));
 }

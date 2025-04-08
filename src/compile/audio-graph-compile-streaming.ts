@@ -7,14 +7,17 @@ import {
   NormalizedStreamItem,
   ParsedScaleDefinition,
   PlaybackQuery,
-  StreamingOption,
+  RecordObject,
+  REPEAT_chn,
   StreamingOptionNormed,
   StreamingSpec,
+  TAPCNT_chn,
+  TAPSPD_chn,
   TickNormed
 } from "../types";
 import { makeParamFilter, toHashedObject } from "../util";
 import { compileSingleLayerAuidoGraph } from "./audio-graph-queue-compile";
-import { DefaultHistoryLimit, StreamingStream } from "./audio-graph-streaming-stream";
+import { DefaultHistoryLimit, DefaultPlaybackLimit, StreamingStream } from "./audio-graph-streaming-stream";
 import { UnitStream } from "./audio-graph-unit-stream";
 import { getChannelType, makeScales, tidyUpScaleDefinitions } from "./audio-graph-update-scale";
 
@@ -59,12 +62,12 @@ export async function compileStreamingStream(
   let scales = await makeScales(scaleHash, normalized, loaded_datasets, config);
 
   // 4. playback
-  let playback: PlaybackQuery = {
-    type: streaming_options.playback?.type,
+  let playback: PlaybackQuery | undefined = streaming_options ? {
+    init_by: streaming_options.playback?.init_by,
     unit: streaming_options.playback?.unit,
-    limit: streaming_options.playback?.limit ?? 0,
+    limit: streaming_options.playback?.limit ?? DefaultPlaybackLimit,
     condition: streaming_options.playback?.condition ? makeParamFilter(streaming_options.playback?.condition) : (_: any) => true
-  };
+  } : undefined;
 
   // make sequence
   let sequence = new StreamingStream({
@@ -78,6 +81,16 @@ export async function compileStreamingStream(
   let slag = await compileSingleLayerAuidoGraph(stream.stream, [], { ...audio_spec.config, is_streaming: true }, tick, scales)
   if (slag?.stream) sequence.setStream(slag?.stream as UnitStream);
   if (slag?.transformer) sequence.setTransformer(slag?.transformer);
+  if (slag?.streaming_encoder) sequence.setEncoder(slag?.streaming_encoder);
+  if (slag?.data_sorter) sequence.setSorter(slag?.data_sorter);
+
+  // get base values 
+  let basevalues: RecordObject = Object.keys(audio_spec.encoding).reduce((acc: RecordObject, cur: string) => {
+    if (audio_spec.encoding[cur] !== undefined) acc[cur] = audio_spec.encoding[cur];
+    return acc;
+  }, {} as RecordObject);
+
+  sequence.setBase(audio_spec.tone.type, basevalues);
 
   if (audio_spec.config) {
     Object.keys(audio_spec.config).forEach((key) => {
@@ -102,19 +115,28 @@ function checkStreamingSpec(spec: NormalizedStreamItem) {
     console.error('A streaming audio graph cannot have overlaid streams.')
   }
   if ('stream' in spec) {
-    if ('repeat' in spec.stream.encoding) {
+    if (REPEAT_chn in spec.stream.encoding) {
       console.error('A streaming audio graph cannot have a "REPEAT" channel.');
+    }
+    let is_continued = spec.stream.tone.continued ?? false, has_base_tone = spec.stream.tone.hasBaseTone ?? false;
+    if (!is_continued && has_base_tone) {
+      console.error('A streaming audio graph with a base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
+    }
+    if (is_continued && (TAPCNT_chn in spec.stream.encoding || TAPSPD_chn in spec.stream.encoding)) {
+      console.error('A continuous streaming audio graph cannot have a tapping channel.');
     }
     for (const channel of Object.keys(spec.stream.encoding)) {
       const encoding = spec.stream.encoding[channel];
-      if (!('type' in encoding)) {
-        console.error(`A streaming audio graph must have a "typed" encoding channel. See ${channel} channel.`);
-      }
-      if (!('scale' in encoding)) {
-        console.error(`A streaming audio graph must have a "well-scaled" encoding channel. See ${channel} channel.`);
-      } else if ('scale' in encoding && encoding.scale !== undefined) {
-        if (!('domain' in encoding.scale)) {
-          console.error(`A streaming audio graph must specify the domain for each encoding channel. See ${channel} channel.`);
+      if (!('value' in encoding)) {
+        if (!('type' in encoding)) {
+          console.error(`A streaming audio graph must have a "typed" encoding channel. See ${channel} channel.`);
+        }
+        if (!('scale' in encoding)) {
+          console.error(`A streaming audio graph must have a "well-scaled" encoding channel. See ${channel} channel.`);
+        } else if ('scale' in encoding && encoding.scale !== undefined) {
+          if (!('domain' in encoding.scale)) {
+            console.error(`A streaming audio graph must specify the domain for each encoding channel. See ${channel} channel.`);
+          }
         }
       }
     }

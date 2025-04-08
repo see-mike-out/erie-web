@@ -12,15 +12,15 @@ export const Def_Tick_Interval = 0.5,
 export function makeTick(
   ctx: AudioContext | OfflineAudioContext,
   def: TickNormed,
-  duration: number
-): InstrumentNode | null {
+  duration: number | 'indefinite'
+): InstrumentNode | (() => InstrumentNode) | null {
   // ticker definition;
   if (!def) return null;
-  else if (duration) {
+  else if (typeof duration === 'number') {
     let tickPattern = [];
-    let interval = round(def.interval, -2);
+    let interval = round(def.interval ?? 0.5, -2);
     let tickDur = def.band;
-    tickDur = round(tickDur, -2);
+    tickDur = round(tickDur ?? 0.1, -2);
     let pause = interval - tickDur;
     let count = Math.floor(duration / interval)
     let totalTime = 0;
@@ -56,6 +56,35 @@ export function makeTick(
       }
     }
     return tickInst;
+  } else if (duration === 'indefinite') {
+    // if indefininte, then return a generator
+    let interval = round(def.interval ?? 0.5, -2);
+    let tickDur = def.band;
+    tickDur = round(tickDur ?? 0.1, -2);
+    let pause = interval - tickDur;
+    if (def.playAtTime0 === undefined) def.playAtTime0 = true;
+    let tickPattern = def.playAtTime0 ? [{ tick: tickDur }, { pause }] : [{ pause }, { tick: tickDur }];
+    return () => {
+      let tickInst = makeInstrument(ctx, 'default');
+      if ('frequency' in tickInst) tickInst.frequency.value = 150;
+      if (def.pitch && 'frequency' in tickInst) tickInst.frequency.value = def.pitch;
+      if (def.oscType && 'type' in tickInst) tickInst.type = def.oscType;
+      let gain = ctx.createGain();
+      tickInst.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      let acc = 0;
+      for (const p of tickPattern) {
+        if (p.tick) {
+          gain.gain.setTargetAtTime(def.loudness || Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
+          acc += p.tick
+        } else if (p.pause) {
+          gain.gain.setTargetAtTime(0, ctx.currentTime + acc, 0.015);
+          acc += p.pause
+        }
+      }
+      return tickInst;
+    }
   }
   return null;
 }

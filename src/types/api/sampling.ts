@@ -1,1 +1,1 @@
-export { SampledToneSpec as SampledToneObject } from "../spec";
+export { type SampledToneSpec as SampledToneObject } from "../spec";

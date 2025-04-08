@@ -1,15 +1,9 @@
 // tone
 
 export {
-  SynthSpec as SynthNormed,
-  WaveSpec as WaveNormed,
-  SampledToneSpec as SampledToneNormed,
-  TickSpec as TickNormed
+  type SynthSpec as SynthNormed,
+  type WaveSpec as WaveNormed,
+  type SampledToneSpec as SampledToneNormed,
+  type TickSpec as TickNormed,
+  type ToneSpec as ToneNormed
 } from "../spec"
-
-export type ToneNormed = {
-  type: string,
-  filter?: string[],
-  continued?: boolean
-}
-

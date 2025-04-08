@@ -5,12 +5,13 @@ import { UnitStream } from './audio-graph-unit-stream';
 import {
   CompressedPreGraphItem,
   ConfigInterface,
-  HashedSampledToneObject,
-  HashedSynthObject,
-  HashedWaveObject,
+  HashedObject,
   PreGraphUnit,
+  SampledToneNormed,
+  SynthNormed,
   TextType,
   ToneOverlaySeries,
+  WaveNormed,
 } from '../types';
 import {
   deepcopy,
@@ -27,9 +28,9 @@ export class OverlayStream {
   description!: string;
   queue!: AudioGraphQueue;
   duration!: number;
-  synths: HashedSynthObject;
-  samplings: HashedSampledToneObject;
-  waves: HashedWaveObject;
+  synths: HashedObject<SynthNormed>;
+  samplings: HashedObject<SampledToneNormed>;
+  waves: HashedObject<WaveNormed>;
 
   constructor() {
     this.overlays = [];
@@ -63,14 +64,14 @@ export class OverlayStream {
   }
 
 
-  setSampling(samplings: HashedSampledToneObject) {
+  setSampling(samplings: HashedObject<SampledToneNormed>) {
     this.samplings = deepcopy(samplings);
   }
 
-  setSynths(synths: HashedSynthObject) {
+  setSynths(synths: HashedObject<SynthNormed>) {
     this.synths = synths;
   }
-  setWaves(waves: HashedWaveObject) {
+  setWaves(waves: HashedObject<WaveNormed>) {
     this.waves = waves;
   }
 

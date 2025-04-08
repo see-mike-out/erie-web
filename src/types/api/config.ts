@@ -1,1 +1,1 @@
-export { ConfigSpec as ConfigInterface } from "../spec";
+export { type ConfigSpec as ConfigInterface } from "../spec";

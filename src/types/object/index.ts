@@ -10,3 +10,4 @@ export * from "./speech";
 export * from "./octave";
 export * from "./instrument";
 export * from "./status";
+export * from "./notify"

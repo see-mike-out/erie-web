@@ -148,38 +148,41 @@ export async function getChannelType(
   loaded_datasets: LoadedDatasets,
   spec: NormalizedSingleStream,
   untyped_channels: string[]) {
-  let data = loaded_datasets[spec.data.name];
+  let data = 'name' in spec.data ? loaded_datasets[spec.data.name] : undefined;
+  let is_streamed = 'stream' in spec.data ? spec.data.stream : false;
 
-  if (!data || !spec.encoding) {
+  if ((!data && !is_streamed) || !spec.encoding) {
     console.error("No proper layer spec provided.")
     return undefined;
   }
 
-  // before transforms
-  for (const channel of Object.keys(spec.encoding)) {
-    if (!spec.encoding[channel].type && spec.encoding[channel].value !== undefined) {
-      spec.encoding[channel].type = STATIC;
-    } else if (!spec.encoding[channel].type) {
-      let f = spec.encoding[channel].field instanceof Array ? spec.encoding[channel].field[0] : spec.encoding[channel].field
-      spec.encoding[channel].type = detectType(
-        data.map((d) => f ? d[f] : undefined)
-          .filter(d => d !== undefined)
-      );
+  if (data) {
+    // before transforms
+    for (const channel of Object.keys(spec.encoding)) {
+      if (!spec.encoding[channel].type && spec.encoding[channel].value !== undefined) {
+        spec.encoding[channel].type = STATIC;
+      } else if (!spec.encoding[channel].type) {
+        let f = spec.encoding[channel].field instanceof Array ? spec.encoding[channel].field[0] : spec.encoding[channel].field
+        spec.encoding[channel].type = detectType(
+          data.map((d) => f ? d[f] : undefined)
+            .filter(d => d !== undefined)
+        );
+      }
     }
-  }
 
-  data = applyTransforms(data, spec);
+    data = applyTransforms(data, spec);
 
-  // after transforms
-  for (const channel of Object.keys(spec.encoding)) {
-    if (!spec.encoding[channel].type && spec.encoding[channel].value !== undefined) {
-      spec.encoding[channel].type = STATIC;
-    } else if (!spec.encoding[channel].type) {
-      let f = spec.encoding[channel].field instanceof Array ? spec.encoding[channel].field[0] : spec.encoding[channel].field
-      spec.encoding[channel].type = detectType(
-        data.map((d) => f ? d[f] : undefined)
-          .filter(d => d !== undefined)
-      );
+    // after transforms
+    for (const channel of Object.keys(spec.encoding)) {
+      if (!spec.encoding[channel].type && spec.encoding[channel].value !== undefined) {
+        spec.encoding[channel].type = STATIC;
+      } else if (!spec.encoding[channel].type) {
+        let f = spec.encoding[channel].field instanceof Array ? spec.encoding[channel].field[0] : spec.encoding[channel].field
+        spec.encoding[channel].type = detectType(
+          data.map((d) => f ? d[f] : undefined)
+            .filter(d => d !== undefined)
+        );
+      }
     }
   }
 }
@@ -216,9 +219,10 @@ export async function makeScales(
   // 1. update scale information
   for (const stream of normalized) {
     if ('stream' in stream && stream.stream) {
-      let data = !config.is_streaming ? loaded_datasets[stream.stream.data.name] : [];
-      let transformer!: TransformerFunction;
-      if (!config.is_streaming) {
+      let data = 'name' in stream.stream.data ? loaded_datasets[stream.stream.data.name] : [];
+      let is_streamed = 'stream' in stream.stream.data ? stream.stream.data.stream : false;
+      let data_name = 'name' in stream.stream.data ? stream.stream.data.name : 'streamed';
+      if (!is_streamed && data) {
         data = applyTransforms(data, stream.stream);
       } else if (config.is_streaming) {
         data = [];
@@ -229,7 +233,7 @@ export async function makeScales(
         if (scaleId) {
           scaleInfo[scaleId].data = data;
           if (encoding[cname].field) {
-            let collectionKey = stream.stream.data.name + "_" + (encoding[cname].field instanceof Array ? encoding[cname].field.join("_") : encoding[cname].field);
+            let collectionKey = data_name + "_" + (encoding[cname].field instanceof Array ? encoding[cname].field.join("_") : encoding[cname].field);
             if (scaleInfo[scaleId].collected
               && !scaleInfo[scaleId].collected.includes(collectionKey)) {
               scaleInfoUpdater(encoding[cname], scaleInfo, data);
@@ -252,15 +256,16 @@ export async function makeScales(
       }
     } else if ('overlay' in stream && stream.overlay) {
       for (const overlay of stream.overlay) {
-        let data = loaded_datasets[overlay.data.name];
-        data = applyTransforms(data, overlay);
+        let data = 'name' in overlay.data ? loaded_datasets[overlay.data.name] : [];
+        let data_name = 'name' in overlay.data ? overlay.data.name : 'streamed';
+        if (data) data = applyTransforms(data, overlay);
         let encoding = overlay.encoding;
         for (const cname of Object.keys(encoding)) {
           let scaleId = encoding[cname]?.scale?.id;
           if (scaleId) {
             scaleInfo[scaleId].data = data;
             if (encoding[cname].field) {
-              let collectionKey = overlay.data.name + "_" + encoding[cname].field;
+              let collectionKey = data_name + "_" + encoding[cname].field;
               if (scaleInfo[scaleId].collected
                 && !scaleInfo[scaleId].collected.includes(collectionKey)) {
                 scaleInfoUpdater(encoding[cname], scaleInfo, data);

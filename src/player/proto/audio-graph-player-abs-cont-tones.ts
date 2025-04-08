@@ -131,10 +131,11 @@ export async function playAbsoluteContinuousTones(
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(destination);
-  
+
   //DONE - function to handle this
   // decide between stereo or 3d pan
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => queue[0][key] !== undefined).length;
+  const isStereo = cartesianInputs === 1 && queue[0].panX !== undefined;
   const panner = createPanner(ctx, cartesianInputs, gain);
 
   let sid = genRid()
@@ -188,15 +189,12 @@ export async function playAbsoluteContinuousTones(
     }
     // panner node
     // DONE - Check stereo vs 3d
-    const isStereo = cartesianInputs === 1 && queue[0].panX !== undefined && queue[0].panY === undefined && queue[0].panZ === undefined;
-    if (isStereo && sound.pan !== undefined) {
-      rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, (panner as StereoPannerNode).pan, sound.pan, st, 0.35);
-    } else if (!isStereo) {
-      if (sound.panX !== undefined && sound.panY !== undefined && sound.panZ !== undefined) {
-        (panner as PannerNode).positionX.setValueAtTime(sound.panX, st);
-        (panner as PannerNode).positionY.setValueAtTime(sound.panY, st);
-        (panner as PannerNode).positionZ.setValueAtTime(sound.panZ, st);
-      }
+    if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
+      rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
+    } else if (!isStereo && panner instanceof PannerNode) {
+      if (sound.panX !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
+      if (sound.panY !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
+      if (sound.panZ !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
     }
 
     if (sound.isFirst) {
@@ -226,7 +224,7 @@ export async function playAbsoluteContinuousTones(
     }
   }
 
-  const tick = makeTick(ctx, config.tick, endTime);
+  const tick = makeTick(ctx, config.tick, endTime) as OscillatorNode;
 
   emitNotePlayEvent('tone', q[0]);
   if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {

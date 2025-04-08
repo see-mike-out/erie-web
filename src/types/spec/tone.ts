@@ -3,7 +3,8 @@ import { SamplingItem } from "../object";
 export interface ToneSpec {
   type?: string,
   continued?: boolean,
-  filter?: string[]
+  filter?: string[],
+  hasBaseTone?: boolean
 }
 
 export interface SampledToneSpec {

@@ -8,7 +8,7 @@ import { NoiseCoefficient } from '../types';
 export function makeNoiseNode(
   ctx: AudioContext | OfflineAudioContext,
   type: string,
-  duration: number
+  duration: number // seconds
 ): AudioBufferSourceNode {
   // here, duration is the noise node's duration, for continuous tone it's the entire length;
   const bufferSize = ctx.sampleRate * duration;

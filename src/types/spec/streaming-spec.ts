@@ -37,10 +37,11 @@ export const PlaybackUnitDatum = 'datum', PlaybackUnitTime = 'time', PlaybackUni
 export const PlaybackUnits = [PlaybackUnitDatum, PlaybackUnitTime, PlaybackUnitInstance];
 
 export interface PlaybackSpec {
-  type: typeof PlaybackTypes[number],
-  unit: typeof PlaybackUnits[number],
-  condition: string,
-  limit: number,
+  init_by?: typeof PlaybackTypes[number], // manual
+  unit?: typeof PlaybackUnits[number], // 
+  condition?: string, // condition on the current data points
+  limit?: number,
+  speed?: number,
 }
 // conditional, manual, or automatic playback: define how much to go back (time or data)
 // if conditional: should be provided

@@ -5,7 +5,7 @@ import {
 } from "../spec";
 import { DatasetSpecItemNormed } from "./data";
 
-export { ConfigSpec as ConfigNormed } from "../spec";
+export { type ConfigSpec as ConfigNormed } from "../spec";
 
 export type StreamingOptionNormed = {
   playback?: PlaybackSpec

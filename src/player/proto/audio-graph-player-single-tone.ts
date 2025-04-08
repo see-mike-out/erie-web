@@ -173,6 +173,7 @@ async function __playSingleTone(
 
   // DONE  function to handle this and call as needed (look at ramp)
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
+  const isStereo = cartesianInputs === 1 && sound.panX !== undefined;
   const panner = createPanner(ctx as any, cartesianInputs, gain);
 
 
@@ -247,11 +248,14 @@ async function __playSingleTone(
 
   rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
 
-  if (sound.pan !== undefined) {
-    if (panner instanceof StereoPannerNode) {
-      panner.pan.setValueAtTime(sound.pan, ct);
-    }
+  if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
+    panner.pan.setValueAtTime(sound.panX, ct);
+  } else if (!isStereo && panner instanceof PannerNode) {
+    if (sound.panX !== undefined) panner.positionX.setValueAtTime(sound.panX, ct);
+    if (sound.panY !== undefined) panner.positionY.setValueAtTime(sound.panY, ct);
+    if (sound.panZ !== undefined) panner.positionZ.setValueAtTime(sound.panZ, ct);
   }
+
 
   // play & stop
   if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {

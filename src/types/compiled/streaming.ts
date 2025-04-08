@@ -3,10 +3,11 @@ import { LoadedDatasets } from "./data"
 
 
 export interface PlaybackQuery {
-  type?: typeof PlaybackTypes[number],
+  init_by?: typeof PlaybackTypes[number],
   unit?: typeof PlaybackUnits[number],
   condition?: ((d: Datum) => boolean) | null,
   limit?: number,
+  speed?: number
 }
 
 export type StreamingOption = {

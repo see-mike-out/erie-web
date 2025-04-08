@@ -1,11 +1,11 @@
 export {
-  AggregateSpec as AggregateObject,
-  BinSpec as BinObject,
-  CalculateSpec as CalculateObject,
-  DensitySpec as DensityObject,
-  FilterSpec as FilterObject,
-  FoldSpec as FoldObject,
-  BoxplotSpec as BoxplotObject,
-  QuantileSpec as QuantileObject,
-  TransformListSpec as TransformList
+  type AggregateSpec as AggregateObject,
+  type BinSpec as BinObject,
+  type CalculateSpec as CalculateObject,
+  type DensitySpec as DensityObject,
+  type FilterSpec as FilterObject,
+  type FoldSpec as FoldObject,
+  type BoxplotSpec as BoxplotObject,
+  type QuantileSpec as QuantileObject,
+  type TransformListSpec as TransformList
 } from "../spec";

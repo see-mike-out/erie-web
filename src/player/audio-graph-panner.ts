@@ -1,7 +1,7 @@
 export function createPanner(ctx: AudioContext | OfflineAudioContext, cartesianInputs: number, gain: GainNode): AudioNode {
   let panner!: AudioNode;
 
-  if (cartesianInputs == 1) {
+  if (cartesianInputs <= 1) {
     const stereoPanner = ctx.createStereoPanner();
     stereoPanner.connect(gain);
     panner = stereoPanner as unknown as AudioNode;

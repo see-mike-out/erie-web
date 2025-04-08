@@ -1,3 +1,7 @@
+import { Chimes, playChime } from '../chimes';
+import { AudioGraphQueue, emitNoteStopEvent, loadSamples, playAbsoluteDiscreteTones, playSingleSpeech } from '../player';
+import { playIndefininteContinuousTones } from '../player/proto/audio-graph-player-ind-cont-tones';
+import { AudioPrimitiveBuffer } from '../pulse';
 import {
   AudioGraph,
   ConfigInterface,
@@ -18,7 +22,21 @@ import {
   PlaybackUnitTime,
   StreamingHistoryItem,
   PlaybackUnitInstance,
-  PlaybackUnits
+  PlaybackUnits,
+  PlayerStatus,
+  Stopped,
+  Playing,
+  NotifyType,
+  NotifySpec,
+  Glyphs2,
+  LoadedSampleCollection,
+  LoadedMonoSample,
+  OscTypes,
+  RecordObject,
+  InstrumentNode,
+  Glyph,
+  ToneSeries,
+  InternalData
 } from '../types';
 import {
   toOrdinalNumbers,
@@ -27,17 +45,31 @@ import {
 import { UnitStream } from './audio-graph-unit-stream';
 
 export const DefaultHistoryLimit = 100,
-  DefaultHistoryQuery = PlaybackUnitDatum,
-  DefaultPlaybackLimit = 10;
+  DefaultHistoryQuery = PlaybackUnitInstance,
+  DefaultPlaybackLimit = 10,
+  DefaultPlaybackSpeed = 2,
+  DefaultNoitfyOptions: NotifySpec = {
+    beforePlayback: { chime: 'beforePlayback' },
+    afterPlayback: { chime: 'afterPlayback' },
+    incoming: { chime: 'incoming' },
+    beforePlay: { chime: 'beforePlay' },
+    afterPlay: { chime: 'afterPlay' },
+    next: { chime: 'next' }
+  };
+
+// no recording supported (yet)!
 
 export class StreamingStream {
   instrument_type: string;
   is_continued: boolean;
+  is_relative: boolean;
   stream!: AudioGraph;
   scales: ScaleCollection;
   ramp: { [key: string]: RampType | undefined };
   transformer: TransformerFunction;
   duration!: number;
+  encoder!: Function;
+  sorter!: Function;
 
   name!: string;
   title!: string;
@@ -48,34 +80,65 @@ export class StreamingStream {
   audioFilters!: string[];
   synths: HashedObject<SynthNormed>;
   samplings: HashedObject<SampledToneNormed>;
+  loaded_samples: LoadedSampleCollection;
   waves: HashedObject<WaveNormed>;
+  noitify_samples: LoadedSampleCollection;
 
   history: StreamingHistoryItem[];
-  current!: Datum[];
-  base!: any;
+  current!: InternalData;
+  playQueue: StreamingHistoryItem[];
+
+  has_base_tone: boolean;
+  baseContext!: AudioContext;
+  baseStream!: InstrumentNode;
+  baseTone!: any;
+  baseValues: RecordObject;
+  currentQueue!: AudioGraphQueue;
+
+  status: PlayerStatus
+  is_destroyed: boolean;
+  is_started: boolean;
 
   constructor(
     opt: StreamingOption
   ) {
     this.instrument_type = 'default';
     this.is_continued = false;
+    this.is_relative = false;
     this.stream;
     this.scales = {};
     this.ramp = {};
     this.transformer = (d) => d;
+    this.encoder;
+    this.sorter;
 
     this.synths = {};
     this.samplings = {};
+    this.loaded_samples = {};
     this.waves = {};
     this.audioFilters = [];
 
     this.history = [];
     this.current;
-    this.base;
+    this.playQueue = []
+
+    this.has_base_tone = false;
+    this.baseTone;
+    this.baseStream;
+    this.baseContext;
+    this.baseValues = {};
+    this.currentQueue;
 
     this.name;
     this.option = opt || {};
     this.config = {};
+    this.noitify_samples = {};
+
+    this.status = Stopped; // for the player
+    this.is_destroyed = false; // for the object
+    this.is_started = false;
+
+    this.getNotificationSampling();
   }
 
   // registrations
@@ -94,6 +157,8 @@ export class StreamingStream {
   setStream(d: UnitStream) {
     // copy from unit stream;
     this.is_continued = d.option.is_continued;
+    this.has_base_tone = d.option.has_base_tone;
+    this.is_relative = d.option.relative;
     this.audioFilters = d.audioFilters;
     this.ramp = d.ramp;
     this.config = d.config;
@@ -105,8 +170,27 @@ export class StreamingStream {
     if (d.description) this.description = d.description;
   }
 
+  setBase(toneType?: string, baseValues?: RecordObject) {
+    this.baseTone = toneType || 'sine';
+    if (baseValues) {
+      Object.assign(this.baseValues, baseValues);
+    }
+    // set default values
+    if (this.baseValues.pitch === undefined) this.baseValues.pitch = DefaultFrequency;
+    if (this.baseValues.loudness === undefined) this.baseValues.loudness = 0.1;
+    if (this.baseValues.panX === undefined) this.baseValues.panX = 0;
+  }
+
   setTransformer(f: TransformerFunction) {
     this.transformer = f;
+  }
+
+  setEncoder(f: Function) {
+    this.encoder = f;
+  }
+
+  setSorter(f: Function) {
+    this.sorter = f;
   }
 
   setConfig(key: string, value: any) {
@@ -123,6 +207,12 @@ export class StreamingStream {
 
   setSampling(samplings: HashedObject<SampledToneNormed>) {
     this.samplings = deepcopy(samplings);
+    // load them here;
+    for (const inst in this.samplings) {
+      loadSamples(this.baseContext, inst, this.samplings, this.config.options?.baseUrl).then((sample) => {
+        this.loaded_samples[inst] = sample;
+      })
+    }
   }
 
   setSynths(synths: HashedObject<SynthNormed>) {
@@ -161,68 +251,328 @@ export class StreamingStream {
 
   // player functions
   async play_test() {
-    if (this.option.test_data && this.option.test_data.test) {
+    if (!this.is_started) {
+      console.warn("Start the stream first!")
+    } else if (this.option.test_data && this.option.test_data.test) {
       await this.play(this.option.test_data.test, true)
     } else {
-      console.warn("No test data is provoded")
+      console.warn("No test data is provoded.")
     }
   }
 
   start() {
-    if (this.is_continued) {
-      // todo: play continued sound
+    if (this.is_started) {
+      console.warn("This stream is already started. If you want to re-initiate, then destroy and restart the stream.");
+      return;
     }
+    if (!this.is_started) {
+      if (this.is_destroyed) {
+        console.warn("This stream is destroyed. Crreating a new stream.")
+      }
+      this.baseContext = new AudioContext();
+      if (this.has_base_tone) {
+        if (this.baseTone in OscTypes || this.baseTone in this.synths) {
+          let config = this.config;
+          config.ramp = this.ramp;
+          config.instrument_type = this.baseValues.timbre ?? 'sine';
+          this.baseStream = playIndefininteContinuousTones(
+            this.baseContext,
+            this.baseValues,
+            config,
+            this.loaded_samples,
+            this.synths,
+            this.waves,
+            this.audioFilters,
+            undefined
+          );
+        }
+      }
+      this.is_destroyed = false;
+      this.is_started = true;
+    }
+    return this;
   }
 
-  async play(d: Datum[], test?: boolean, playback_query?: { unit?: typeof PlaybackUnits[number], limit?: number }) {
-    if (!test) {
-      this.addToHistory(d, new Date());
+  async play(d: Datum[],
+    test?: boolean,
+    playback_query?: { unit?: typeof PlaybackUnits[number], limit?: number, speed?: number },
+    bufferPrimitve?: AudioPrimitiveBuffer,
+    ttsFetchFunction?: any
+  ) {
+    if (this.is_destroyed) {
+      console.error("This stream is destroyed. Start this stream again.");
+      return;
     }
-    if (this.option.playback) {
-      let playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
+    if (!this.is_started) {
+      console.error("This stream has not be started yet.");
+      return;
     }
-    this.current = d;
-    // todo asign values
+
+    this.addToFutureQueue(d, new Date());
+    if (this.status === Playing) {
+      return;
+    }
+    this.status = Playing;
+
+    await this.notify('incoming', bufferPrimitve, ttsFetchFunction);
+
+    let playback_history!: Datum[]
+    console.log(this.option.playback, this.history)
+    if (this.option.playback && !test) {
+      let condition = this.option.playback?.condition ?? ((_: any) => true);
+      if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
+    }
+    if (!test && playback_history && playback_history.length > 0) {
+      // play history
+      playback_history.reverse(); // reversing because history queue stores from latest to oldest
+      await this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
+      let inQueue = 0;
+      for (let item of playback_history) {
+        if (inQueue > 0) {
+          await this.notify('next', bufferPrimitve, ttsFetchFunction);
+        }
+        await this._play(this.sorter(this.transformer(item)), this.option.playback?.speed ?? DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction);
+        inQueue++;
+      }
+      await this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+    }
+    // play current thing
+    await this.notify('beforePlay', bufferPrimitve, ttsFetchFunction);
+    let inQueue = 0;
+    while (this.playQueue.length > 0) {
+      let curr = this.playQueue.shift();
+      if (curr) {
+        if (inQueue > 0) {
+          await this.notify('next', bufferPrimitve, ttsFetchFunction);
+        }
+        let transformed = this.transformer(curr.data);
+        this.current = this.sorter(transformed);
+        await this._play(this.current, 1, bufferPrimitve, ttsFetchFunction);
+        // add to history
+        if (!test) {
+          this.addToHistory(curr.data, curr.time);
+        }
+      }
+      inQueue++;
+    }
+    await this.notify('afterPlay', bufferPrimitve, ttsFetchFunction);
+    this.status = Stopped;
+  }
+
+  private async _play(
+    d: Datum[], // transformed
+    _speed?: number,
+    bufferPrimitve?: AudioPrimitiveBuffer,
+    ttsFetchFunction?: any
+  ) {
+    let speed: number = _speed ?? 1;
+    if (speed <= 0) {
+      console.warn('Playback speed must be greater than zero. Defaulted to 1.')
+      speed = 1;
+    }
+    // redo
+    let converted: Glyphs2 = this.encode(d, speed);
+
+    if (this.has_base_tone) {
+      // assign values
+    } else {
+      // prerender
+      this.currentQueue = new AudioGraphQueue();
+
+      // overall config
+      if (this.config) {
+        Object.keys(this.config).forEach((key) => {
+          this.currentQueue?.setConfig(key, this.config[key]);
+        })
+      }
+
+      // registration
+      this.currentQueue.setSampling(this.samplings);
+      this.currentQueue.setSynths(this.synths);
+      this.currentQueue.setWaves(this.waves);
+
+      // setting queue
+      let _c = deepcopy(this.config || {});
+      this.currentQueue.add(ToneSeries, {
+        instrument_type: this.instrument_type,
+        sounds: converted,
+        continued: this.is_continued,
+        relative: this.is_relative,
+        filters: this.audioFilters,
+        ramp: this.ramp,
+        duration: this.duration
+      }, _c);
+
+      this.currentQueue.setConfig('options', this.config.options);
+      await this.currentQueue.play();
+    }
   }
 
   async cancel() {
+    if (this.status == Playing) {
+      // stop the player
+      this.status = Stopped;
+      emitNoteStopEvent('stop', {});
+      if (this.playQueue.length > 0) {
+        while (this.playQueue.length > 0) {
+          let item = this.playQueue.shift();
+          if (item) this.addToHistory(item.data, item.time);
+        }
+      }
+    }
+    return this;
+  }
 
+  async stop() {
+    await this.cancel();
+    return this;
+  }
+
+  async pause() {
+    return this;
+  }
+
+  destroy() {
+    let continued = this.is_continued;
+    this.cancel().then(() => {
+      // remove the player
+      if (continued) {
+        this.baseStream.stop(this.baseContext.currentTime);
+      }
+      this.baseContext.close();
+    });
+    this.status = Stopped;
+    this.is_destroyed = true;
+    this.is_started = false;
+    return this;
+  }
+
+  // processors
+  private encode(data: InternalData, speed: number): Glyphs2 {
+    let has_speech = false;
+    if (!this.encoder) {
+      console.error("No encoder found.")
+    }
+
+    let audio_graph = this.encoder(data);
+
+    audio_graph.forEach((c: Glyph) => {
+      if (c.start && c.start !== 'after_previous') c.start = c.start / speed;
+      if (c.duration) c.duration = c.duration / speed;
+      if (c.end) c.end = c.end / speed;
+      if (c.speech !== undefined) has_speech = true;
+    });
+
+    (audio_graph as Glyphs2).hasSpeech = has_speech
+    return audio_graph as Glyphs2;
+  }
+
+  // notification
+  async notify(when: NotifyType, bufferPrimitve?: AudioPrimitiveBuffer, ttsFetchFunction?: any) {
+    if (this.option.notify?.[when] !== false) {
+      let ctx = this.baseContext;
+      let notificationItem = this.option.notify?.[when] ?? DefaultNoitfyOptions[when];
+      if (notificationItem === true) notificationItem = DefaultNoitfyOptions[when];
+      if (notificationItem instanceof Object) {
+        if ('speech' in notificationItem && notificationItem.speech) {
+          // todo: test
+          await playSingleSpeech(
+            {
+              type: TextType,
+              speech: notificationItem.speech,
+              speechRate: notificationItem.speechRate ?? 1.75,
+              language: notificationItem.language,
+              pitch: notificationItem.pitch,
+              loudness: notificationItem.loudness ?? 1
+            },
+            { speechRate: notificationItem.speechRate },
+            bufferPrimitve,
+            ttsFetchFunction,
+          )
+        } else if ('sample' in notificationItem && notificationItem.sample) {
+          // todo: test
+          try {
+            let sample = this.noitify_samples[when];
+            if (!sample) {
+              console.error("Sample is not loaded");
+            }
+            let dur = (sample as LoadedMonoSample).mono.duration;
+            let glyphs = [{
+              start: 0,
+              duration: dur + 0.5,
+              detune: notificationItem.detune ?? 0,
+              loudness: notificationItem.loudness ?? 1,
+              timbre: when
+            }] as Glyphs2;
+            glyphs.hasSpeech = false;
+            await playAbsoluteDiscreteTones(ctx, glyphs, this.noitify_samples, {}, {}, {}, [], bufferPrimitve);
+          } catch {
+            console.warn("Sampling failed")
+          }
+        } else if ('chime' in notificationItem && notificationItem.chime) {
+          // todo: test
+          await playChime(undefined, when as keyof typeof Chimes, bufferPrimitve)
+        }
+      }
+    }
+  }
+
+  private async getNotificationSampling() {
+    let ctx = this.baseContext;
+    if (this.option.notify) {
+      for (const when in this.option.notify) {
+        let notificationItem = this.option.notify[when];
+        if (notificationItem instanceof Object && 'sample' in notificationItem && notificationItem.sample) {
+          this.noitify_samples[when] = await loadSamples(ctx, when, { [when]: { name: when, sample: { mono: notificationItem.sample } } }, '');
+        }
+      }
+    }
   }
 
   // history
-  addToHistory(data: Datum[], time: Date) {
+  private addToHistory(data: Datum[], time: Date) {
     this.history.unshift({ time, data });
     if (this.history.length > DefaultHistoryLimit) this.history.splice(0,);
   }
 
-  queryHistory(_unit?: typeof PlaybackUnits[number], _limit?: number): Datum[] {
+  private addToFutureQueue(data: Datum[], time: Date) {
+    this.playQueue.push({ time, data });
+  }
+
+  queryHistory(_unit?: typeof PlaybackUnits[number], _limit?: number): Array<Datum[]> {
     let unit = _unit ?? this.option.playback?.unit ?? DefaultHistoryQuery;
     let limit = _limit ?? this.option.playback?.limit ?? DefaultPlaybackLimit;
-    let condition = this.option.playback?.condition ?? ((_: any) => true);
+    console.log(_unit, this.option.playback?.unit, DefaultHistoryQuery)
+    console.log(_limit, this.option.playback?.limit, DefaultPlaybackLimit)
     if (limit == 0) {
       return [];
     } else if (unit === PlaybackUnitDatum) {
-      let output: Datum[] = [];
+      let output: Array<Datum[]> = [];
       for (const item of this.history) {
         if (output.length > limit) break;
+        let instance: Datum[] = [];
         for (const datum of item.data) {
           if (output.length > limit) break;
-          if (condition(datum)) output.push(datum);
+          instance.push(datum);
         }
+        output.push(instance)
       }
       return output;
     } else if (unit === PlaybackUnitTime) {
       let time_threshold: number = (new Date().valueOf()) - limit;
-      let output: Datum[] = [];
+      let output: Array<Datum[]> = [];
       for (const item of this.history) {
         if (item.time.valueOf() < time_threshold) break;
+        let instance: Datum[] = [];
         for (const datum of item.data) {
-          if (condition(datum)) output.push(datum);
+          instance.push(datum);
         }
+        output.push(instance)
       }
       return output;
     } else {
-      return this.history.slice(0, limit).map(d => d.data).flat() as Datum[];
+      // instance
+      return this.history.slice(0, limit).map(d => d.data);
     }
   }
 }

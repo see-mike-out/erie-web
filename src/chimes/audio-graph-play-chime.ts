@@ -2,25 +2,28 @@
 
 import { playAbsoluteDiscreteTones } from "../player";
 import { AudioPrimitiveBuffer } from "../pulse";
-import { Glyph, Glyphs2, InstrumentNode } from "../types";
-import { chimeSynth } from "./audio-graph-chime-defs";
+import { Glyph, Glyphs2 } from "../types";
+import { Chimes, chimeSynth } from "./audio-graph-chime-defs";
 
 export async function playChime(
-  ctx: AudioContext,
-  chime: Glyph[],
-  inst: InstrumentNode,
+  ctx: AudioContext | undefined,
+  _chime: Glyph[] | keyof typeof Chimes,
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
-  let chiime_queue = chime as Glyphs2;
-  chiime_queue.hasSpeech = false;
+  if (ctx === undefined) {
+    ctx = new AudioContext();
+  }
+  let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
+  let chime_queue = chime as Glyphs2;
+  chime_queue.hasSpeech = false;
   await playAbsoluteDiscreteTones(
     ctx,
-    chiime_queue,
+    chime_queue,
     {},
-    {},
-    { chimeSynth },
-    {},
+    {}, // sampled
+    { chimeSynth }, // synth defs
+    {}, // wave defs
     [],
     bufferPrimitve
-  )
+  );
 }
