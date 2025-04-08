@@ -109,7 +109,8 @@ export async function compileSingleLayerAuidoGraph(
   if (tone_spec.type === "default") {
     tone_spec = {
       type: Def_tone,
-      continued: tone_spec.continued
+      continued: tone_spec.continued,
+      hasBaseTone: tone_spec.hasBaseTone
     }
   }
   let channels = Object.keys(encoding).filter((c) => ![TIME_chn, TIME2_chn, TIMBRE_chn].includes(c));
@@ -308,7 +309,7 @@ export async function compileSingleLayerAuidoGraph(
     }
   }
   let is_continued = tone_spec.continued === undefined ? false : tone_spec.continued;
-  let has_base_tone = tone_spec.hasBaseTone === undefined ? false : tone_spec.hasBaseTone;
+  let has_base_tone = tone_spec.hasBaseTone ?? false;
   let instrument_type = tone_spec.type || 'default'
 
   // repetition control
@@ -396,7 +397,7 @@ export async function compileSingleLayerAuidoGraph(
   }
   // if not repeated
   else {
-    stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream });
+    stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream, has_base_tone });
     if (!config?.is_streaming) stream.duration = total_duration as number;
     Object.keys(config || {}).forEach(key => {
       (stream as UnitStream).setConfig(key, config?.[key]);

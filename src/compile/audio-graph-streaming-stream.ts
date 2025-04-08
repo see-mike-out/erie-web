@@ -1,5 +1,5 @@
 import { Chimes, playChime } from '../chimes';
-import { AudioGraphQueue, emitNoteStopEvent, loadSamples, playAbsoluteDiscreteTones, playSingleSpeech } from '../player';
+import { AudioGraphQueue, emitNoteStopEvent, loadSamples, playAbsoluteDiscreteTones, playSingleSpeech, rampContinuousTone } from '../player';
 import { playIndefininteContinuousTones } from '../player/proto/audio-graph-player-ind-cont-tones';
 import { AudioPrimitiveBuffer } from '../pulse';
 import {
@@ -36,7 +36,9 @@ import {
   InstrumentNode,
   Glyph,
   ToneSeries,
-  InternalData
+  InternalData,
+  Paused,
+  StreamerInstrument
 } from '../types';
 import {
   toOrdinalNumbers,
@@ -90,7 +92,7 @@ export class StreamingStream {
 
   has_base_tone: boolean;
   baseContext!: AudioContext;
-  baseStream!: InstrumentNode;
+  baseStream!: StreamerInstrument;
   baseTone!: any;
   baseValues: RecordObject;
   currentQueue!: AudioGraphQueue;
@@ -98,6 +100,7 @@ export class StreamingStream {
   status: PlayerStatus
   is_destroyed: boolean;
   is_started: boolean;
+  is_muted: boolean;
 
   constructor(
     opt: StreamingOption
@@ -137,6 +140,7 @@ export class StreamingStream {
     this.status = Stopped; // for the player
     this.is_destroyed = false; // for the object
     this.is_started = false;
+    this.is_muted = false;
 
     this.getNotificationSampling();
   }
@@ -157,9 +161,9 @@ export class StreamingStream {
   setStream(d: UnitStream) {
     // copy from unit stream;
     this.is_continued = d.option.is_continued;
-    this.has_base_tone = d.option.has_base_tone;
+    this.has_base_tone = d.option.has_base_tone ?? false;
     this.is_relative = d.option.relative;
-    this.audioFilters = d.audioFilters;
+    this.audioFilters = d.audioFilters ?? [];
     this.ramp = d.ramp;
     this.config = d.config;
     this.stream = d.stream;
@@ -271,7 +275,7 @@ export class StreamingStream {
       }
       this.baseContext = new AudioContext();
       if (this.has_base_tone) {
-        if (this.baseTone in OscTypes || this.baseTone in this.synths) {
+        if (OscTypes.includes(this.baseTone) || this.baseTone in this.synths) {
           let config = this.config;
           config.ramp = this.ramp;
           config.instrument_type = this.baseValues.timbre ?? 'sine';
@@ -317,7 +321,6 @@ export class StreamingStream {
     await this.notify('incoming', bufferPrimitve, ttsFetchFunction);
 
     let playback_history!: Datum[]
-    console.log(this.option.playback, this.history)
     if (this.option.playback && !test) {
       let condition = this.option.playback?.condition ?? ((_: any) => true);
       if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
@@ -375,6 +378,34 @@ export class StreamingStream {
 
     if (this.has_base_tone) {
       // assign values
+      if (!this.baseStream) {
+        console.warn('Start the player first.')
+      }
+      let endTime: number | 'after_previous' =
+        typeof converted[converted.length - 1].start === 'number' ?
+          ((converted[converted.length - 1].start as number) + (converted[converted.length - 1].duration ?? 0))
+          : 'after_previous';
+      let duration: number = endTime == 'after_previous' ? converted.map(d => d.duration ?? 0).reduce((a, c) => a + c, 0) : endTime;
+      converted.push({
+        start: endTime,
+        ...this.baseValues
+      })
+      this.unmuteBaseTone();
+      await rampContinuousTone(
+        this.baseContext,
+        converted,
+        duration,
+        this.baseStream.inst,
+        this.baseStream.panner,
+        this.baseStream.isStereo,
+        this.baseStream.gain,
+        this.baseStream.rampers,
+        this.audioFilters,
+        this.baseStream.filterNodes,
+        this.baseStream.filterEncoders,
+        this.baseStream.filterFinishers,
+        this.config
+      )
     } else {
       // prerender
       this.currentQueue = new AudioGraphQueue();
@@ -409,8 +440,8 @@ export class StreamingStream {
   }
 
   async cancel() {
+    // for the current stream;
     if (this.status == Playing) {
-      // stop the player
       this.status = Stopped;
       emitNoteStopEvent('stop', {});
       if (this.playQueue.length > 0) {
@@ -428,18 +459,27 @@ export class StreamingStream {
     return this;
   }
 
-  async pause() {
+  muteBaseTone() {
+    if (this.baseStream) this.baseStream.gain.gain.value = 0;
+    this.is_muted = true;
+    return this;
+  }
+
+  unmuteBaseTone() {
+    if (this.baseStream) this.baseStream.gain.gain.value = this.baseValues.loudness;
+    this.is_muted = false;
     return this;
   }
 
   destroy() {
+    // for the entirety
     let continued = this.is_continued;
     this.cancel().then(() => {
       // remove the player
-      if (continued) {
-        this.baseStream.stop(this.baseContext.currentTime);
+      if (continued && this.baseStream) {
+        this.baseStream.inst.stop(this.baseContext.currentTime);
       }
-      this.baseContext.close();
+      if (this.baseContext) this.baseContext.close();
     });
     this.status = Stopped;
     this.is_destroyed = true;
@@ -461,6 +501,7 @@ export class StreamingStream {
       if (c.duration) c.duration = c.duration / speed;
       if (c.end) c.end = c.end / speed;
       if (c.speech !== undefined) has_speech = true;
+      if (c.loudness === undefined) c.loudness = 1;
     });
 
     (audio_graph as Glyphs2).hasSpeech = has_speech
@@ -474,6 +515,7 @@ export class StreamingStream {
       let notificationItem = this.option.notify?.[when] ?? DefaultNoitfyOptions[when];
       if (notificationItem === true) notificationItem = DefaultNoitfyOptions[when];
       if (notificationItem instanceof Object) {
+        this.muteBaseTone()
         if ('speech' in notificationItem && notificationItem.speech) {
           // todo: test
           await playSingleSpeech(
@@ -513,6 +555,7 @@ export class StreamingStream {
           // todo: test
           await playChime(undefined, when as keyof typeof Chimes, bufferPrimitve)
         }
+        this.unmuteBaseTone()
       }
     }
   }
@@ -542,8 +585,6 @@ export class StreamingStream {
   queryHistory(_unit?: typeof PlaybackUnits[number], _limit?: number): Array<Datum[]> {
     let unit = _unit ?? this.option.playback?.unit ?? DefaultHistoryQuery;
     let limit = _limit ?? this.option.playback?.limit ?? DefaultPlaybackLimit;
-    console.log(_unit, this.option.playback?.unit, DefaultHistoryQuery)
-    console.log(_limit, this.option.playback?.limit, DefaultPlaybackLimit)
     if (limit == 0) {
       return [];
     } else if (unit === PlaybackUnitDatum) {

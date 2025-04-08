@@ -174,7 +174,8 @@ async function __playSingleTone(
   // DONE  function to handle this and call as needed (look at ramp)
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
   const isStereo = cartesianInputs === 1 && sound.panX !== undefined;
-  const panner = createPanner(ctx as any, cartesianInputs, gain);
+  const panner = createPanner(ctx as any, cartesianInputs);
+  panner.connect(gain);
 
 
   // play as async promise

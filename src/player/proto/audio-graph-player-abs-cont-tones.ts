@@ -136,7 +136,8 @@ export async function playAbsoluteContinuousTones(
   // decide between stereo or 3d pan
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => queue[0][key] !== undefined).length;
   const isStereo = cartesianInputs === 1 && queue[0].panX !== undefined;
-  const panner = createPanner(ctx, cartesianInputs, gain);
+  const panner = createPanner(ctx, cartesianInputs);
+  panner.connect(gain);
 
   let sid = genRid()
   sendToneStartEvent({ sid });

@@ -30,7 +30,8 @@ export function makeTemporalScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
   values: any[] | undefined,
-  info: RecordObject
+  info: RecordObject,
+  is_streamed?: boolean
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;

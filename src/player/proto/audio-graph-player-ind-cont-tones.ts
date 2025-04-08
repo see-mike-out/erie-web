@@ -37,7 +37,9 @@ import {
   HashedObject,
   SynthNormed,
   WaveNormed,
-  AudioFilterPrototype
+  AudioFilterPrototype,
+  StreamerInstrument,
+  InstrumentNode
 } from '../../types';
 import {
   makeTick,
@@ -59,7 +61,7 @@ export function playIndefininteContinuousTones(
   waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
-) {
+): StreamerInstrument {
   // clear previous state
   setErieGlobalState(undefined);
 
@@ -118,7 +120,8 @@ export function playIndefininteContinuousTones(
   // decide between stereo or 3d pan
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => base[key] !== undefined).length;
   const isStereo = cartesianInputs === 1 && base.panX !== undefined;
-  const panner = createPanner(ctx, cartesianInputs, gain);
+  const panner = createPanner(ctx, cartesianInputs);
+  panner.connect(gain);
 
   let sid = genRid()
   sendToneStartEvent({ sid });
@@ -137,6 +140,7 @@ export function playIndefininteContinuousTones(
   let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
   if (inst instanceof OscillatorNode) {
     // osc pitch
+    console.log(base.pitch ?? DefaultFrequency, ct)
     rampBy('setValueAtTime', inst.frequency, base.pitch ?? DefaultFrequency, ct);
   } else if (inst instanceof ErieSynth) {
     // synth pitch
@@ -181,13 +185,13 @@ export function playIndefininteContinuousTones(
     }
   }
 
-  const tick = makeTick(ctx, config.tick, 'indefinite') as Function;
+  const tick = makeTick(ctx, config.tick, 'indefinite') as (() => InstrumentNode);
   if (tick) {
     function play_tick() {
-      let t = tick()
+      let t = tick() as InstrumentNode
       let st = ctx.currentTime
       t.start(st);
-      t.end(st + config.tick.band);
+      t.stop(st + config.tick.band);
     }
     play_tick();
     let tick_interval_id = setInterval(play_tick, config.tick.band);
@@ -195,9 +199,19 @@ export function playIndefininteContinuousTones(
       clearInterval(tick_interval_id);
     };
   }
-
   inst.start(ct);
   emitNotePlayEvent('tone', base);
-  return inst
+  return {
+    inst,
+    gain,
+    filterNodes,
+    filterEncoders,
+    filterFinishers,
+    tick,
+    panner,
+    isStereo,
+    destination,
+    rampers
+  }
 }
 

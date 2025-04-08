@@ -31,7 +31,8 @@ export function makeQuantitativeScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
   values: any[] | undefined,
-  info: RecordObject
+  info: RecordObject,
+  is_streamed?: boolean
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;
@@ -77,7 +78,9 @@ export function makeQuantitativeScaleFunction(
   let range = deepcopy(scaleDef?.range || null) as any[];
   let rangeProvided = scaleDef?.range !== undefined;
   if (times && !rangeProvided) {
-    range = domain.map(d => d * times);
+    if (!is_streamed) {
+      range = domain.map(d => d * times);
+    }
     rangeProvided = true;
   } // to skip the below changes when `times` is present while range is not.
 

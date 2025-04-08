@@ -337,10 +337,10 @@ export function noteToFreq(note: number | string) {
 }
 
 export function getEndTime1(a: Glyph) {
-  if (a.time === 'after_previous') {
+  if (a.start === 'after_previous') {
     return (a.duration ?? 0);
   } else {
-    return (a.time ?? 0) + (a.duration ?? 0);
+    return (a.start ?? 0) + (a.duration ?? 0);
   }
 }
 
@@ -349,7 +349,7 @@ export function getDuration1(a: Glyph) {
 }
 
 export function getStartTime1(a: Glyph) {
-  if (typeof a.time === 'number') return a.time;
+  if (typeof a.start === 'number') return a.start;
   else return 0;
 }
 
