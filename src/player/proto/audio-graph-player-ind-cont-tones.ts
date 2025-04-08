@@ -140,7 +140,6 @@ export function playIndefininteContinuousTones(
   let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
   if (inst instanceof OscillatorNode) {
     // osc pitch
-    console.log(base.pitch ?? DefaultFrequency, ct)
     rampBy('setValueAtTime', inst.frequency, base.pitch ?? DefaultFrequency, ct);
   } else if (inst instanceof ErieSynth) {
     // synth pitch
