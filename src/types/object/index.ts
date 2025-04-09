@@ -11,3 +11,4 @@ export * from "./octave";
 export * from "./instrument";
 export * from "./status";
 export * from "./notify"
+export * from "./ordering";

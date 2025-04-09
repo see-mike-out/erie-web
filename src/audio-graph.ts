@@ -44,6 +44,12 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   let is_streaming = isStreamingStream(audio_spec);
   sequenceConfig.is_streaming = is_streaming;
 
+  // handle ordering
+  let ordering = audio_spec?.ordering;
+  if (!ordering) {
+    // get default ordering
+  }
+
   let sequence = !is_streaming ? await compileSequnceStream(
     audio_spec,
     normalized,

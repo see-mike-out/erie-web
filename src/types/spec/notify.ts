@@ -22,11 +22,5 @@ export type ChimeNotifyItemSpec = { // predefined chimes
 export type NotifyItemSpec = SpeechNotifyItemSpec | SampledNotifyItemSpec | ChimeNotifyItemSpec | boolean;
 
 export interface NotifySpec {
-  // notify?
   [key: NotifyType]: NotifyItemSpec;
-  // incoming?: NotifyItemSpec;
-  // beforePlayback?: NotifyItemSpec;
-  // afterPlayback?: NotifyItemSpec;
-  // beforePlay?: NotifyItemSpec;
-  // afterPlay?: NotifyItemSpec;
 }

@@ -10,4 +10,5 @@ export * from "./config";
 export * from "./notify";
 export * from "./tone";
 export * from "./synth";
-export * from "./transform"
+export * from "./transform";
+export * from "./ordering";

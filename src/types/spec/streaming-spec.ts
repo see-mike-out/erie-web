@@ -43,7 +43,3 @@ export interface PlaybackSpec {
   limit?: number,
   speed?: number,
 }
-// conditional, manual, or automatic playback: define how much to go back (time or data)
-// if conditional: should be provided
-// manual
-// automatic
