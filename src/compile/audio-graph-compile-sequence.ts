@@ -1,6 +1,6 @@
 import { getData } from "../data";
 import { isRepeatedStream } from "../normalize";
-import { AudioGraphSpeechItem, ConfigNormed, DatasetSpecItemNormed, HashedObject, LoadedDatasets, NormalizedStreamItem, ParsedScaleDefinition, SampledToneNormed, SynthNormed, TickNormed, TopLevelSpec, WaveNormed } from "../types";
+import { AudioGraphSpeechItem, ConfigNormed, DataNormed1, DatasetSpecItemNormed, HashedObject, LoadedDatasets, NormalizedStreamItem, OrderSpecNormed, ParsedScaleDefinition, SampledToneNormed, SynthNormed, TickNormed, TopLevelSpec, WaveNormed } from "../types";
 import { deepcopy, toHashedObject } from "../util";
 import { OverlayStream } from "./audio-graph-overlay-stream";
 import { compileSingleLayerAuidoGraph } from "./audio-graph-queue-compile";
@@ -18,7 +18,8 @@ export async function compileSequnceStream(
   sequenceConfig: ConfigNormed,
   synths: SynthNormed[],
   samplings: SampledToneNormed[],
-  waves: WaveNormed[]
+  waves: WaveNormed[],
+  ordering_normalized: OrderSpecNormed
 ): Promise<SequenceStream> {
 
   // 1. load datasets first! && filling missing data type
@@ -26,7 +27,7 @@ export async function compileSequnceStream(
   let scalesToRemove = [];
   for (const stream of normalized) {
     if ('stream' in stream && stream.stream) {
-      await getData(stream.stream.data, loaded_datasets, datasets);
+      await getData(stream.stream.data as DataNormed1, loaded_datasets, datasets);
 
       let untyped_channels: string[] = [];
       Object.keys(stream.stream.encoding).forEach((channel) => {
@@ -38,7 +39,7 @@ export async function compileSequnceStream(
       scalesToRemove.push(...tidyUpScaleDefinitions(scaleDefinitions, normalized, sequenceConfig));
     } else if ('overlay' in stream && stream.overlay) {
       for (const overlay of stream.overlay) {
-        await getData(overlay.data, loaded_datasets, datasets);
+        await getData(overlay.data as DataNormed1, loaded_datasets, datasets);
         let untyped_channels: string[] = [];
         Object.keys(overlay.encoding).forEach((channel) => {
           if (!overlay.encoding[channel].type) untyped_channels.push(channel);
@@ -49,7 +50,7 @@ export async function compileSequnceStream(
       }
       let c: ConfigNormed = {};
       Object.assign(c, sequenceConfig);
-      Object.assign(c, stream.config || {});
+      // Object.assign(c, stream.config || {});
       scalesToRemove.push(...tidyUpScaleDefinitions(scaleDefinitions, normalized, c));
     }
   }
@@ -81,7 +82,7 @@ export async function compileSequnceStream(
       sequence.setIntroStream(sStream);
     } else if ('stream' in stream && stream.stream) {
       let is_repeated = isRepeatedStream(stream.stream);
-      let data = deepcopy(loaded_datasets[stream.stream.data.name]);
+      let data = deepcopy(loaded_datasets[(stream.stream.data as DataNormed1).name]);
       // slag = single layer audio graph
       let slag = await compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales)
 
@@ -114,7 +115,7 @@ export async function compileSequnceStream(
 
       let i = 0;
       for (const overlay of stream.overlay) {
-        let data = deepcopy(loaded_datasets[overlay.data.name]);
+        let data = deepcopy(loaded_datasets[(overlay.data as DataNormed1).name]);
 
         let config = deepcopy(audio_spec.config as ConfigNormed);
         Object.assign(config, overlay.config);
@@ -139,11 +140,11 @@ export async function compileSequnceStream(
           }
         });
       }
-      if (stream.config) {
-        Object.keys(stream.config).forEach((key) => {
-          overlays.setConfig(key, stream.config[key]);
-        });
-      }
+      // if (stream.config) {
+      //   Object.keys(stream.config).forEach((key) => {
+      //     overlays.setConfig(key, stream.config[key]);
+      //   });
+      // }
       sequence.addStream(overlays);
     }
     si++;

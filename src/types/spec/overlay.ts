@@ -8,7 +8,10 @@ import { SynthSpec } from "./synth"
 
 export type OverlayStreamSpec1 = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   data: DataSpec,
   transform?: TransformListSpec,
@@ -16,13 +19,15 @@ export type OverlayStreamSpec1 = {
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
-  wave?: WaveSpec[],
-  config?: ConfigSpec
+  wave?: WaveSpec[]
 }
 
 export type OverlayStreamSpec2 = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   datasets: DatasetSpecItem[]
   transform?: TransformListSpec,
@@ -30,19 +35,20 @@ export type OverlayStreamSpec2 = {
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
-  wave?: WaveSpec[],
-  config?: ConfigSpec
+  wave?: WaveSpec[]
 }
 
 export type OverlayStreamSpec = OverlayStreamSpec1 | OverlayStreamSpec2;
 
 export type InSeqOverlayStreamSpec = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   data?: DataSpec,
   datasets?: DatasetSpecItem[]
   transform?: TransformListSpec,
-  overlay: UnitStreamSpec[],
-  config?: ConfigSpec
+  overlay: UnitStreamSpec[]
 }

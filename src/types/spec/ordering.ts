@@ -1,4 +1,4 @@
-import { OrderingRole, OrderingTypeMarkup, OrderingTypeSound, OrderingTypeText } from "../object";
+import { OrderingMarkup, OrderingRole, OrderingTypeMarkup, OrderingTypeSound, OrderingTypeText } from "../object";
 import { NotifySpec } from "./notify";
 
 export type OrderSpec = OrderItem[];
@@ -8,29 +8,23 @@ export type OrderItem = MarkupOrderItem | TextOrderItem | SoundOrderItem;
 
 // markup: text/scale description referring to the stream spec
 export type MarkupOrderItem = {
-  type: typeof OrderingTypeMarkup;
   specifier: Specifier;
-  option?: AnnouncementOption | ScaleDescriptionOption;
-
+  markup?: OrderingMarkup;
   // note
   description?: string;
 };
 
 // pure text
 export type TextOrderItem = {
-  type: typeof OrderingTypeText;
   text: string;
-
   // note
   description?: string;
 };
 
 // actual sonification
 export type SoundOrderItem = {
-  type: typeof OrderingTypeSound;
   specifier: Specifier;
-  option?: SoundOption;
-  
+  notify?: NotifySpec;
   // note
   description?: string;
 };
@@ -47,17 +41,4 @@ export type Specifier = {
     };
   };
   channel?: string;
-};
-
-// Updated ScaleDescriptionOption to allow more flexibility for marked-up scale descriptions
-export type ScaleDescriptionOption = {
-  markup: string | string[]; // Can be a single string or an array of strings to handle multiple elements
-};
-
-export type AnnouncementOption = {
-  numbering?: { markup: string } | boolean;
-};
-
-export type SoundOption = {
-  notify?: NotifySpec
 };

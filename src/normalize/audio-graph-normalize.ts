@@ -25,8 +25,6 @@ import {
   NormalizedSingleStreamItem,
   DataSpec,
   DatasetSpecItem,
-  InSeqOverlayStreamSpec,
-  UnitStreamSpec,
   WaveObject,
   SampledToneObject,
   DataSpec3,
@@ -76,11 +74,10 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
         name: "test",
         ...addURLtoDataObject(spec.data.test, dataBaseUrl)
       })
-      isStreamingStream(spec)
     }
     let { normalized, scaleDefinitions } = normalizeSingleSpec(spec as ExtendedSingleSpec, null);
     if (normalized !== null && scaleDefinitions !== null) {
-      streams.push({ stream: normalized });
+      streams.push({ stream: normalized, id: normalized.id, name: normalized.name });
       scales.push(...scaleDefinitions);
       used_encodings.push(...Object.keys(normalized.encoding));
     }
@@ -203,18 +200,30 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
       delete config.forceSequenceScaleConsistency;
 
       // finally pass to the 
-      streams.push({ overlay, name: spec.name, title: spec.title, description: spec.description, config });
+      streams.push({
+        overlay,
+        id: genRid(),
+        name: spec.name,
+        title: spec.title,
+        description: spec.description,
+        skipTitle: spec.skipTitle ?? false,
+        skipDescription: spec.skipDescription ?? false,
+        skipLength: spec.skipLength ?? false,
+      });
     } else if (!isStreamingStream(spec) && isSequenceStream(spec) && 'sequence' in spec) {
       let output: NormalizedStreamItem[] = [];
-      let introSeq: IntroStream = {};
+      let intro_id = genRid();
+      let introSeq: IntroStream = { id: intro_id };
       config = {} as ConfigInterface;
       Object.assign(config, spec.config);
-
       // make intro stream
       if (spec.title) introSeq.title = spec.title;
       if (spec.description) introSeq.description = spec.description;
       if (Object.keys(introSeq).length > 0) {
-        output.push({ intro: introSeq })
+        introSeq.skipTitle = spec.skipTitle ?? false;
+        introSeq.skipDescription = spec.skipDescription ?? false;
+        introSeq.skipLength = spec.skipLength ?? false;
+        output.push({ intro: introSeq, id: intro_id });
       }
 
       for (const _o of spec.sequence) {
@@ -258,7 +267,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
           // if okay, update to the full spec
           if (n.normalized !== null && n.scaleDefinitions !== null) {
             scales.push(...n.scaleDefinitions);
-            output.push({ stream: n.normalized });
+            output.push({ stream: n.normalized, id: n.normalized.id, name: n.normalized.name });
             used_encodings.push(...Object.keys(n.normalized.encoding));
           }
         }
@@ -298,7 +307,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
       delete config.forceOverlayScaleConsistency;
       streams.push(...output.map((d) => {
         if ('intro' in d) {
-          return { intro: d.intro as IntroStream } as NormalizedIntroStreamItem
+          return { intro: d.intro as IntroStream, id: d.id } as NormalizedIntroStreamItem
         } else if ('overlay' in d) {
           return {
             overlay: d.overlay,
@@ -306,10 +315,12 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
             name: d.name,
             title: d.title,
             description: d.description,
-            config: d.config
+            skipTitle: d.skipTitle ?? false,
+            skipDescription: d.skipDescription ?? false,
+            skipLength: d.skipLength ?? false,
           } as NormalizedOverlayItem
         } else if ('stream' in d) {
-          return { stream: d.stream } as NormalizedSingleStreamItem;
+          return { stream: d.stream, id: d.stream.id, name: d.stream.name } as NormalizedSingleStreamItem;
         }
       }).filter(d => d !== undefined));
     }

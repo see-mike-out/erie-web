@@ -17,6 +17,7 @@ import {
   normalizeSpecification,
   isRepeatedStream,
   isStreamingStream,
+  normalizeOrderSpec,
 } from "./normalize";
 import {
   deepcopy,
@@ -28,8 +29,10 @@ import {
   ConfigInterface,
   LoadedDatasets,
   AudioGraphSpeechItem,
-  StreamingSpec
+  StreamingSpec,
+  OrderSpecNormed
 } from './types';
+import { generateBaseOrderSpec } from './normalize/audio-graph-generate-base-ordering';
 
 // global event
 let isRecorded = false;
@@ -41,14 +44,20 @@ export function readyRecording() {
 
 export async function compileAudioGraph(audio_spec: TopLevelSpec, options: ConfigInterface) {
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec, options);
+  console.log(normalized)
   let is_streaming = isStreamingStream(audio_spec);
   sequenceConfig.is_streaming = is_streaming;
 
-  // handle ordering
-  let ordering = audio_spec?.ordering;
-  if (!ordering) {
-    // get default ordering
+  // todo: handle ordering
+  let ordering = audio_spec?.ordering, ordering_normalized!: OrderSpecNormed;
+  if (ordering !== undefined) {
+    ordering_normalized = normalizeOrderSpec(ordering, normalized);
+    // todo: get default ordering (should be already normalized)
+  } else {
+    // todo: get normlized ordering spec
+    ordering_normalized = generateBaseOrderSpec(normalized, sequenceConfig);
   }
+  console.log(ordering_normalized)
 
   let sequence = !is_streaming ? await compileSequnceStream(
     audio_spec,
@@ -59,7 +68,8 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
     sequenceConfig,
     synths,
     samplings,
-    waves
+    waves,
+    ordering_normalized
   ) : await compileStreamingStream(
     audio_spec as StreamingSpec,
     normalized,

@@ -10,7 +10,10 @@ import { SynthSpec } from "./synth"
 // data
 export type SequenceStreamSpec1 = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   data: DataSpec,
   transform?: TransformListSpec,
@@ -25,7 +28,10 @@ export type SequenceStreamSpec1 = {
 // dataset
 export type SequenceStreamSpec2 = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   datasets: DatasetSpecItem[]
   transform?: TransformListSpec,

@@ -22,8 +22,7 @@ export type StreamingSpec = {
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
-  wave?: WaveSpec[],
-  config?: ConfigSpec,
+  wave?: WaveSpec[]
 
   // Streaming Specific
   playback?: PlaybackSpec,

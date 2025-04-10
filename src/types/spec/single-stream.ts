@@ -7,7 +7,9 @@ import { TransformListSpec } from "./transform";
 
 export type SingleStreamSpec = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
   name?: string,
   data: DataSpec,
   transform?: TransformListSpec,
@@ -19,8 +21,7 @@ export type SingleStreamSpec = {
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
-  wave?: WaveSpec[],
-  config?: ConfigSpec
+  wave?: WaveSpec[]
 }
 
 export type ExtendedSingleSpec = SingleStreamSpec & {

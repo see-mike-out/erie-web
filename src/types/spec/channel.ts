@@ -31,7 +31,8 @@ export interface ChannelSpec {
   sort?: SortValues;
   timeUnit?: keyof typeof timeUnitDomainDefs,
   timeUnitName?: string | string[] | number[],
-  timeLevel?: timeLevelValues
+  timeLevel?: timeLevelValues,
+  skipDescription?: boolean
 }
 
 export interface TickSpec {

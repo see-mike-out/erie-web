@@ -1,25 +1,28 @@
+import { HashedObject } from "../generic";
+
 // Roles
 export const RoleAnnounceKeyScStopPlay = "stop-play-keyboard-shortcut",
-  RoleCardinality = "cardinality",
-  RoleStreamName = 'stream.name',
-  RoleStreamScaleOverview = 'stream.scale.overview',
-  RoleStreamScaleDescription = 'stream.scale.description',
-  RoleStreamOverlayLength = 'stream.overlay.length',
-  RoleStreamSound = 'stream.sound',
-  RoleAnnounceFinished = 'finished',
-  RoleAnnounceStarting = 'starting';
+  RoleLength = 'length',
+  RoleTitle = 'title',
+  RoleDescription = 'description',
+  RoleName = 'name',
+  RoleScaleOverview = 'scale.overview',
+  RoleScaleDescription = 'scale.description',
+  RoleStreamSound = 'sound',
+  RoleRepeatTitle = 'repeat.title';
 
 
 export const OrderingRoles = [
   RoleAnnounceKeyScStopPlay,
-  RoleCardinality,
-  RoleStreamName,
-  RoleStreamScaleOverview,
-  RoleStreamScaleDescription,
-  RoleStreamOverlayLength,
   RoleStreamSound,
-  RoleAnnounceFinished,
-  RoleAnnounceStarting
+  RoleLength,
+  RoleTitle,
+  RoleDescription,
+  RoleName,
+  RoleScaleOverview,
+  RoleScaleDescription,
+  RoleStreamSound,
+  RoleRepeatTitle
 ];
 
 export type OrderingRole = typeof OrderingRoles[number];
@@ -28,3 +31,5 @@ export type OrderingRole = typeof OrderingRoles[number];
 export const OrderingTypeMarkup = "markup",
   OrderingTypeText = "text",
   OrderingTypeSound = "sound";
+
+export type OrderingMarkup = string | string[] | HashedObject<string>;

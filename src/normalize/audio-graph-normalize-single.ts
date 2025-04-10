@@ -39,7 +39,8 @@ import {
   EncodingNormed,
   TransformItemNormed,
   EncodingItemNormed,
-  ExtendedSingleSpec
+  ExtendedSingleSpec,
+  STATIC
 } from "../types";
 import { GroupbyAuto } from "../types/spec/transform/groupby";
 import {
@@ -133,6 +134,13 @@ export function normalizeSingleSpec(
     let _original_field: string | undefined = undefined;
     let _type = o_enc.type ?? undefined;
     let _by: string[] | undefined = undefined;
+    let skip: boolean = o_enc.skipDescription ?? false;
+    if (o_enc.skipDescription === undefined) {
+      if (o_enc.type === STATIC || (o_enc.value && !o_enc.condition)) {
+        // static type -> no scale description
+        o_enc.skipDescription = true;
+      }
+    }
     if (channel !== REPEAT_chn && _field instanceof Array) {
       console.error("Only a repeat channel can have an array of fields.");
     }
@@ -293,7 +301,8 @@ export function normalizeSingleSpec(
       sort: o_enc.sort,
       timeUnit: o_enc.timeUnit,
       timeUnitName: o_enc.timeUnitName,
-      timeLevel: o_enc.timeLevel
+      timeLevel: o_enc.timeLevel,
+      skipDescription: skip
     } as EncodingItemNormed;
   }
   // if time2 channel is defined, set the scale for it
@@ -347,13 +356,13 @@ export function normalizeSingleSpec(
         });
       } */
 
-  // config
-  let config: ConfigInterface | undefined = undefined;
-  if (spec.config) {
-    config = {};
-    Object.assign(config, spec.config);
-    config = config;
-  }
+  // config (removing bc config only exists at the top level)
+  // let config: ConfigInterface | undefined = undefined;
+  // if (spec.config) {
+  //   config = {};
+  //   Object.assign(config, spec.config);
+  //   config = config;
+  // }
 
   let normalized: NormalizedSingleStream = {
     title,
@@ -364,7 +373,6 @@ export function normalizeSingleSpec(
     tone,
     filter,
     encoding,
-    config,
     common_transform,
     transform
   };

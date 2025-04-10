@@ -6,12 +6,9 @@ import {
 } from './audio-graph-repeat-stream';
 import { Def_tone } from '../normalize';
 import {
-  asc,
   deepcopy,
   unique,
-  listString,
-  sinDeg,
-  cosDeg
+  listString
 } from "../util";
 import {
   transformData,
@@ -22,13 +19,10 @@ import {
   NOM,
   ORD,
   TMP,
-  SPEECH_AFTER_chn,
-  SPEECH_BEFORE_chn,
   REPEAT_chn,
   TIMBRE_chn,
   TIME2_chn,
   TIME_chn,
-  TapChannels,
   SEQUENCE,
   REL,
   ScaleDescriptionOrder,

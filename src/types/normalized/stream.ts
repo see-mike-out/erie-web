@@ -30,28 +30,35 @@ export type NormalizedStreamItem = NormalizedSingleStreamItem
   | NormalizedIntroStreamItem;
 
 export type NormalizedSingleStreamItem = {
-  stream: NormalizedSingleStream
+  stream: NormalizedSingleStream;
+  name?: string;
+  id: string;
 }
 
 export type NormalizedOverlayItem = {
   overlay: NormalizedSingleStream[],
-  id?: string,
+  id: string,
   name?: string,
   title?: string,
+  skipTitle?: boolean,
   description?: string,
-  config: ConfigNormed
+  skipDescription?: boolean,
+  skipLength?: boolean
 }
 
 export type NormalizedIntroStreamItem = {
-  intro: IntroStream
+  intro: IntroStream;
+  id: string;
 }
 
 // single stream
 export type NormalizedSingleStream = {
   title?: string,
+  skipTitle?: boolean,
   name?: string,
   id: string,
   description?: string,
+  skipDescription?: boolean,
   data: DataNormed,
   tone: ToneNormed,
   filter?: string[],
@@ -65,4 +72,8 @@ export type NormalizedSingleStream = {
 export type IntroStream = {
   title?: string | undefined;
   description?: string | undefined;
+  skipTitle?: boolean;
+  skipDescription?: boolean;
+  skipLength?: boolean;
+  id: string;
 }

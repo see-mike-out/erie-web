@@ -11,7 +11,6 @@ export const ScaleDescriptionOrder = [
   PITCH_chn,
   DETUNE_chn,
   LOUDNESS_chn,
-  PAN_chn,
   PAN_X_chn,
   PAN_Y_chn,
   PAN_Z_chn,

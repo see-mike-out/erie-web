@@ -79,7 +79,7 @@ export async function compileStreamingStream(
 
   // slag = single layer audio graph
   let has_base_tone = audio_spec.tone.hasBaseTone
-  let slag = await compileSingleLayerAuidoGraph(stream.stream, [], { ...audio_spec.config, is_streaming: true, has_base_tone }, tick, scales)
+  let slag = await compileSingleLayerAuidoGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales)
   if (slag?.stream) sequence.setStream(slag?.stream as UnitStream);
   if (slag?.transformer) sequence.setTransformer(slag?.transformer);
   if (slag?.streaming_encoder) sequence.setEncoder(slag?.streaming_encoder);
@@ -93,13 +93,13 @@ export async function compileStreamingStream(
 
   sequence.setBase(audio_spec.tone.type, basevalues);
 
-  if (audio_spec.config) {
-    Object.keys(audio_spec.config).forEach((key) => {
-      if (audio_spec.config?.[key]) {
-        sequence.setConfig(key, audio_spec.config[key]);
-      }
-    });
-  }
+  // if (audio_spec.config) {
+  //   Object.keys(audio_spec.config).forEach((key) => {
+  //     if (audio_spec.config?.[key]) {
+  //       sequence.setConfig(key, audio_spec.config[key]);
+  //     }
+  //   });
+  // }
   if (stream.stream.config) {
     Object.keys(stream.stream.config).forEach((key) => {
       if (stream.stream.config) sequence.setConfig(key, stream.stream.config[key]);

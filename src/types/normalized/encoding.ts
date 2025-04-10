@@ -43,5 +43,6 @@ export type EncodingItemNormed = {
   timeUnit?: keyof typeof timeUnitDomainDefs,
   timeUnitName?: string | string[] | number[],
   timeLevel?: timeLevelValues,
-  language?: typeof bcp47language[number]
+  language?: typeof bcp47language[number],
+  skipDescription?: boolean
 }

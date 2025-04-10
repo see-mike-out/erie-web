@@ -69,12 +69,10 @@ export function tidyUpScaleDefinitions(
     } else if ('overlay' in stream && stream.overlay) {
       for (const overlayStream of stream.overlay) {
         let overlayScaleConsistency: ScaleConsistencyRecord
-          = stream?.config?.overlayScaleConsistency as ScaleConsistencyRecord
-          || sequenceConfig?.overlayScaleConsistency as ScaleConsistencyRecord
+          = sequenceConfig?.overlayScaleConsistency as ScaleConsistencyRecord
           || {};
         let forceOverlayScaleConsistency: ScaleConsistencyRecord
-          = stream?.config?.forceOverlayScaleConsistency as ScaleConsistencyRecord
-          || sequenceConfig?.forceOverlayScaleConsistency as ScaleConsistencyRecord
+          = sequenceConfig?.forceOverlayScaleConsistency as ScaleConsistencyRecord
           || {};
         Object.keys(overlayStream.encoding).forEach((channel) => {
           let match;
