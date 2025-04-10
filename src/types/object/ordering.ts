@@ -30,6 +30,7 @@ export type OrderingRole = typeof OrderingRoles[number];
 // Order Item Types
 export const OrderingTypeMarkup = "markup",
   OrderingTypeText = "text",
-  OrderingTypeSound = "sound";
+  OrderingTypeSound = "sound",
+  OrderingTypeRepeat = "repeat";
 
 export type OrderingMarkup = string | string[] | HashedObject<string>;

@@ -17,6 +17,7 @@ import {
   SynthNormed,
   SampledToneNormed,
   WaveNormed,
+  OrderSpecNormed,
 } from '../types';
 import {
   toOrdinalNumbers,
@@ -40,6 +41,7 @@ export class SequenceStream {
   introStream?: SpeechStream;
   queue!: AudioGraphQueue | void;
   scaleQueue!: AudioGraphQueue;
+  ordering!: OrderSpecNormed
 
   constructor() {
     this.streams = [];
@@ -49,6 +51,7 @@ export class SequenceStream {
     this.synths = {};
     this.samplings = {};
     this.waves = {};
+    this.ordering = [];
   }
 
   setName(n: string) {
@@ -85,6 +88,10 @@ export class SequenceStream {
 
   setIntroStream(stream: SpeechStream) {
     this.introStream = stream;
+  }
+  
+  setOrdering(ordering: OrderSpecNormed) {
+    this.ordering = ordering;
   }
 
   async prerender() {

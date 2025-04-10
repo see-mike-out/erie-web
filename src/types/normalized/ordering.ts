@@ -1,10 +1,10 @@
-import { OrderingMarkup, OrderingRole, OrderingTypeMarkup, OrderingTypeSound, OrderingTypeText } from "../object";
+import { OrderingMarkup, OrderingRole, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound, OrderingTypeText } from "../object";
 import { NotifySpec } from "../spec";
 
 // Normalized types
 export type OrderSpecNormed = OrderItemNormed[]; // Ordered sequence of items
 
-export type OrderItemNormed = MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed;
+export type OrderItemNormed = MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed | RepeatOrderItemNormed;
 
 // markup: text/scale description referring to the stream spec
 export type MarkupOrderItemNormed = {
@@ -31,6 +31,15 @@ export type SoundOrderItemNormed = {
   group_id: number;
   specifier: SpecifierNormed;
   notify?: NotifySpec;
+  // note
+  description?: string;
+};
+
+// for repeating
+export type RepeatOrderItemNormed = {
+  type: typeof OrderingTypeRepeat;
+  group_id: number;
+  repeat: Array<MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed>;
   // note
   description?: string;
 };

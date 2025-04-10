@@ -36,7 +36,4 @@ test('normalize streaming spec', async () => {
     }
   }
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(test_spec);
-  console.log(scaleDefinitions)
-  // console.log(JSON.stringify(normalized, null, 2))
-  // console.log(JSON.stringify(scaleDefinitions, null, 2))
 })

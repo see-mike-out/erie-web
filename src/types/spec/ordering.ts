@@ -1,4 +1,4 @@
-import { OrderingMarkup, OrderingRole, OrderingTypeMarkup, OrderingTypeSound, OrderingTypeText } from "../object";
+import { OrderingMarkup, OrderingRole } from "../object";
 import { NotifySpec } from "./notify";
 
 export type OrderSpec = OrderItem[];
@@ -40,5 +40,6 @@ export type Specifier = {
       name?: string;
     };
   };
+  is_repeated?: boolean;
   channel?: string;
 };

@@ -1,8 +1,10 @@
 import {
-  ConfigInterface, NormalizedStreamItem, OmitDesc, OrderingTypeMarkup, OrderingTypeSound,
+  ConfigInterface, MarkupOrderItemNormed, NormalizedStreamItem, OmitDesc, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound,
   OrderSpecNormed, RoleDescription, RoleLength,
   RoleRepeatTitle,
-  RoleScaleDescription, RoleScaleOverview, RoleStreamSound, RoleTitle, ScaleDescriptionOrder
+  RoleScaleDescription, RoleScaleOverview, RoleStreamSound, RoleTitle, ScaleDescriptionOrder,
+  SoundOrderItemNormed,
+  TextOrderItemNormed
 } from "../types";
 
 export function generateBaseOrderSpec(
@@ -231,28 +233,47 @@ export function generateBaseOrderSpec(
             }
           }
         }
-        if (is_repeated && !item.stream.encoding.repeat.skipDescription) {
-          order_spec.push({
-            type: OrderingTypeMarkup,
-            group_id: group_index,
+        if (is_repeated) {
+          let repeat_spec: Array<MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed> = [];
+          let repeat_group_index = 0;
+          if (!item.stream.encoding.repeat.skipDescription) {
+            repeat_spec.push({
+              type: OrderingTypeMarkup,
+              group_id: repeat_group_index,
+              specifier: {
+                role: RoleRepeatTitle,
+                streamId: item.id,
+                is_repeated
+              }
+            });
+            repeat_group_index++;
+          }
+          repeat_spec.push({
+            type: OrderingTypeSound,
+            group_id: repeat_group_index,
             specifier: {
-              role: RoleRepeatTitle,
+              role: RoleStreamSound,
               streamId: item.id,
               is_repeated
             }
           });
+          order_spec.push({
+            type: OrderingTypeRepeat,
+            group_id: group_index,
+            repeat: repeat_spec
+          })
+          group_index++;
+        } else {
+          order_spec.push({
+            type: OrderingTypeSound,
+            group_id: group_index,
+            specifier: {
+              role: RoleStreamSound,
+              streamId: item.id
+            }
+          });
           group_index++;
         }
-        order_spec.push({
-          type: OrderingTypeSound,
-          group_id: group_index,
-          specifier: {
-            role: RoleStreamSound,
-            streamId: item.id,
-            is_repeated
-          }
-        });
-        group_index++;
       }
     }
   }

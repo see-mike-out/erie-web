@@ -19,7 +19,7 @@ export async function compileSequnceStream(
   synths: SynthNormed[],
   samplings: SampledToneNormed[],
   waves: WaveNormed[],
-  ordering_normalized: OrderSpecNormed
+  ordering_normalized: OrderSpecNormed // todo (here, just pass. do stuff at the prerendering step)
 ): Promise<SequenceStream> {
 
   // 1. load datasets first! && filling missing data type
@@ -149,6 +149,8 @@ export async function compileSequnceStream(
     }
     si++;
   }
+
+  sequence.setOrdering(ordering_normalized);
 
   return sequence;
 }
