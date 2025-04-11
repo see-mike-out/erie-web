@@ -40,7 +40,8 @@ import {
   TransformItemNormed,
   EncodingItemNormed,
   ExtendedSingleSpec,
-  STATIC
+  STATIC,
+  SKIP
 } from "../types";
 import { GroupbyAuto } from "../types/spec/transform/groupby";
 import {
@@ -134,11 +135,11 @@ export function normalizeSingleSpec(
     let _original_field: string | undefined = undefined;
     let _type = o_enc.type ?? undefined;
     let _by: string[] | undefined = undefined;
-    let skip: boolean = o_enc.skipDescription ?? false;
-    if (o_enc.skipDescription === undefined) {
+    let skip: boolean = o_enc.scale?.description === SKIP;
+    if (o_enc.scale?.description === undefined) {
       if (o_enc.type === STATIC || (o_enc.value && !o_enc.condition)) {
         // static type -> no scale description
-        o_enc.skipDescription = true;
+        skip = true;
       }
     }
     if (channel !== REPEAT_chn && _field instanceof Array) {

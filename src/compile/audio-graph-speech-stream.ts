@@ -6,10 +6,12 @@ import {
 } from '../types';
 
 export class SpeechStream {
+  id: string;
   stream: AudioGraphSpeech;
   config: ConfigInterface;
 
-  constructor(stream: AudioGraphSpeech) {
+  constructor(id: string, stream: AudioGraphSpeech) {
+    this.id = id;
     this.stream = stream;
     this.config = {};
   }

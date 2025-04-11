@@ -1,5 +1,5 @@
 import { OrderingMarkup, OrderingRole, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound, OrderingTypeText } from "../object";
-import { NotifySpec } from "../spec";
+import { NotifySpec, SpeechOption } from "../spec";
 
 // Normalized types
 export type OrderSpecNormed = OrderItemNormed[]; // Ordered sequence of items
@@ -14,6 +14,7 @@ export type MarkupOrderItemNormed = {
   markup?: OrderingMarkup;
   // note
   description?: string;
+  speechOption?: SpeechOption;
 };
 
 // pure text
@@ -23,6 +24,7 @@ export type TextOrderItemNormed = {
   text: string;
   // note
   description?: string;
+  speechOption?: SpeechOption;
 };
 
 // actual sonification
@@ -33,6 +35,7 @@ export type SoundOrderItemNormed = {
   notify?: NotifySpec;
   // note
   description?: string;
+  speechOption?: SpeechOption;
 };
 
 // for repeating
@@ -40,6 +43,7 @@ export type RepeatOrderItemNormed = {
   type: typeof OrderingTypeRepeat;
   group_id: number;
   repeat: Array<MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed>;
+  specifier: SpecifierNormed;
   // note
   description?: string;
 };

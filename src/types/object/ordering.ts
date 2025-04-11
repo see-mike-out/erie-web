@@ -9,6 +9,7 @@ export const RoleAnnounceKeyScStopPlay = "stop-play-keyboard-shortcut",
   RoleScaleOverview = 'scale.overview',
   RoleScaleDescription = 'scale.description',
   RoleStreamSound = 'sound',
+  RoleRepeat = 'repeat',
   RoleRepeatTitle = 'repeat.title';
 
 

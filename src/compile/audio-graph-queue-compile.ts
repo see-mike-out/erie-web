@@ -69,6 +69,7 @@ export async function compileSingleLayerAuidoGraph(
   tickDef: { [key: string]: TickObject },
   common_scales: ScaleCollection
 ) {
+  let id = audio_spec.id;
   let layer_spec = {
     name: audio_spec.name,
     encoding: audio_spec.encoding,
@@ -311,7 +312,7 @@ export async function compileSingleLayerAuidoGraph(
   if (is_repeated) {
     let repeat_streams = makeRepeatStreamTree(0, repeat_values, repeat_direction);
     repeated_graph.forEach((g, i) => {
-      let r_stream = new UnitStream(instrument_type, g.glyphs, scales, { is_continued, has_base_tone, relative: relative_stream });
+      let r_stream = new UnitStream(id + "-repeat-" + i, instrument_type, g.glyphs, scales, { is_continued, has_base_tone, relative: relative_stream });
       r_stream.duration = repeat_total_duration[i];
       Object.keys(config || {}).forEach(key => {
         r_stream.setConfig(key, config?.[key]);
@@ -391,7 +392,7 @@ export async function compileSingleLayerAuidoGraph(
   }
   // if not repeated
   else {
-    stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream, has_base_tone });
+    stream = new UnitStream(id, instrument_type, audio_graph, scales, { is_continued, relative: relative_stream, has_base_tone });
     if (!config?.is_streaming) stream.duration = total_duration as number;
     Object.keys(config || {}).forEach(key => {
       (stream as UnitStream).setConfig(key, config?.[key]);

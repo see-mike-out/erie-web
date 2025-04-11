@@ -39,7 +39,8 @@ import {
   M_Text,
   DescriptionMarkupQueueTextItem,
   DescriptionMarkupQueueSoundItem,
-  M_Sound
+  M_Sound,
+  DescKeyIndex
 } from "../types";
 
 
@@ -133,14 +134,14 @@ export function compileDescriptionMarkup(
         } else {
           if (seg.key) {
             let text = getKeywordValues(seg.key, channel, scaleProps, timeUnit);
-            let formatter = (d: any) => (d?.toString() || '');
+            let formatter = (d: any) => (d?.toString() || d || '');
             if (scaleProps.format) {
               if (scaleProps.formatType === "number") formatter = format(scaleProps.format);
               else if (scaleProps.formatType === "datetime") formatter = timeFormat(scaleProps.format);
             }
             if (text && typeof text === 'number') text = formatter(text);
             else if (typeof text !== 'string') text = formatter(text);
-            else text = '';
+            else if (!text) text = '';
             preQueue.push({
               type: 'text',
               text: <string>text,
@@ -205,11 +206,13 @@ function getKeywordValues(
   } else if (keyword === DescKeyField) {
     return scaleProps.field?.join(", ") ?? "";
   } else if (keyword === DescKeyTitle) {
-    return scaleProps.title ?? "";
+    return scaleProps.title ?? scaleProps.field?.join(", ") ?? "";
   } else if (keyword === DescKeyAggregate) {
     return scaleProps.aggregate ?? "";
   } else if (keyword === DescKeyTimeUnit) {
-    return timeUnit ?? "";
+    return timeUnit ? (timeUnit + "s") : "";
+  } else if (keyword === DescKeyIndex) {
+    return scaleProps.index ?? "";
   }
 }
 

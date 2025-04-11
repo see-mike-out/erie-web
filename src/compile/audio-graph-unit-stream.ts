@@ -16,6 +16,7 @@ import {
 } from '../util';
 
 export class UnitStream {
+  id: string;
   instrument_type: string;
   stream: AudioGraph;
   scales: ScaleCollection;
@@ -30,11 +31,13 @@ export class UnitStream {
   config: ConfigInterface;
 
   constructor(
+    id: string,
     instrument_type: string,
     stream: AudioGraph,
     scales: ScaleCollection,
     opt: RecordObject
   ) {
+    this.id = id;
     this.instrument_type = instrument_type;
     this.stream = stream;
     this.option = opt || {};

@@ -135,6 +135,14 @@ async function __playSingleTone(
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
+  // treat dynamic duration (this is a really special case; for chime only)
+  if (config.dynamic_duration && sound.instrument_type && sound.instrument_type in instSamples) {
+    if ('mono' in instSamples[sound.instrument_type]) {
+      // @ts-ignore
+      let sample = instSamples[sound.instrument_type].mono as AudioBuffer;
+      sound.duration = sample.duration;
+    }
+  }
   // filters
   let ctx: AudioContext | OfflineAudioContext = _ctx, offline = false;
   if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {

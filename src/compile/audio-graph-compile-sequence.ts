@@ -71,7 +71,7 @@ export async function compileSequnceStream(
   for (const stream of normalized) {
     if ('intro' in stream && stream.intro) {
       let speeches: (string | undefined)[] = [stream.intro.title, stream.intro.description].filter(d => d !== undefined);
-      let sStream = new SpeechStream(speeches.map((d) => ({ speech: d } as AudioGraphSpeechItem)));
+      let sStream = new SpeechStream(stream.id, speeches.map((d) => ({ speech: d } as AudioGraphSpeechItem)));
       if ('config' in audio_spec && audio_spec.config) {
         Object.keys(audio_spec.config).forEach((key) => {
           if (audio_spec.config?.[key]) {
@@ -106,7 +106,7 @@ export async function compileSequnceStream(
       if (stream.stream.title) sequence.setTitle(stream.stream.title);
       if (stream.stream.description) sequence.setDescription(stream.stream.description);
     } else if ('overlay' in stream && stream.overlay) {
-      let overlays = new OverlayStream();
+      let overlays = new OverlayStream(stream.id);
 
       // registering
       overlays.setSampling(toHashedObject(samplings, 'name'));

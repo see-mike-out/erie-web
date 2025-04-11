@@ -424,7 +424,7 @@ export class StreamingStream {
 
       // setting queue
       let _c = deepcopy(this.config || {});
-      this.currentQueue.add(ToneSeries, {
+      this.currentQueue.add(ToneSeries, 0, {
         instrument_type: this.instrument_type,
         sounds: converted,
         continued: this.is_continued,

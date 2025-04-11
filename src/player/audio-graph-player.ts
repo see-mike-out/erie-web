@@ -143,6 +143,7 @@ export class AudioGraphQueue {
 
   add(
     type: typeof QueueItemTypes[number],
+    group_id: number,
     info: PreGraphItem,
     lineConfig?: ConfigInterface,
     at?: number
@@ -151,12 +152,13 @@ export class AudioGraphQueue {
       userSampledInstruments: Set<string> = new Set();
     if (QueueItemTypes.includes(type)) {
       let item: AudioGraphQueueItem = {
+        group_id,
         type,
         config: lineConfig,
       };
       if (type === TextType && isTextQueueItem(item) && isTextInfo(info)) {
         item.speech = info?.speech ?? '';
-        if (info?.speechRate) item.speechRate = info?.speechRate;
+        if (info?.speechRate !== undefined) item.speechRate = info?.speechRate;
         item.language = info.language;
         item.pitch = info.pitch;
         item.loudness = info.loudness;
@@ -246,9 +248,6 @@ export class AudioGraphQueue {
       } else if (type === Pause && isPauseQueueItem(item) && isPauseInfo(info)) {
         item.duration = info.duration; // in seconds
       }
-      //  else if (type === LegendType) {
-      //   Object.assign(item, info);
-      // }
       Array.from(checkInstrumentSampling).forEach((inst: string) => {
         if (!this.sampledInstruments.includes(inst)) {
           this.sampledInstruments.push(inst);
@@ -267,6 +266,7 @@ export class AudioGraphQueue {
     }
   }
 
+  // todo: deprecate this...
   addMulti(
     multiples: Array<CompressedPreGraphItem>,
     lineConfig: ConfigInterface,
@@ -274,7 +274,7 @@ export class AudioGraphQueue {
     let at = pos;
     for (const mul of multiples) {
       if (mul?.type) {
-        this.add(mul.type, mul, lineConfig, at);
+        this.add(mul.type, 0, mul, lineConfig, at);
         if (at !== undefined) {
           at += 1;
         }
@@ -282,7 +282,8 @@ export class AudioGraphQueue {
     }
   }
 
-  addQueue(queue: AudioGraphQueue, pos?: number) {
+  addQueue(group_id: number, queue: AudioGraphQueue, pos?: number) {
+    queue.queue.forEach((item) => item.group_id = group_id);
     if (pos !== undefined) {
       this.queue.splice(pos, 0, ...queue.queue);
     } else {
@@ -485,64 +486,6 @@ export class AudioGraphQueue {
     let blob = await makeWaveFromBuffer(merged, "mp3");
     // @ts-ignore
     return window.URL.createObjectURL(blob);
-  }
-
-  /**
-   * ROUGH BLUEPRINT: Adds and plays streaming data for the AudioGraphQueue
-   * 
-   * @param streamData - The new data to be added to the queue
-   * @param options - Optional configuration for streaming playback
-   * @returns A promise that resolves when the streaming data has been played
-   */
-  async addStreamingData(
-    streamData: PreGraphItem | PreGraphItem[],
-    options?: {
-      playImmediately?: boolean;
-      appendToExisting?: boolean;
-      continuedPlay?: boolean;
-      lineConfig?: ConfigInterface;
-    }
-  ): Promise<void> {
-    const {
-      playImmediately = true,
-      appendToExisting = true,
-      continuedPlay = true,
-      lineConfig = {}
-    } = options || {};
-
-    // 1. Normalize input to array
-    const dataToAdd = Array.isArray(streamData) ? streamData : [streamData];
-
-    // 2. If not appending (discrete case), clear existing queue
-    if (!appendToExisting) {
-      this.destroy(); // Resets queue and state
-    }
-
-    // 3. Add new items to queue
-    for (const item of dataToAdd) {
-      // Determine insertion position
-      const insertPosition = appendToExisting
-        ? this.queue.length
-        : undefined;
-
-      // Add the item to the queue using the existing add method
-      this.add(
-        ToneType,
-        item,
-        lineConfig,
-        insertPosition
-      );
-    }
-
-    // 4. Play the queue if specified
-    if (playImmediately) {
-      // Determine starting point based on continued play option
-      const startIndex = continuedPlay && this.playAt !== undefined
-        ? this.playAt
-        : 0;
-
-      await this.play(startIndex);
-    }
   }
 }
 

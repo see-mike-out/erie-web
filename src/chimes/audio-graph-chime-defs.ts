@@ -1,7 +1,7 @@
 import { Glyph, noteFreqRange, SynthNormed } from "../types";
 
 const ChimeBeat = 0.33;
-function getChimeBeat(n: number) {
+export function getChimeBeat(n: number) {
   return ChimeBeat * n;
 }
 

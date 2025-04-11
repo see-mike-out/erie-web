@@ -1,8 +1,10 @@
 import {
-  ConfigInterface, MarkupOrderItemNormed, NormalizedStreamItem, OmitDesc, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound,
-  OrderSpecNormed, RoleDescription, RoleLength,
+  ConfigInterface, KeyDescription, MarkupOrderItemNormed, NormalizedStreamItem, OmitDesc, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound,
+  OrderSpecNormed, RoleAnnounceKeyScStopPlay, RoleDescription, RoleLength,
+  RoleRepeat,
   RoleRepeatTitle,
   RoleScaleDescription, RoleScaleOverview, RoleStreamSound, RoleTitle, ScaleDescriptionOrder,
+  SKIP,
   SoundOrderItemNormed,
   TextOrderItemNormed
 } from "../types";
@@ -14,6 +16,16 @@ export function generateBaseOrderSpec(
   let order_spec: OrderSpecNormed = [];
   // title
   let group_index = 0;
+  if (!config.skipStartSpeech) {
+    order_spec.push({
+      type: OrderingTypeMarkup,
+      group_id: group_index,
+      specifier: {
+        role: RoleAnnounceKeyScStopPlay,
+      }
+    });
+    group_index++;
+  }
   for (const item of audio_spec) {
     if ('intro' in item) {
       if (item.intro.title && !item.intro.skipTitle) {
@@ -122,8 +134,9 @@ export function generateBaseOrderSpec(
             });
             group_index++;
             let announced: string[] = [];
-            for (const channel_name of ScaleDescriptionOrder) {
-              if (channel_name in overlay.encoding && !overlay.encoding[channel_name].skipDescription) {
+            let scaleOrder = config?.scaleDescriptionOrder ?? ScaleDescriptionOrder;
+            for (const channel_name of scaleOrder) {
+              if (channel_name in overlay.encoding && overlay.encoding[channel_name].scale?.description !== 'skip') {
                 order_spec.push({
                   type: OrderingTypeMarkup,
                   group_id: group_index,
@@ -139,7 +152,7 @@ export function generateBaseOrderSpec(
               }
             }
             for (const channel_name in overlay.encoding) {
-              if (!announced.includes(channel_name) && !OmitDesc.includes(channel_name) && !overlay.encoding[channel_name].skipDescription) {
+              if (!announced.includes(channel_name) && !OmitDesc.includes(channel_name) && overlay.encoding[channel_name].scale?.description !== 'skip') {
                 order_spec.push({
                   type: OrderingTypeMarkup,
                   group_id: group_index,
@@ -190,7 +203,7 @@ export function generateBaseOrderSpec(
           group_index++;
         }
         // scales
-        let n_scales_to_play = Object.keys(item.stream.encoding).filter((chn) => !item.stream.encoding[chn].skipDescription && !OmitDesc.includes(chn)).length;
+        let n_scales_to_play = Object.keys(item.stream.encoding).filter((chn) => item.stream.encoding[chn].scale?.description !== SKIP && !OmitDesc.includes(chn)).length;
         if (n_scales_to_play > 0) {
           order_spec.push({
             type: OrderingTypeMarkup,
@@ -202,8 +215,9 @@ export function generateBaseOrderSpec(
           });
           group_index++;
           let announced: string[] = [];
-          for (const channel_name of ScaleDescriptionOrder) {
-            if (channel_name in item.stream.encoding && !item.stream.encoding[channel_name].skipDescription) {
+          let scaleOrder = config?.scaleDescriptionOrder ?? ScaleDescriptionOrder;
+          for (const channel_name of scaleOrder) {
+            if (channel_name in item.stream.encoding && item.stream.encoding[channel_name].scale?.description !== SKIP) {
               order_spec.push({
                 type: OrderingTypeMarkup,
                 group_id: group_index,
@@ -218,7 +232,7 @@ export function generateBaseOrderSpec(
             }
           }
           for (const channel_name in item.stream.encoding) {
-            if (!announced.includes(channel_name) && !OmitDesc.includes(channel_name) && !item.stream.encoding[channel_name].skipDescription) {
+            if (!announced.includes(channel_name) && !OmitDesc.includes(channel_name) && item.stream.encoding[channel_name].scale?.description !== SKIP) {
               order_spec.push({
                 type: OrderingTypeMarkup,
                 group_id: group_index,
@@ -236,7 +250,7 @@ export function generateBaseOrderSpec(
         if (is_repeated) {
           let repeat_spec: Array<MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed> = [];
           let repeat_group_index = 0;
-          if (!item.stream.encoding.repeat.skipDescription) {
+          if (item.stream.encoding.repeat.scale?.[KeyDescription] !== SKIP) {
             repeat_spec.push({
               type: OrderingTypeMarkup,
               group_id: repeat_group_index,
@@ -260,6 +274,10 @@ export function generateBaseOrderSpec(
           order_spec.push({
             type: OrderingTypeRepeat,
             group_id: group_index,
+            specifier: {
+              role: RoleRepeat,
+              streamId: item.id,
+            },
             repeat: repeat_spec
           })
           group_index++;

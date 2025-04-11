@@ -40,6 +40,7 @@ export type ParsedScaleProperties = {
   timeUnit?: keyof typeof timeUnitDomainDefs,
   timeUnitName?: string | string[] | number[],
   timeLevel?: timeLevelValues
+  index?: number;
 };
 
 export type ParsedScaleDefinition = {

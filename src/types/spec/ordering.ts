@@ -1,4 +1,4 @@
-import { OrderingMarkup, OrderingRole } from "../object";
+import { bcp47language, OrderingMarkup, OrderingRole } from "../object";
 import { NotifySpec } from "./notify";
 
 export type OrderSpec = OrderItem[];
@@ -12,6 +12,7 @@ export type MarkupOrderItem = {
   markup?: OrderingMarkup;
   // note
   description?: string;
+  speechOption?: SpeechOption;
 };
 
 // pure text
@@ -19,6 +20,7 @@ export type TextOrderItem = {
   text: string;
   // note
   description?: string;
+  speechOption?: SpeechOption;
 };
 
 // actual sonification
@@ -27,6 +29,7 @@ export type SoundOrderItem = {
   notify?: NotifySpec;
   // note
   description?: string;
+  speechOption?: SpeechOption;
 };
 
 // specifiers: query from to stream spec
@@ -43,3 +46,10 @@ export type Specifier = {
   is_repeated?: boolean;
   channel?: string;
 };
+
+export type SpeechOption = {
+  language: typeof bcp47language[number];
+  pitch: number;
+  loudness: number;
+  speechRate: number;
+}

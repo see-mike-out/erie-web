@@ -19,6 +19,7 @@ import {
   RoleStreamSound,
   RepeatOrderItemNormed,
   OrderingTypeRepeat,
+  RoleRepeat,
 } from "../types";
 
 
@@ -34,7 +35,8 @@ export function normalizeOrderSpec(
         type: OrderingTypeText,
         group_id: group_index,
         description: item.description,
-        text: item.text
+        text: item.text,
+        speechOption: item.speechOption
       }
       output.push(normed);
     } else if ('specifier' in item) {
@@ -56,7 +58,8 @@ export function normalizeOrderSpec(
                 type: OrderingTypeMarkup,
                 group_id: group_index,
                 description: "Repeat title (added)",
-                specifier: titleSpecifier
+                specifier: titleSpecifier,
+                speechOption: item.speechOption
               }
               output.push(repeatTitleNormed);
               group_index++;
@@ -67,7 +70,8 @@ export function normalizeOrderSpec(
           type: OrderingTypeSound,
           group_id: group_index,
           description: item.description,
-          specifier: normedSpecifier
+          specifier: normedSpecifier,
+          speechOption: item.speechOption
         }
         if ('notify' in item) {
           normed.notify = item.notify;
@@ -78,7 +82,8 @@ export function normalizeOrderSpec(
           type: OrderingTypeMarkup,
           group_id: group_index,
           description: item.description,
-          specifier: normedSpecifier
+          specifier: normedSpecifier,
+          speechOption: item.speechOption
         }
         if ('markup' in item) {
           normed.markup = item.markup;
@@ -97,7 +102,7 @@ export function normalizeOrderSpec(
       // if the item is repeated
       if (marker === undefined) {
         // when the mark is not set, it's the first of its group;
-        marker = orderItem;
+        marker = orderItem as MarkupOrderItemNormed | SoundOrderItemNormed;
         curr_group.push(i)
       } else {
         // when the mark is set already:
@@ -108,7 +113,7 @@ export function normalizeOrderSpec(
           // if not, start a new group
           repeat_groups.push(curr_group);
           curr_group = [i];
-          marker = orderItem;
+          marker = orderItem as MarkupOrderItemNormed | SoundOrderItemNormed;
         }
       }
     } else {
@@ -129,10 +134,13 @@ export function normalizeOrderSpec(
   for (let rgi = repeat_groups.length - 1; rgi >= 0; rgi--) {
     let group = repeat_groups[rgi];
     let orderItems = group.map(i => output[i]);
+    let specifier = deepcopy((orderItems[0] as MarkupOrderItemNormed | SoundOrderItemNormed).specifier);
+    specifier.role = RoleRepeat;
     let repeat_item: RepeatOrderItemNormed = {
       type: OrderingTypeRepeat,
       group_id: group[0],
-      repeat: orderItems as Array<MarkupOrderItemNormed | TextOrderItemNormed | SoundOrderItemNormed>,
+      specifier,
+      repeat: orderItems as Array<MarkupOrderItemNormed | SoundOrderItemNormed>,
       description: "Repeat (auto-grouped)"
     }
     output.splice(group[0], group.length, repeat_item)

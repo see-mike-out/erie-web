@@ -19,6 +19,7 @@ import {
 } from '../util';
 
 export class OverlayStream {
+  id: string;
   overlays: UnitStream[];
   playing: boolean;
   prerendered: boolean;
@@ -32,7 +33,8 @@ export class OverlayStream {
   samplings: HashedObject<SampledToneNormed>;
   waves: HashedObject<WaveNormed>;
 
-  constructor() {
+  constructor(id: string) {
+    this.id = id;
     this.overlays = [];
     this.playing = false;
     this.prerendered = false;
@@ -97,12 +99,12 @@ export class OverlayStream {
     // main title & description
     if (!subpart) {
       if (this.title && !this.config.skipTitle) {
-        this.queue.add(TextType, { speech: this.title, speechRate: this.config?.speechRate }, this.config);
+        this.queue.add(TextType, 0, { speech: this.title, speechRate: this.config?.speechRate }, this.config);
       } else if (this.name && !this.config.skipTitle) {
-        this.queue.add(TextType, { speech: this.name, speechRate: this.config?.speechRate }, this.config);
+        this.queue.add(TextType, 0, { speech: this.name, speechRate: this.config?.speechRate }, this.config);
       }
       if (this.description && !this.config.skipDescription) {
-        this.queue.add(TextType, { speech: this.description, speechRate: this.config?.speechRate }, this.config);
+        this.queue.add(TextType, 0, { speech: this.description, speechRate: this.config?.speechRate }, this.config);
       }
     }
 
@@ -110,7 +112,7 @@ export class OverlayStream {
     // overlay descriptions
     if (this.overlays.length > 1) {
       if (!subpart && !this.config.skipStartSpeech) {
-        this.queue.add(TextType, { speech: `This sonification has ${this.overlays.length} overlaid streams.`, speechRate: this.config?.speechRate });
+        this.queue.add(TextType, 0, { speech: `This sonification has ${this.overlays.length} overlaid streams.`, speechRate: this.config?.speechRate });
 
         let oi = 1;
         let titles_queues = [], scales_queues = [], scale_count = 0;
@@ -119,17 +121,17 @@ export class OverlayStream {
           let title_queue = new AudioGraphQueue();
 
           if ((stream.title || stream.name) && !stream.config.skipTitle) {
-            title_queue.add(TextType, { speech: `The ${toOrdinalNumbers(oi)} overlay stream is about ${(stream.title || stream.name)}. `, speechRate: this.config?.speechRate }, stream.config);
+            title_queue.add(TextType, 0, { speech: `The ${toOrdinalNumbers(oi)} overlay stream is about ${(stream.title || stream.name)}. `, speechRate: this.config?.speechRate }, stream.config);
           }
           if (stream.description && !stream.config.skipDescription) {
-            title_queue.add(TextType, { speech: stream.description, speechRate: this.config?.speechRate }, stream.config);
+            title_queue.add(TextType, 0, { speech: stream.description, speechRate: this.config?.speechRate }, stream.config);
           }
           titles_queues.push(title_queue);
 
           let scale_text = stream.make_scale_text().filter((d) => d).map(d => d.description as CompressedPreGraphItem);
           if (!stream.config.skipScaleSpeech && scale_text.length > 0) {
             let scales_queue = new AudioGraphQueue()
-            scales_queue.add(TextType, { speech: `This stream has the following sound mappings. `, speechRate: this.config?.speechRate }, stream.config);
+            scales_queue.add(TextType, 0, { speech: `This stream has the following sound mappings. `, speechRate: this.config?.speechRate }, stream.config);
             scales_queue.addMulti(scale_text, { ...stream.config, tick: null });
             scale_count++;
             scales_queues.push(scales_queue);
@@ -138,15 +140,15 @@ export class OverlayStream {
         }
         if (scale_count > 1) {
           for (let i = 0; i < oi - 1; i++) {
-            if (titles_queues[i]) this.queue.addQueue(titles_queues[i]);
-            if (scales_queues[i]) this.queue.addQueue(scales_queues[i]);
+            if (titles_queues[i]) this.queue.addQueue(0, titles_queues[i]);
+            if (scales_queues[i]) this.queue.addQueue(0, scales_queues[i]);
           }
         } else {
           for (let i = 0; i < oi - 1; i++) {
-            if (titles_queues[i]) this.queue.addQueue(titles_queues[i]);
+            if (titles_queues[i]) this.queue.addQueue(0, titles_queues[i]);
           }
           for (let i = 0; i < oi - 1; i++) {
-            if (scales_queues[i]) this.queue.addQueue(scales_queues[i]);
+            if (scales_queues[i]) this.queue.addQueue(0, scales_queues[i]);
           }
         }
       }
@@ -157,7 +159,7 @@ export class OverlayStream {
       overlays.push(await stream.prerender());
     }
 
-    this.queue.add(ToneOverlaySeries,
+    this.queue.add(ToneOverlaySeries, 0,
       { overlays }
     );
 

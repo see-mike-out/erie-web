@@ -31,6 +31,7 @@ import {
   isDefaultGlyphFeature,
   ToneNormed,
   EncodingItemNormed,
+  REPEAT_chn,
 } from "../types";
 
 export function makeScaleDescription(
@@ -61,7 +62,7 @@ export function makeScaleDescription(
     }]
   }
   let title = encoding?.scale?.title || listString(unique(properties.field ?? []), ", ", false);
-
+  
   if (channel === TIME_chn) {
     if (!customExpression) expression = `The <title> is mapped to <channel>. `;
     let length = properties.range ? Math.max(...properties.range) : null;
@@ -77,6 +78,14 @@ export function makeScaleDescription(
     }
     if (tickDef?.interval && tickDef?.description !== SKIP) {
       if (!customExpression) expression += `A tick sound is played every ${tickDef.interval} ${timeUnit}. `
+    }
+  } else if (channel === REPEAT_chn) {
+    if (!customExpression) expression = `This stream is repeated by <title>`;
+    let length = properties.range ? Math.max(...properties.range) : null;
+    if (length) {
+      if (!customExpression) expression += `, consisrting of <range.length> parts. `
+    } else {
+      if (!customExpression) expression += `. `
     }
   } else {
     if (encodingType === QUANT) {

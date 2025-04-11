@@ -2,10 +2,10 @@ import { AudioGraphQueueItem0, AudioGraphQueueItemPause, AudioGraphQueueItemText
 import { AudioGraphQueueItemSeries, AudioGraphQueueItemToneOVerlaySeries, AudioGraphQueueItemToneSeries } from "./queue_series";
 
 export type AudioGraphQueueItem
-  = AudioGraphQueueItem0
-  | AudioGraphQueueItemText
-  | AudioGraphQueueItemTone
-  | AudioGraphQueueItemPause
-  | AudioGraphQueueItemSeries
-  | AudioGraphQueueItemToneSeries
-  | AudioGraphQueueItemToneOVerlaySeries;
+  = (AudioGraphQueueItem0
+    | AudioGraphQueueItemText
+    | AudioGraphQueueItemTone
+    | AudioGraphQueueItemPause
+    | AudioGraphQueueItemSeries
+    | AudioGraphQueueItemToneSeries
+    | AudioGraphQueueItemToneOVerlaySeries) & { group_id: number };
