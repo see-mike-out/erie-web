@@ -353,7 +353,6 @@ export class AudioGraphQueue {
     } else if (isToneQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -365,7 +364,6 @@ export class AudioGraphQueue {
     } else if (isToneSeriesQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -382,7 +380,6 @@ export class AudioGraphQueue {
     } else if (isToneSpeechSeriesQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -393,7 +390,6 @@ export class AudioGraphQueue {
       let promises = [];
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }

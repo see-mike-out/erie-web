@@ -1,8 +1,7 @@
 import { ToneSpec, WaveSpec } from "./tone"
-import { ChannelSpec, StreamingChannelSpec, TickSpec } from "./channel";
+import { StreamingChannelSpec, TickSpec } from "./channel";
 import { StreamingDataSpec } from "./data";
 import { NotifySpec } from "./notify"
-import { ConfigSpec } from "./config"
 import { SampledToneSpec } from "./tone"
 import { SynthSpec } from "./synth";
 import { TransformListSpec } from "./transform";
@@ -29,7 +28,7 @@ export type StreamingSpec = {
   notify?: NotifySpec
 }
 
-export const PlaybackManual = 'manual', PlaybackConditional = 'conditional', PlaybackAuto = 'auto';
+export const PlaybackManual = 'manual', PlaybackConditional = 'conditional', PlaybackAuto = 'always';
 export const PlaybackTypes = [PlaybackManual, PlaybackConditional, PlaybackAuto];
 
 export const PlaybackUnitDatum = 'datum', PlaybackUnitTime = 'time', PlaybackUnitInstance = 'instance';

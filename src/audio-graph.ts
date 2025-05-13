@@ -44,7 +44,6 @@ export function readyRecording() {
 
 export async function compileAudioGraph(audio_spec: TopLevelSpec, options: ConfigInterface) {
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec, options);
-  console.log("Normalized", normalized)
   let is_streaming = isStreamingStream(audio_spec);
   sequenceConfig.is_streaming = is_streaming;
 
@@ -55,7 +54,6 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   } else {
     ordering_normalized = generateBaseOrderSpec(normalized, sequenceConfig);
   }
-  console.log("Post normalization", ordering_normalized)
 
   let sequence = !is_streaming ? await compileSequnceStream(
     audio_spec,

@@ -1,4 +1,4 @@
-import { Datum, NotifySpec, PlaybackSpec, PlaybackTypes, PlaybackUnits } from "../spec"
+import { Datum, NotifySpec, PlaybackTypes, PlaybackUnits } from "../spec"
 import { LoadedDatasets } from "./data"
 
 
@@ -20,4 +20,11 @@ export type StreamingOption = {
 export type StreamingHistoryItem = {
   time: Date,
   data: Datum[]
+}
+
+export type StreamingRepeatObject = {
+  field: string[];
+  order: Array<any[]>;
+  announce: boolean;
+  checker: ((d: Datum, oi: number) => boolean);
 }

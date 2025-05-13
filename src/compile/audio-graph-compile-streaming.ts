@@ -30,7 +30,6 @@ export async function compileStreamingStream(
   streaming_options: StreamingOptionNormed
 ): Promise<StreamingStream> {
   let stream: NormalizedSingleStreamItem = normalized[0] as NormalizedSingleStreamItem;
-  // console.log(stream, scaleDefinitions)
 
   // encoding checks
   checkStreamingSpec(stream)
@@ -79,6 +78,11 @@ export async function compileStreamingStream(
 
   // slag = single layer audio graph
   let has_base_tone = audio_spec.tone.hasBaseTone
+  let repeat = stream.stream.encoding.repeat ?? null;
+  if (repeat) {
+    delete stream.stream.encoding.repeat;
+    sequence.setRepeat(repeat);
+  }
   let slag = await compileSingleLayerAuidoGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales)
   if (slag?.stream) sequence.setStream(slag?.stream as UnitStream);
   if (slag?.transformer) sequence.setTransformer(slag?.transformer);
@@ -93,13 +97,6 @@ export async function compileStreamingStream(
 
   sequence.setBase(audio_spec.tone.type, basevalues);
 
-  // if (audio_spec.config) {
-  //   Object.keys(audio_spec.config).forEach((key) => {
-  //     if (audio_spec.config?.[key]) {
-  //       sequence.setConfig(key, audio_spec.config[key]);
-  //     }
-  //   });
-  // }
   if (stream.stream.config) {
     Object.keys(stream.stream.config).forEach((key) => {
       if (stream.stream.config) sequence.setConfig(key, stream.stream.config[key]);
@@ -116,9 +113,6 @@ function checkStreamingSpec(spec: NormalizedStreamItem) {
     console.error('A streaming audio graph cannot have overlaid streams.')
   }
   if ('stream' in spec) {
-    if (REPEAT_chn in spec.stream.encoding) {
-      console.error('A streaming audio graph cannot have a "REPEAT" channel.');
-    }
     let is_continued = spec.stream.tone.continued ?? false, has_base_tone = spec.stream.tone.hasBaseTone ?? false;
     if (!is_continued && has_base_tone) {
       console.error('A streaming audio graph with a base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');

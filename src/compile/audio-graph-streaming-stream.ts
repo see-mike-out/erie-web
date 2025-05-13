@@ -33,12 +33,13 @@ import {
   LoadedMonoSample,
   OscTypes,
   RecordObject,
-  InstrumentNode,
   Glyph,
   ToneSeries,
   InternalData,
-  Paused,
-  StreamerInstrument
+  StreamerInstrument,
+  EncodingItemNormed,
+  StreamingRepeatObject,
+  KeyOrder
 } from '../types';
 import {
   toOrdinalNumbers,
@@ -48,7 +49,7 @@ import { UnitStream } from './audio-graph-unit-stream';
 
 export const DefaultHistoryLimit = 100,
   DefaultHistoryQuery = PlaybackUnitInstance,
-  DefaultPlaybackLimit = 10,
+  DefaultPlaybackLimit = 5,
   DefaultPlaybackSpeed = 2,
   DefaultNoitfyOptions: NotifySpec = {
     beforePlayback: { chime: 'beforePlayback' },
@@ -72,6 +73,7 @@ export class StreamingStream {
   duration!: number;
   encoder!: Function;
   sorter!: Function;
+  repeat!: StreamingRepeatObject;
 
   name!: string;
   title!: string;
@@ -114,6 +116,7 @@ export class StreamingStream {
     this.transformer = (d) => d;
     this.encoder;
     this.sorter;
+    this.repeat;
 
     this.synths = {};
     this.samplings = {};
@@ -195,6 +198,26 @@ export class StreamingStream {
 
   setSorter(f: Function) {
     this.sorter = f;
+  }
+
+  setRepeat(r: EncodingItemNormed) {
+    if (!r.scale?.[KeyOrder]) {
+      console.error("A streaming REPEAT field needs explicit ordering.")
+    } else {
+      let field = r.field instanceof Array ? r.field : [r.field];
+      let order = r.scale?.[KeyOrder];
+      if (typeof r.field == 'string') {
+        order = order.map((d) => d instanceof Array ? d : [d]);
+      }
+      this.repeat = {
+        field,
+        order,
+        checker: (x: Datum, oi: number) => {
+          return field.map((f, fi) => order[oi][fi] == x[f]).every(x => x)
+        },
+        announce: r.speech ?? true
+      };
+    }
   }
 
   setConfig(key: string, value: any) {
@@ -342,6 +365,8 @@ export class StreamingStream {
     // play current thing
     await this.notify('beforePlay', bufferPrimitve, ttsFetchFunction);
     let inQueue = 0;
+    //@ts-ignore
+    if (this.status == Stopped) return;
     while (this.playQueue.length > 0) {
       let curr = this.playQueue.shift();
       if (curr) {
@@ -368,74 +393,89 @@ export class StreamingStream {
     bufferPrimitve?: AudioPrimitiveBuffer,
     ttsFetchFunction?: any
   ) {
+    if (this.status == Stopped) return;
     let speed: number = _speed ?? 1;
     if (speed <= 0) {
       console.warn('Playback speed must be greater than zero. Defaulted to 1.')
       speed = 1;
     }
-    // redo
-    let converted: Glyphs2 = this.encode(d, speed);
 
-    if (this.has_base_tone) {
-      // assign values
-      if (!this.baseStream) {
-        console.warn('Start the player first.')
+    let repeat = this.repeat;
+
+    let converted_groups: Glyphs2[] = !repeat ? [this.encode(d, speed)] : repeat.order.map((o, oi) => {
+      return this.encode(d.filter((x) => repeat.checker(x, oi)), speed);
+    });
+
+    let ci = 0;
+    for (const converted of converted_groups) {
+      if (converted.length > 0) {
+        if (repeat && repeat.announce) {
+          let ann = repeat.order[ci].join(', ')
+          await playSingleSpeech({ type: "text", speech: ann }, this.config, bufferPrimitve, ttsFetchFunction);
+        }
+        if (this.has_base_tone) {
+          // assign values
+          if (!this.baseStream) {
+            console.warn('Start the player first.')
+          }
+          let endTime: number | 'after_previous' =
+            typeof converted[converted.length - 1].start === 'number' ?
+              ((converted[converted.length - 1].start as number) + (converted[converted.length - 1].duration ?? 0))
+              : 'after_previous';
+          let duration: number = endTime == 'after_previous' ? converted.map(d => d.duration ?? 0).reduce((a, c) => a + c, 0) : endTime;
+          converted.push({
+            start: endTime,
+            ...this.baseValues
+          })
+          this.unmuteBaseTone();
+          await rampContinuousTone(
+            this.baseContext,
+            converted,
+            duration,
+            this.baseStream.inst,
+            this.baseStream.panner,
+            this.baseStream.isStereo,
+            this.baseStream.gain,
+            this.baseStream.rampers,
+            this.audioFilters,
+            this.baseStream.filterNodes,
+            this.baseStream.filterEncoders,
+            this.baseStream.filterFinishers,
+            this.config
+          )
+        } else {
+          // prerender
+          this.currentQueue = new AudioGraphQueue();
+
+          // overall config
+          if (this.config) {
+            Object.keys(this.config).forEach((key) => {
+              this.currentQueue?.setConfig(key, this.config[key]);
+            })
+          }
+
+          // registration
+          this.currentQueue.setSampling(this.samplings);
+          this.currentQueue.setSynths(this.synths);
+          this.currentQueue.setWaves(this.waves);
+
+          // setting queue
+          let _c = deepcopy(this.config || {});
+          this.currentQueue.add(ToneSeries, 0, {
+            instrument_type: this.instrument_type,
+            sounds: converted,
+            continued: this.is_continued,
+            relative: this.is_relative,
+            filters: this.audioFilters,
+            ramp: this.ramp,
+            duration: this.duration
+          }, _c);
+
+          this.currentQueue.setConfig('options', this.config.options);
+          await this.currentQueue.play();
+        }
       }
-      let endTime: number | 'after_previous' =
-        typeof converted[converted.length - 1].start === 'number' ?
-          ((converted[converted.length - 1].start as number) + (converted[converted.length - 1].duration ?? 0))
-          : 'after_previous';
-      let duration: number = endTime == 'after_previous' ? converted.map(d => d.duration ?? 0).reduce((a, c) => a + c, 0) : endTime;
-      converted.push({
-        start: endTime,
-        ...this.baseValues
-      })
-      this.unmuteBaseTone();
-      await rampContinuousTone(
-        this.baseContext,
-        converted,
-        duration,
-        this.baseStream.inst,
-        this.baseStream.panner,
-        this.baseStream.isStereo,
-        this.baseStream.gain,
-        this.baseStream.rampers,
-        this.audioFilters,
-        this.baseStream.filterNodes,
-        this.baseStream.filterEncoders,
-        this.baseStream.filterFinishers,
-        this.config
-      )
-    } else {
-      // prerender
-      this.currentQueue = new AudioGraphQueue();
-
-      // overall config
-      if (this.config) {
-        Object.keys(this.config).forEach((key) => {
-          this.currentQueue?.setConfig(key, this.config[key]);
-        })
-      }
-
-      // registration
-      this.currentQueue.setSampling(this.samplings);
-      this.currentQueue.setSynths(this.synths);
-      this.currentQueue.setWaves(this.waves);
-
-      // setting queue
-      let _c = deepcopy(this.config || {});
-      this.currentQueue.add(ToneSeries, 0, {
-        instrument_type: this.instrument_type,
-        sounds: converted,
-        continued: this.is_continued,
-        relative: this.is_relative,
-        filters: this.audioFilters,
-        ramp: this.ramp,
-        duration: this.duration
-      }, _c);
-
-      this.currentQueue.setConfig('options', this.config.options);
-      await this.currentQueue.play();
+      ci++;
     }
   }
 
@@ -510,6 +550,8 @@ export class StreamingStream {
 
   // notification
   async notify(when: NotifyType, bufferPrimitve?: AudioPrimitiveBuffer, ttsFetchFunction?: any) {
+    //@ts-ignore
+    if (this.status == Stopped) return;
     if (this.option.notify?.[when] !== false) {
       let ctx = this.baseContext;
       let notificationItem = this.option.notify?.[when] ?? DefaultNoitfyOptions[when];

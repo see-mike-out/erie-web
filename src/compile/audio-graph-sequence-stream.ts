@@ -382,8 +382,6 @@ export class SequenceStream {
       }
     }
 
-    // this.queue.add(TextType, 10000, { speech: "HERE's the ending." }, this.config);
-
     // settings registration
     if (this.config) {
       Object.keys(this.config).forEach((key) => {
@@ -398,6 +396,7 @@ export class SequenceStream {
     this.queue.setSynths(this.synths);
     this.queue.setWaves(this.waves);
 
+    // LEGACY! NEEDS TO REMOVE BEFORE VERSIONING
     // // 2. making queues
     // let titles_queues: AudioGraphQueue[] = [],
     //   scales_queues: Array<AudioGraphQueue> = [],
