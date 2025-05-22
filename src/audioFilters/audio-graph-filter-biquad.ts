@@ -1,10 +1,16 @@
 // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
-import { AudioFilterEncoder, AudioFilterFinisher, Glyph, RamperCollection, AudioFilterPrototype } from "../types";
+import {
+  AudioFilterEncoder,
+  AudioFilterFinisher,
+  Glyph,
+  RamperCollection,
+  AudioFilterPrototype
+} from "../types";
 import { rampBy } from "../player/audio-graph-ramp";
 
 export class BiquadFilter extends AudioFilterPrototype {
   filter: BiquadFilterNode;
-  destination: BiquadFilterNode ;
+  destination: BiquadFilterNode;
   useGain: boolean;
 
   constructor(ctx: AudioContext | OfflineAudioContext) {

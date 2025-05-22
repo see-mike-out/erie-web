@@ -1,4 +1,8 @@
-import { makeAscSortFn, makeDescSortFn, makeIndexSortFn } from "./audio-graph-data-sort"
+import {
+  makeAscSortFn,
+  makeDescSortFn,
+  makeIndexSortFn
+} from "./audio-graph-data-sort"
 import { createBin } from "./audio-graph-transform-bin";
 import { doAggregate } from "./audio-graph-transform-aggregate";
 import { makeBoxPlotTable } from "./audio-graph-transform-boxplot";

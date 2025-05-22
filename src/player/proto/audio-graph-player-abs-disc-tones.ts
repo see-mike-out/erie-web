@@ -1,4 +1,7 @@
-import { sendToneFinishEvent, sendToneStartEvent } from '../audio-graph-player-event';
+import {
+  sendToneFinishEvent,
+  sendToneStartEvent
+} from '../audio-graph-player-event';
 import { makeInstrument } from '../audio-graph-make';
 import {
   isErieGlobalControlType,
@@ -7,9 +10,7 @@ import {
   setErieGlobalControl,
   setErieGlobalState
 } from '../audio-graph-player-global';
-
 import { playSingleTone } from './audio-graph-player-single-tone';
-
 import {
   ToneType,
   SpeechType,

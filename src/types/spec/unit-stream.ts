@@ -1,6 +1,5 @@
 import { ConfigSpec } from "./config"
 import { ChannelSpec } from "./channel"
-
 import { DataSpec } from "./data"
 import { TransformListSpec } from "./transform"
 import { ToneSpec } from "./tone"

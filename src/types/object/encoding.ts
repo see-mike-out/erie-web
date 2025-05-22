@@ -1,4 +1,7 @@
-import { SingleTapPosType, TimingType } from "./channel";
+import {
+  SingleTapPosType,
+  TimingType
+} from "./channel";
 
 /*----- ENCODING -----*/
 // encoding types

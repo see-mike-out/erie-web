@@ -2,8 +2,14 @@
 
 import { playAbsoluteDiscreteTones } from "../player";
 import { AudioPrimitiveBuffer } from "../pulse";
-import { Glyph, Glyphs2 } from "../types";
-import { Chimes, chimeSynth } from "./audio-graph-chime-defs";
+import {
+  Glyph,
+  Glyphs2
+} from "../types";
+import {
+  Chimes,
+  chimeSynth
+} from "./audio-graph-chime-defs";
 
 export async function playChime(
   ctx: AudioContext | undefined,

@@ -1,4 +1,10 @@
-import { AudioFilterEncoder, AudioFilterFinisher, Glyph, RamperCollection, AudioFilterPrototype } from "../types";
+import {
+  AudioFilterEncoder,
+  AudioFilterFinisher,
+  Glyph,
+  RamperCollection,
+  AudioFilterPrototype
+} from "../types";
 import { rampBy } from "../player/audio-graph-ramp";
 
 export class DefaultDynamicCompressor extends AudioFilterPrototype {

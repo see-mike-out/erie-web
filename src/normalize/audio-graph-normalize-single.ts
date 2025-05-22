@@ -25,7 +25,6 @@ import {
   ParsedScaleDefinition,
   EncodingType,
   TransformList,
-  ConfigInterface,
   DataSpec3,
   RampAbrupt,
   PAN_X_chn,

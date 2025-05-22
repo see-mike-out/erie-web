@@ -1,4 +1,7 @@
-import { OscType, SynthType } from "../object";
+import {
+  OscType,
+  SynthType
+} from "../object";
 
 export interface SynthSpec {
   name: string;

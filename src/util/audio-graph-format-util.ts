@@ -1,4 +1,7 @@
-import { HashedObject, RecordObject } from "../types";
+import {
+  HashedObject,
+  RecordObject
+} from "../types";
 import { deepcopy } from "./audio-graph-util";
 
 export function listString(arr: any[], delim: string, isAnd: boolean, _and?: string): string {

@@ -1,5 +1,11 @@
 // This is a basic sample for how to define a custom filter
-import { AudioFilterEncoder, AudioFilterFinisher, Glyph, RamperCollection, AudioFilterPrototype } from "../types";
+import {
+  AudioFilterEncoder,
+  AudioFilterFinisher,
+  Glyph,
+  RamperCollection,
+  AudioFilterPrototype
+} from "../types";
 import { rampBy } from "../player/audio-graph-ramp";
 
 export class GainerFilter extends AudioFilterPrototype {

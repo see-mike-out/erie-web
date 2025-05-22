@@ -1,5 +1,14 @@
-import { AudioGraphQueueItem0, AudioGraphQueueItemPause, AudioGraphQueueItemText, AudioGraphQueueItemTone } from "./queue_atom";
-import { AudioGraphQueueItemSeries, AudioGraphQueueItemToneOVerlaySeries, AudioGraphQueueItemToneSeries } from "./queue_series";
+import {
+  AudioGraphQueueItem0,
+  AudioGraphQueueItemPause,
+  AudioGraphQueueItemText,
+  AudioGraphQueueItemTone
+} from "./queue_atom";
+import {
+  AudioGraphQueueItemSeries,
+  AudioGraphQueueItemToneOVerlaySeries,
+  AudioGraphQueueItemToneSeries
+} from "./queue_series";
 
 export type AudioGraphQueueItem
   = (AudioGraphQueueItem0

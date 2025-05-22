@@ -1,5 +1,4 @@
 // scales after parsing
-import { TransformerFunction } from "../compiled";
 import {
   Condition,
   EncodingType,

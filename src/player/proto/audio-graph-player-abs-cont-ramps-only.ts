@@ -9,8 +9,7 @@ import {
   Glyphs2,
   HashedObject,
   InstrumentNode,
-  RamperCollection,
-  RecordObject
+  RamperCollection
 } from "../../types";
 import { getEndTime1, getStartTime1 } from "../../util";
 import { setCurrentTime } from "../audio-graph-player-global";

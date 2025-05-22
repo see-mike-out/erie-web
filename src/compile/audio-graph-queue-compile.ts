@@ -346,7 +346,7 @@ export async function compileSingleLayerAuidoGraph(
     });
 
     // post_processing
-    let processed_repeat_stremas: Array<UnitStream | OverlayStream> = postprocessRepeatStreams(repeat_streams);
+    let processed_repeat_stremas: Array<UnitStream | OverlayStream> = postprocessRepeatStreams(repeat_streams, id);
     processed_repeat_stremas.forEach((s, i) => {
       if (!s) { console.warn("empty repeat stream", s); }
       if (has_repeat_speech && s.setConfig) s.setConfig("playRepeatSequenceName", true);

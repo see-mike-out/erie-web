@@ -4,7 +4,11 @@ import { ChannelObject } from "./channel";
 import { SampledToneObject } from "./sampling";
 import { TickObject } from "./tick";
 import { TransformList } from "./transform";
-import { SynthObject, ToneObject, WaveObject } from "./tone";
+import {
+  SynthObject,
+  ToneObject,
+  WaveObject
+} from "./tone";
 
 export interface StreamObject {
   name?: string;

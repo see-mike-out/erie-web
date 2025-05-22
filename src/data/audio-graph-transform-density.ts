@@ -1,6 +1,9 @@
 import { extent } from "d3";
 import * as vega from "vega-statistics";
-import { AqTableType, Datum } from "../types";
+import {
+  AqTableType,
+  Datum
+} from "../types";
 import * as aq from "arquero";
 const fromTidy = aq.from;
 

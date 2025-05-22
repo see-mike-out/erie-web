@@ -1,8 +1,11 @@
 import { ChannelSpec, TickSpec } from "./channel";
-import { ConfigSpec } from "./config";
 import { DataSpec } from "./data";
 import { SynthSpec } from "./synth";
-import { SampledToneSpec, ToneSpec, WaveSpec } from "./tone";
+import {
+  SampledToneSpec,
+  ToneSpec,
+  WaveSpec
+} from "./tone";
 import { TransformListSpec } from "./transform";
 
 export type SingleStreamSpec = {

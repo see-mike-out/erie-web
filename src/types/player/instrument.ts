@@ -1,7 +1,11 @@
 import { ErieSynth } from "../../player";
 import { HashedObject } from "../generic";
 import { OscTypes } from "../object";
-import { AudioFilterEncoder, AudioFilterFinisher, AudioFilterPrototype } from "./filter";
+import {
+  AudioFilterEncoder,
+  AudioFilterFinisher,
+  AudioFilterPrototype
+} from "./filter";
 import { RamperCollection } from "./ramp";
 
 export type InstrumentNode = OscillatorNode | AudioBufferSourceNode | ErieSynth;

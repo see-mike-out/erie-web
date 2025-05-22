@@ -18,8 +18,7 @@ import {
   ScaleType,
   STATIC,
   TIME_chn,
-  TMP,
-  TransformerFunction
+  TMP
 } from "../types";
 import {
   deepcopy

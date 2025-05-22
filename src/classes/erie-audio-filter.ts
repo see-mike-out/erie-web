@@ -1,4 +1,9 @@
-import { AudioFilterEncoder, AudioFilterFinisher, ErieFilterCollection, AudioFilterPrototype } from "../types";
+import {
+  AudioFilterEncoder,
+  AudioFilterFinisher,
+  ErieFilterCollection,
+  AudioFilterPrototype
+} from "../types";
 
 export let ErieFilters: ErieFilterCollection = {};
 

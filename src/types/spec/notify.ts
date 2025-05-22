@@ -1,4 +1,7 @@
-import { bcp47language, NotifyType } from "../object";
+import {
+  bcp47language,
+  NotifyType
+} from "../object";
 
 export type SpeechNotifyItemSpec = {
   speech: string;

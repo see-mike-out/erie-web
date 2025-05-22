@@ -7,7 +7,6 @@ import {
   getChannelCaps,
   getChannelThresholds
 } from "./audio-graph-scale-thresholds";
-
 import {
   ascending,
   descending,

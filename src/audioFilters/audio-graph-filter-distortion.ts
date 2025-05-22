@@ -1,4 +1,10 @@
-import { AudioFilterEncoder, AudioFilterFinisher, Glyph, RamperCollection, AudioFilterPrototype } from "../types";
+import {
+  AudioFilterEncoder,
+  AudioFilterFinisher,
+  Glyph,
+  RamperCollection,
+  AudioFilterPrototype
+} from "../types";
 
 export class DistortionFilter extends AudioFilterPrototype {
   filter: WaveShaperNode;

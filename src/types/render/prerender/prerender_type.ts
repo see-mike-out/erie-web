@@ -1,5 +1,9 @@
 import { Glyph } from "../../compiled";
-import { bcp47language, QueueItemTypes, RampType } from "../../object";
+import {
+  bcp47language,
+  QueueItemTypes,
+  RampType
+} from "../../object";
 
 export type PreGraphSpeechItem = {
   speech: string,

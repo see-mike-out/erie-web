@@ -1,5 +1,8 @@
 import { OverlayStream } from "./audio-graph-overlay-stream";
-import { isUnitStreamObject, UnitStream } from "./audio-graph-unit-stream";
+import {
+  isUnitStreamObject,
+  UnitStream
+} from "./audio-graph-unit-stream";
 
 import {
   SEQUENCE,
@@ -48,14 +51,15 @@ export function makeRepeatStreamTree(
 }
 
 export function postprocessRepeatStreams(
-  tree: RepeatTree
+  tree: RepeatTree,
+  id: string
 ): Array<UnitStream | OverlayStream> {
   let flat_streams: RepeatTreePost = postprocessRstreamTree(tree);
-  return flat_streams.nodes.map((s) => {
+  return flat_streams.nodes.map((s, i) => {
     if (isUnitStreamObject(s)) return s;
     else if (s instanceof Array && s.length == 1) return s[0];
     else if (s instanceof Array && s.length > 1) {
-      let overlay = new OverlayStream();
+      let overlay = new OverlayStream(id + "-repeat-" + i);
       overlay.addStreams(s);
       return overlay;
     } else return undefined;

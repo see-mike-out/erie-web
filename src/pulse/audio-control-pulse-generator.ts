@@ -7,7 +7,10 @@ import {
   isToneSeriesQueueItem,
   RampType
 } from "../types";
-import { getEndTime1, getStartTime1 } from "../util";
+import {
+  getEndTime1,
+  getStartTime1
+} from "../util";
 
 const channels = 2;
 // TODO

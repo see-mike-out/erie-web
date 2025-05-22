@@ -1,4 +1,9 @@
-import { Datum, NotifySpec, PlaybackTypes, PlaybackUnits } from "../spec"
+import {
+  Datum,
+  NotifySpec,
+  PlaybackTypes,
+  PlaybackUnits
+} from "../spec"
 import { LoadedDatasets } from "./data"
 
 

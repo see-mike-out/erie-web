@@ -4,7 +4,6 @@ import {
   getChannelCaps,
   getChannelThresholds
 } from "./audio-graph-scale-thresholds";
-
 import { scaleTime } from "d3";
 import {
   noteToFreq,

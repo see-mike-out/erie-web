@@ -3,7 +3,6 @@ import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
 import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
-
 import {
   TIME_chn,
   REL,

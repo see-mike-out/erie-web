@@ -1,5 +1,14 @@
-import { DataOrderingItem, EncodingNormed, InternalData, REPEAT_chn, TIME_chn } from "../types";
-import { asc, unique } from "../util";
+import {
+  DataOrderingItem,
+  EncodingNormed,
+  InternalData,
+  REPEAT_chn,
+  TIME_chn
+} from "../types";
+import {
+  asc,
+  unique
+} from "../util";
 
 export function orderData(
   encoding: EncodingNormed,

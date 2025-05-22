@@ -6,7 +6,6 @@ import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 import { makeTimeChannelScale } from "./audio-graph-scale-time";
-
 import {
   asc,
   unique,
@@ -41,8 +40,7 @@ import {
   TapChannels,
   TapCountValue,
   TapSpeedValue,
-  TimeChannels,
-  TransformerFunction
+  TimeChannels
 } from "../types";
 import { roundToNoteScale } from "../player";
 import { detectType } from "../compile/audio-graph-compile-utils";

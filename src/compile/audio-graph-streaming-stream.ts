@@ -1,5 +1,12 @@
 import { Chimes, playChime } from '../chimes';
-import { AudioGraphQueue, emitNoteStopEvent, loadSamples, playAbsoluteDiscreteTones, playSingleSpeech, rampContinuousTone } from '../player';
+import {
+  AudioGraphQueue,
+  emitNoteStopEvent,
+  loadSamples,
+  playAbsoluteDiscreteTones,
+  playSingleSpeech,
+  rampContinuousTone
+} from '../player';
 import { playIndefininteContinuousTones } from '../player/proto/audio-graph-player-ind-cont-tones';
 import { AudioPrimitiveBuffer } from '../pulse';
 import {

@@ -1,6 +1,8 @@
 // Oscillator-related
-
-import { NoteKey, OctaveKey } from "./octave";
+import {
+  NoteKey,
+  OctaveKey
+} from "./octave";
 
 export const SINE = 'sine', SQUARE = 'square', SAWTOOTH = 'sawtooth', TRIANGLE = 'triangle';
 export const OscTypes = [SINE, SQUARE, SAWTOOTH, TRIANGLE];

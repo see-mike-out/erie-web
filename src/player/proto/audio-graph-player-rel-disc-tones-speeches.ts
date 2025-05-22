@@ -4,7 +4,6 @@ import {
   sendToneFinishEvent,
   sendToneStartEvent
 } from '../audio-graph-player-event';
-
 import {
   AudioGraphQueueItemText,
   ConfigInterface,
@@ -20,7 +19,10 @@ import {
   genRid
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
-import { isErieGlobalState, setErieGlobalState } from '../audio-graph-player-global';
+import {
+  isErieGlobalState,
+  setErieGlobalState
+} from '../audio-graph-player-global';
 import { playSingleSpeech } from './audio-graph-player-single-speech';
 import { playSingleTone } from './audio-graph-player-single-tone';
 

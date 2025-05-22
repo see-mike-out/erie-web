@@ -1,4 +1,8 @@
-import { SpeechType, ToneType, Stopped } from "../object";
+import {
+  SpeechType,
+  ToneType,
+  Stopped
+} from "../object";
 
 export type GlobalControlTone = {
   type: typeof ToneType,

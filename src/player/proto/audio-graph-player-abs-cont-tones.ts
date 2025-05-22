@@ -55,8 +55,6 @@ import {
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse'
 
-
-
 export async function playAbsoluteContinuousTones(
   _ctx: AudioContext,
   queue: Glyphs2,

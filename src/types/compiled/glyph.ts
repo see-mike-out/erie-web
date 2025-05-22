@@ -1,5 +1,8 @@
 import { RecordObject } from "../generic";
-import { bcp47language, SingleTapPosType } from "../object";
+import {
+  bcp47language,
+  SingleTapPosType
+} from "../object";
 import { BeatObject } from "./time";
 
 export type BasicToneGlyph = {

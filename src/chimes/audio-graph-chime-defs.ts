@@ -1,10 +1,13 @@
-import { Glyph, noteFreqRange, SynthNormed } from "../types";
+import {
+  Glyph,
+  noteFreqRange,
+  SynthNormed
+} from "../types";
 
 const ChimeBeat = 0.33;
 export function getChimeBeat(n: number) {
   return ChimeBeat * n;
 }
-
 
 export const ChimeBeforePlay: Glyph[] = [{
   start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'

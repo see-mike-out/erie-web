@@ -1,9 +1,14 @@
-import { ConfigSpec } from "./config"
 import { TickSpec } from "./channel"
-import { DatasetSpecItem, DataSpec } from "./data"
+import {
+  DatasetSpecItem,
+  DataSpec
+} from "./data"
 import { UnitStreamSpec } from "./unit-stream"
 import { TransformListSpec } from "./transform"
-import { SampledToneSpec, WaveSpec } from "./tone"
+import {
+  SampledToneSpec,
+  WaveSpec
+} from "./tone"
 import { SynthSpec } from "./synth"
 
 export type OverlayStreamSpec1 = {

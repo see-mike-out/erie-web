@@ -1,5 +1,12 @@
-import { Condition, EncodingType, FormatType, RampType, ScaleType } from "../object";
-import { AggOpType, InlineBinType } from "../transform";
+import {
+  AggOpType,
+  Condition,
+  EncodingType,
+  FormatType,
+  RampType,
+  ScaleType
+} from "../object";
+import { InlineBinType } from "../spec";
 import { TickObject } from "./tick";
 
 // Channel object

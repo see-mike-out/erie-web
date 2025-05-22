@@ -1,5 +1,9 @@
 import { ParsedScaleProperties } from "../normalized";
-import { QueueItemTypes, TextType, ToneSeries } from "../object";
+import {
+  QueueItemTypes,
+  TextType,
+  ToneSeries
+} from "../object";
 import { Glyph } from "./glyph";
 import { BeatObject } from "./time";
 

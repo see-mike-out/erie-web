@@ -19,7 +19,6 @@ import {
   sendQueueFinishEvent,
   sendQueueStartEvent
 } from "./audio-graph-player-event";
-
 import {
   AudioPrimitiveBuffer,
   concatenateBuffers,

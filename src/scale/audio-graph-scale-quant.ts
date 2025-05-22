@@ -3,8 +3,13 @@ import {
   getChannelThresholds
 } from "./audio-graph-scale-thresholds";
 import { QuantPreferredRange } from "./audio-graph-palletes";
-
-import { scaleLinear, scaleSymlog, scaleLog, scaleSqrt, scalePow } from "d3";
+import {
+  scaleLinear,
+  scaleSymlog,
+  scaleLog,
+  scaleSqrt,
+  scalePow
+} from "d3";
 import {
   noteToFreq,
   deepcopy,

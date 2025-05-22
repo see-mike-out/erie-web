@@ -1,5 +1,15 @@
-import { OrderingMarkup, OrderingRole, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound, OrderingTypeText } from "../object";
-import { NotifySpec, SpeechOption } from "../spec";
+import {
+  OrderingMarkup,
+  OrderingRole,
+  OrderingTypeMarkup,
+  OrderingTypeRepeat,
+  OrderingTypeSound,
+  OrderingTypeText
+} from "../object";
+import {
+  NotifySpec,
+  SpeechOption
+} from "../spec";
 
 // Normalized types
 export type OrderSpecNormed = OrderItemNormed[]; // Ordered sequence of items

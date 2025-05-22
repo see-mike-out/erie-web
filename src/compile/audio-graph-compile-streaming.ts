@@ -15,11 +15,22 @@ import {
   TAPSPD_chn,
   TickNormed
 } from "../types";
-import { makeParamFilter, toHashedObject } from "../util";
+import {
+  makeParamFilter,
+  toHashedObject
+} from "../util";
 import { compileSingleLayerAuidoGraph } from "./audio-graph-queue-compile";
-import { DefaultHistoryLimit, DefaultPlaybackLimit, StreamingStream } from "./audio-graph-streaming-stream";
+import {
+  DefaultHistoryLimit,
+  DefaultPlaybackLimit,
+  StreamingStream
+} from "./audio-graph-streaming-stream";
 import { UnitStream } from "./audio-graph-unit-stream";
-import { getChannelType, makeScales, tidyUpScaleDefinitions } from "./audio-graph-update-scale";
+import {
+  getChannelType,
+  makeScales,
+  tidyUpScaleDefinitions
+} from "./audio-graph-update-scale";
 
 export async function compileStreamingStream(
   audio_spec: StreamingSpec,

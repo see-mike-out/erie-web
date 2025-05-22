@@ -1,4 +1,8 @@
-import { bcp47language, OrderingMarkup, OrderingRole } from "../object";
+import {
+  bcp47language,
+  OrderingMarkup,
+  OrderingRole
+} from "../object";
 import { NotifySpec } from "./notify";
 
 export type OrderSpec = OrderItem[];

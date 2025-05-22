@@ -1,4 +1,25 @@
-import { Datum, EncodingItemNormed, EncodingNormed, Glyph, HashedObject, PAN_AZIMUTH_chn, PAN_POLAR_chn, PAN_RADIUS_chn, PAN_X_chn, PAN_Y_chn, PAN_Z_chn, RepeatGraphItem, ScaleCollection, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, TapChannels, TIMBRE_chn, TIME2_chn, TIME_chn, ToneNormed } from "../types";
+import {
+  Datum,
+  EncodingItemNormed,
+  EncodingNormed,
+  Glyph,
+  HashedObject,
+  PAN_AZIMUTH_chn,
+  PAN_POLAR_chn,
+  PAN_RADIUS_chn,
+  PAN_X_chn,
+  PAN_Y_chn,
+  PAN_Z_chn,
+  RepeatGraphItem,
+  ScaleCollection,
+  SPEECH_AFTER_chn,
+  SPEECH_BEFORE_chn,
+  TapChannels,
+  TIMBRE_chn,
+  TIME2_chn,
+  TIME_chn,
+  ToneNormed
+} from "../types";
 import { cosDeg, sinDeg } from "../util";
 
 export function makeGlyph(

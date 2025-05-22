@@ -8,7 +8,10 @@ import { Sampling } from "./erie-sampling";
 import { Stream } from "./erie-stream";
 import { TickList } from "./erie-tick";
 import { Transform } from "./erie-transform";
-import { isArrayOf, isInstanceOf } from "./erie-util";
+import {
+  isArrayOf,
+  isInstanceOf
+} from "./erie-util";
 import { Wave } from "./erie-wave";
 import { OverlayObject } from "../types/api/stream";
 import {

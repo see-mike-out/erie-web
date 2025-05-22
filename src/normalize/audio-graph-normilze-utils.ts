@@ -1,4 +1,7 @@
-import { DatasetSpecItem, DataSpec } from "../types";
+import {
+  DatasetSpecItem,
+  DataSpec
+} from "../types";
 import { deepcopy } from "../util";
 
 export function addURLtoDataObject<T extends DataSpec | DatasetSpecItem>(data: T, dataBaseUrl: string | undefined): T {

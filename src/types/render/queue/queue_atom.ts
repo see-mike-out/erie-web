@@ -1,6 +1,13 @@
-import { BasicSpeechGlyph, BasicToneGlyph } from "../../compiled";
+import {
+  BasicSpeechGlyph,
+  BasicToneGlyph
+} from "../../compiled";
 import { ConfigNormed } from "../../normalized";
-import { Pause, QueueItemTypes, TextType } from "../../object";
+import {
+  Pause,
+  QueueItemTypes,
+  TextType
+} from "../../object";
 
 // to Play
 export type AudioGraphQueueItem0 = {

@@ -1,7 +1,13 @@
 import { round } from "../util";
-import { InstrumentNode, TickNormed } from "../types";
+import {
+  InstrumentNode,
+  TickNormed
+} from "../types";
 import { AudioPrimitiveBuffer } from "../pulse";
-import { makeInstrument, makeOfflineContext } from "../player/audio-graph-make";
+import {
+  makeInstrument,
+  makeOfflineContext
+} from "../player/audio-graph-make";
 
 export const Def_Tick_Interval = 0.5,
   Def_Tick_Interval_Beat = 2,

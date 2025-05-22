@@ -1,5 +1,8 @@
 import { UnitStream } from "../../compile";
-import { OVERLAY, SEQUENCE } from "../object";
+import {
+  OVERLAY,
+  SEQUENCE
+} from "../object";
 import { Glyph } from "./glyph";
 
 // repeat tree after parsing

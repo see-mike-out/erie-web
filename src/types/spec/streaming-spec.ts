@@ -1,5 +1,11 @@
-import { ToneSpec, WaveSpec } from "./tone"
-import { StreamingChannelSpec, TickSpec } from "./channel";
+import {
+  ToneSpec,
+  WaveSpec
+} from "./tone"
+import {
+  StreamingChannelSpec,
+  TickSpec
+} from "./channel";
 import { StreamingDataSpec } from "./data";
 import { NotifySpec } from "./notify"
 import { SampledToneSpec } from "./tone"

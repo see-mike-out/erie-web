@@ -1,4 +1,7 @@
-import { OscType, TickObject } from "../types";
+import {
+  OscType,
+  TickObject
+} from "../types";
 
 export class Tick {
   _name: string;

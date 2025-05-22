@@ -1,13 +1,35 @@
 import { getData } from "../data";
 import { isRepeatedStream } from "../normalize";
-import { AudioGraphSpeechItem, ConfigNormed, DataNormed1, DatasetSpecItemNormed, HashedObject, LoadedDatasets, NormalizedStreamItem, OrderSpecNormed, ParsedScaleDefinition, SampledToneNormed, SynthNormed, TickNormed, TopLevelSpec, WaveNormed } from "../types";
-import { deepcopy, toHashedObject } from "../util";
+import {
+  AudioGraphSpeechItem,
+  ConfigNormed,
+  DataNormed1,
+  DatasetSpecItemNormed,
+  HashedObject,
+  LoadedDatasets,
+  NormalizedStreamItem,
+  OrderSpecNormed,
+  ParsedScaleDefinition,
+  SampledToneNormed,
+  SynthNormed,
+  TickNormed,
+  TopLevelSpec,
+  WaveNormed
+} from "../types";
+import {
+  deepcopy,
+  toHashedObject
+} from "../util";
 import { OverlayStream } from "./audio-graph-overlay-stream";
 import { compileSingleLayerAuidoGraph } from "./audio-graph-queue-compile";
 import { SequenceStream } from "./audio-graph-sequence-stream";
 import { SpeechStream } from "./audio-graph-speech-stream";
 import { UnitStream } from "./audio-graph-unit-stream";
-import { getChannelType, makeScales, tidyUpScaleDefinitions } from "./audio-graph-update-scale";
+import {
+  getChannelType,
+  makeScales,
+  tidyUpScaleDefinitions
+} from "./audio-graph-update-scale";
 
 export async function compileSequnceStream(
   audio_spec: TopLevelSpec,
@@ -140,11 +162,6 @@ export async function compileSequnceStream(
           }
         });
       }
-      // if (stream.config) {
-      //   Object.keys(stream.config).forEach((key) => {
-      //     overlays.setConfig(key, stream.config[key]);
-      //   });
-      // }
       sequence.addStream(overlays);
     }
     si++;

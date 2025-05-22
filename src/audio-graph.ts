@@ -1,34 +1,18 @@
 import {
-  SequenceStream,
-  OverlayStream,
-  SpeechStream,
-  compileSingleLayerAuidoGraph,
-  tidyUpScaleDefinitions,
-  getChannelType,
-  makeScales,
-  UnitStream,
-  StreamingStream,
-  isSequenceStreamObject,
-  isStreamingStreamObject,
   compileSequnceStream,
   compileStreamingStream
 } from './compile';
 import {
   normalizeSpecification,
-  isRepeatedStream,
   isStreamingStream,
   normalizeOrderSpec,
 } from "./normalize";
 import {
-  deepcopy,
   toHashedObject
 } from "./util";
-import { getData } from "./data";
 import {
   TopLevelSpec,
   ConfigInterface,
-  LoadedDatasets,
-  AudioGraphSpeechItem,
   StreamingSpec,
   OrderSpecNormed
 } from './types';
@@ -51,6 +35,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   let ordering = audio_spec?.ordering, ordering_normalized!: OrderSpecNormed;
   if (ordering !== undefined) {
     ordering_normalized = normalizeOrderSpec(ordering, normalized);
+    console.log(ordering_normalized)
   } else {
     ordering_normalized = generateBaseOrderSpec(normalized, sequenceConfig);
   }

@@ -1,6 +1,11 @@
 import { Glyphs2 } from "../../compiled";
 import { ConfigNormed } from "../../normalized";
-import { RampType, ToneOverlaySeries, ToneSeries, ToneSpeechSeries } from "../../object";
+import {
+  RampType,
+  ToneOverlaySeries,
+  ToneSeries,
+  ToneSpeechSeries
+} from "../../object";
 
 export type AudioGraphQueueItemSeries = {
   type: typeof ToneSeries | typeof ToneSpeechSeries;
