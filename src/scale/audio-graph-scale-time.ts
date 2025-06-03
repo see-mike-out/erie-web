@@ -3,7 +3,6 @@ import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
 import { makeQuantitativeScaleFunction } from "./audio-graph-scale-quant";
 import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
-
 import {
   TIME_chn,
   REL,
@@ -17,7 +16,8 @@ import {
   BeatObject,
   ParsedScaleDefinition,
   ParsedScaleFunction,
-  RecordObject
+  RecordObject,
+  ABS
 } from "../types";
 import { deepcopy } from "../util";
 
@@ -28,7 +28,8 @@ export function makeTimeChannelScale(
   values: any[] | undefined,
   info: RecordObject,
   scaleType: RecordObject,
-  beat: BeatObject | undefined
+  beat: BeatObject | undefined,
+  is_streamed?: boolean
 ) {
   let encoding = deepcopy(_encoding);
   let scaleDef = encoding?.scale;
@@ -37,7 +38,8 @@ export function makeTimeChannelScale(
   }
   let isRelative = scaleDef.timing === REL,
     isSimultaneous = scaleDef.timing === SIM,
-    band = scaleDef?.band || DEF_DUR, length = scaleDef?.length || 5;
+    band = scaleDef?.band || DEF_DUR,
+    length = scaleDef?.length ?? 5;
   if (beat?.converter) {
     band = beat.converter(scaleDef?.band || 1), length = beat.converter(length);
   }
@@ -68,14 +70,26 @@ export function makeTimeChannelScale(
       encodingType: encoding.type,
       timing: SIM,
     }
+  } else if (is_streamed && encoding?.scale?.times !== undefined) {
+    // @ts-ignore
+    scale1 = (t1) => {
+      // @ts-ignore
+      return t1 * encoding?.scale?.times;
+      // todo: transformations?
+    };
+    scale1.properties = {
+      channel,
+      encodingType: encoding.type,
+      timing: ABS,
+    }
   } else if (scaleType?.encodingType === QUANT) {
-    scale1 = makeQuantitativeScaleFunction(TIME_chn, encoding, values, info);
+    scale1 = makeQuantitativeScaleFunction(TIME_chn, encoding, values, info, is_streamed);
   } else if (scaleType?.encodingType === TMP) {
-    scale1 = makeTemporalScaleFunction(TIME_chn, encoding, values, info);
+    scale1 = makeTemporalScaleFunction(TIME_chn, encoding, values, info, is_streamed);
   } else if (scaleType?.encodingType === ORD) {
-    scale1 = makeOrdinalScaleFunction(TIME_chn, encoding, values, info);
+    scale1 = makeOrdinalScaleFunction(TIME_chn, encoding, values, info, is_streamed);
   } else if (scaleType?.encodingType === NOM) {
-    scale1 = makeNominalScaleFunction(TIME_chn, encoding, values, info);
+    scale1 = makeNominalScaleFunction(TIME_chn, encoding, values, info, is_streamed);
   } else if (scaleType?.encodingType === STATIC) {
     scale1 = makeStaticScaleFunction(TIME_chn, encoding, values, info);
   }

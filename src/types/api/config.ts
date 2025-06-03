@@ -1,0 +1,1 @@
+export { type ConfigSpec as ConfigInterface } from "../spec";

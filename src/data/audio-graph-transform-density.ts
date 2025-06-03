@@ -1,6 +1,9 @@
 import { extent } from "d3";
 import * as vega from "vega-statistics";
-import { AqTableType } from "../types";
+import {
+  AqTableType,
+  Datum
+} from "../types";
 import * as aq from "arquero";
 const fromTidy = aq.from;
 
@@ -23,7 +26,7 @@ export function getKernelDensity(
   let method: 'cdf' | 'pdf' = cumulative ? 'cdf' : 'pdf';
   let asName: [string, string] = _as ? [_as[0] ?? 'value', _as[1] ?? 'density'] : ['value', 'density'];
   let bandwidth = _bandwidth;
-  let values: any[] = [];
+  let values: Datum[] = [];
   let domain = _extent;
   let minsteps = steps || _minsteps || 25;
   let maxsteps = steps || _maxsteps || 200;
@@ -68,7 +71,7 @@ export function getKernelDensity(
 }
 
 function aqPartition(table: AqTableType, groupby: string[]): {
-  groups: AqTableType[], names: any[]
+  groups: AqTableType[], names: Datum[]
 } {
   let grouped_table = table.groupby(groupby);
   let group_defs = grouped_table.groups();

@@ -1,4 +1,7 @@
-import { sendToneFinishEvent, sendToneStartEvent } from '../audio-graph-player-event';
+import {
+  sendToneFinishEvent,
+  sendToneStartEvent
+} from '../audio-graph-player-event';
 import { makeInstrument } from '../audio-graph-make';
 import {
   isErieGlobalControlType,
@@ -7,20 +10,19 @@ import {
   setErieGlobalControl,
   setErieGlobalState
 } from '../audio-graph-player-global';
-
 import { playSingleTone } from './audio-graph-player-single-tone';
-
 import {
   ToneType,
   SpeechType,
   Stopped,
   ConfigInterface,
   LoadedSampleCollection,
-  HashedSynthObject,
-  HashedWaveObject,
   Glyph,
   Glyphs2,
-  GlobalControlSpeech
+  GlobalControlSpeech,
+  HashedObject,
+  SynthNormed,
+  WaveNormed
 } from '../../types';
 import {
   playTick
@@ -33,13 +35,13 @@ import {
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
 
-export async function playAbsoluteDiscreteTonesAlt(
+export async function playAbsoluteDiscreteTones(
   ctx: AudioContext,
   queue: Glyphs2,
   config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
@@ -84,8 +86,8 @@ export async function playAbsoluteDiscreteTonesAlt(
       inst.connect(gain);
 
       // play & stop
-      inst.start(ct + sound.time);
-      inst.stop(ct + sound.time + 0.01);
+      inst.start(ct + sound.start);
+      inst.stop(ct + sound.start + 0.01);
 
       inst.onended = async () => {
         if (config?.falseTiming && isErieGlobalControlType(SpeechType)) {

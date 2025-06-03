@@ -3,7 +3,6 @@ import {
   repeatPallete
 } from "./audio-graph-palletes";
 import { getChannelCaps } from "./audio-graph-scale-thresholds";
-
 import { scaleOrdinal } from "d3";
 import {
   ParsedScaleDefinition,
@@ -14,15 +13,20 @@ import {
   REPEAT_chn,
   TIMBRE_chn
 } from "../types";
-import { unique, deepcopy, noteToFreq } from "../util";
+import {
+  unique,
+  deepcopy,
+  noteToFreq
+} from "../util";
 import { FilterExtraChannelTypes } from "../player";
 
 
 export function makeNominalScaleFunction(
   channel: string,
   encoding: ParsedScaleDefinition,
-  values: any[] | undefined, 
+  values: any[] | undefined,
   info: RecordObject,
+  is_streamed?: boolean
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;

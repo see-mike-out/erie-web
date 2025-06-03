@@ -4,28 +4,25 @@ import {
   makeRepeatStreamTree,
   postprocessRepeatStreams
 } from './audio-graph-repeat-stream';
-import { Def_tone } from './audio-graph-normalize-single';
+import { Def_tone } from '../normalize';
 import {
-  asc,
   deepcopy,
   unique,
   listString
 } from "../util";
 import {
   transformData,
-  orderArray
+  orderArray,
+  getTransformers
 } from "../data";
 import {
   NOM,
   ORD,
   TMP,
-  SPEECH_AFTER_chn,
-  SPEECH_BEFORE_chn,
   REPEAT_chn,
   TIMBRE_chn,
   TIME2_chn,
   TIME_chn,
-  TapChannels,
   SEQUENCE,
   REL,
   ScaleDescriptionOrder,
@@ -51,7 +48,9 @@ import {
   PAN_Z_chn,
   PAN_RADIUS_chn,
   PAN_POLAR_chn,
-  PAN_AZIMUTH_chn
+  PAN_AZIMUTH_chn,
+  TransformerFunction,
+  Datum
 } from "../types";
 import { makeScaleDescription } from "../scale";
 import {
@@ -60,22 +59,17 @@ import {
   Def_Tick_Interval,
   Def_Tick_Interval_Beat
 } from '../tick';
-
-function sinDeg(degrees: number): number {
-  return Math.sin(degrees * (Math.PI / 180));
-}
-
-function cosDeg(degrees: number): number {
-  return Math.cos(degrees * (Math.PI / 180));
-}
+import { makeGlyph } from './audio-graph-make-glyph';
+import { orderData } from './audio-graph-order-data';
 
 export async function compileSingleLayerAuidoGraph(
   audio_spec: NormalizedSingleStream,
-  _data: any[],
+  _data: Datum[],
   config: ConfigInterface | undefined,
   tickDef: { [key: string]: TickObject },
   common_scales: ScaleCollection
 ) {
+  let id = audio_spec.id;
   let layer_spec = {
     name: audio_spec.name,
     encoding: audio_spec.encoding,
@@ -100,13 +94,9 @@ export async function compileSingleLayerAuidoGraph(
     }
   }).filter((d) => d !== undefined).flat();
 
-  let data: InternalData = _data;
-  if (audio_spec.common_transform) {
-    data = transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions);
-  } else {
-    data = transformData(_data, audio_spec.transform || [], forced_dimensions);
-  }
-  let dataInfo = deepcopy(data.tableInfo);
+  let data: InternalData = !config?.is_streaming ? transformData(_data, [...(audio_spec.common_transform || []), ...(audio_spec.transform || [])], forced_dimensions) : [];
+  let dataInfo = !config?.is_streaming ? deepcopy(data.tableInfo) : {};
+  let transformer: TransformerFunction = config?.is_streaming ? getTransformers(audio_spec) : (d) => d;
 
   // encoding properties
   let encoding = layer_spec.encoding;
@@ -114,7 +104,8 @@ export async function compileSingleLayerAuidoGraph(
   if (tone_spec.type === "default") {
     tone_spec = {
       type: Def_tone,
-      continued: tone_spec.continued
+      continued: tone_spec.continued,
+      hasBaseTone: tone_spec.hasBaseTone
     }
   }
   let channels = Object.keys(encoding).filter((c) => ![TIME_chn, TIME2_chn, TIMBRE_chn].includes(c));
@@ -145,40 +136,30 @@ export async function compileSingleLayerAuidoGraph(
 
   // data sort
   // tiem channel can only have a string field
-  let data_order: DataOrderingItem[] = [];
-  if (TIME_chn in encoding && encoding[TIME_chn].field && encoding[TIME_chn].scale?.order) {
-    data_order.push({
-      key: encoding[TIME_chn].field as string, order: [encoding[TIME_chn].scale?.order]
-    });
-  } else if (TIME_chn in encoding && encoding[TIME_chn].field && 'sort' in (encoding[TIME_chn]?.scale ?? {}) && encoding[TIME_chn].scale?.sort) {
-    data_order.push({
-      key: encoding[TIME_chn].field as string, sort: encoding[TIME_chn].scale?.sort
-    });
-  } else if (TIME_chn in encoding && encoding[TIME_chn].field) {
-    let f = encoding[TIME_chn].field as string
-    data_order.push({
-      key: f, order: unique(data.map(d => d[f])).toSorted(asc)
-    });
+  let data_order: DataOrderingItem[] = [], data_sorter!: Function;
+  if (!config?.is_streaming) {
+    data_order = orderData(
+      encoding,
+      data,
+      {
+        is_repeated,
+        repeat_field
+      }
+    );
+    data = orderArray(data, data_order);
+  } else {
+    data_order = orderData(
+      encoding,
+      [],
+      {
+        is_repeated: false,
+        repeat_field: []
+      }
+    );
+    data_sorter = (d: InternalData): InternalData => {
+      return orderArray(d, data_order);
+    }
   }
-
-  if (is_repeated && repeat_field && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.order) {
-    data_order.push({
-      key: repeat_field[0], order: encoding[REPEAT_chn].scale?.order
-    });
-  } else if (is_repeated && repeat_field && repeat_field.length == 1 && encoding[REPEAT_chn].scale?.sort) {
-    data_order.push({
-      key: repeat_field[0], sort: encoding[REPEAT_chn].scale?.sort
-    });
-  } else if (is_repeated && (repeat_field instanceof Array)) {
-    repeat_field.toReversed().forEach((key) => {
-      let order = unique(data.map(d => d[key])).toSorted(asc);
-      data_order.push({
-        key, order
-      });
-    });
-  }
-
-  data = orderArray(data, data_order);
 
   delete data.tableInfo;
 
@@ -266,82 +247,64 @@ export async function compileSingleLayerAuidoGraph(
   }
 
   // generate audio graphs
+  let streaming_encoder!: Function;
   let total_duration = 0, repeat_total_duration = Array(repeated_graph.length).fill(0);
-  for (const i in data) {
-    if (i === 'tableInfo') continue;
-    let datum = data[i];
-    // if (datum[encoding[TIME_chn].field] !== undefined) continue;
-    let repeat_index = is_repeated && repeat_field ? repeated_graph_map[repeat_field.map(k => datum[k]).join("&")] : -1;
-    let glyph = scales.time(
-      (datum[encoding[TIME_chn].field as string] !== undefined ? datum[encoding[TIME_chn].field as string] : parseInt(i)),
-      (hasTime2 ?
-        (datum[encoding[TIME2_chn].field as string] !== undefined ? datum[encoding[TIME2_chn].field as string] : (parseInt(i) + 1))
-        : undefined)
-    );
-    if (tone_spec.continued && !hasTime2) {
-      delete glyph.end;
-      glyph.duration = 0;
+  if (!config?.is_streaming) {
+    for (const i in data) {
+      if (i === 'tableInfo') continue;
+      let datum = data[i];
+      let glyphs = makeGlyph(
+        i as `${number}`,
+        datum,
+        tone_spec,
+        channels,
+        encoding,
+        scales,
+        hasTime2,
+        total_duration,
+        {
+          is_repeated,
+          repeat_field,
+          repeated_graph_map,
+          repeated_graph,
+          repeat_total_duration
+        }
+      )
+      audio_graph.push(...glyphs.glyphs);
+      total_duration = glyphs.total_duration;
+      repeated_graph = glyphs.repeated_graph;
+      repeat_total_duration = glyphs.repeat_total_duration;
     }
-    if (glyph.start === undefined) continue;
-    glyph.timbre = scales.timbre ? scales.timbre(datum[encoding[TIMBRE_chn].field as string]) : tone_spec.type;
-    let speechBefore!: Glyph, speechAfter!: Glyph;
-    for (const channel of channels) {
-      if (scales[channel]) {
-        glyph[channel] = scales[channel](datum[encoding[channel].field as string]);
+  } else {
+    streaming_encoder = (streaming_data: InternalData) => {
+      let streaming_graph: Glyph[] = [];
+      for (const i in streaming_data) {
+        if (i === 'tableInfo') continue;
+        let datum = streaming_data[i];
+        let glyphs = makeGlyph(
+          i as `${number}`,
+          datum,
+          tone_spec,
+          channels,
+          encoding,
+          scales,
+          hasTime2,
+          total_duration,
+          { // ignored
+            is_repeated,
+            repeat_field,
+            repeated_graph_map,
+            repeated_graph,
+            repeat_total_duration
+          }
+        )
+        streaming_graph.push(...glyphs.glyphs);
       }
-      // adjust for tapcount
-      if (TapChannels.includes(channel)) {
-        glyph.duration = glyph[channel].totalLength;
-      }
-    }
-    // TODO - Post processing - convert polar to cartesian (if using polar), else keep cartesian/stereo
-
-    if (glyph[PAN_RADIUS_chn] !== undefined && (glyph[PAN_POLAR_chn] !== undefined || glyph[PAN_AZIMUTH_chn] !== undefined)) {
-      glyph[PAN_X_chn] = glyph[PAN_RADIUS_chn] * sinDeg(glyph[PAN_POLAR_chn] ?? 0) * cosDeg(glyph[PAN_AZIMUTH_chn] ?? 0);
-      glyph[PAN_Y_chn] = glyph[PAN_RADIUS_chn] * sinDeg(glyph[PAN_POLAR_chn] ?? 0) * sinDeg(glyph[PAN_AZIMUTH_chn] ?? 0);
-      glyph[PAN_Z_chn] = glyph[PAN_RADIUS_chn] * cosDeg(glyph[PAN_POLAR_chn] ?? 0);
-    }
-
-    if (glyph[SPEECH_BEFORE_chn]) {
-      speechBefore = {
-        speech: glyph[SPEECH_BEFORE_chn],
-        start: glyph.start,
-        end: glyph.end,
-        language: encoding[SPEECH_BEFORE_chn]?.language ? encoding[SPEECH_BEFORE_chn]?.language : document?.documentElement?.lang
-      };
-    }
-    if (glyph[SPEECH_AFTER_chn]) {
-      speechAfter = {
-        speech: glyph[SPEECH_AFTER_chn],
-        start: glyph.start,
-        end: glyph.end,
-        language: encoding[SPEECH_BEFORE_chn]?.language ? encoding[SPEECH_BEFORE_chn]?.language : document?.documentElement?.lang
-      };
-    }
-    if (speechBefore) {
-      if (is_repeated && repeated_graph[repeat_index]) repeated_graph[repeat_index].glyphs.push(speechBefore);
-      else audio_graph.push(speechBefore);
-    }
-    glyph.__datum = datum;
-    let endTime = 0;
-    if (glyph.end) {
-      endTime = glyph.end + (glyph.postReverb || 0)
-    } else if (glyph.duration) {
-      endTime = (glyph.start || 0) + glyph.duration + (glyph.postReverb || 0)
-    }
-    if (is_repeated && repeated_graph[repeat_index]) {
-      repeated_graph[repeat_index].glyphs.push(glyph);
-      repeat_total_duration[repeat_index] = Math.max(repeat_total_duration[repeat_index], endTime)
-    } else {
-      audio_graph.push(glyph);
-      total_duration = Math.max(total_duration, endTime)
-    }
-    if (speechAfter && repeated_graph[repeat_index]) {
-      if (is_repeated) repeated_graph[repeat_index].glyphs.push(speechAfter);
-      else audio_graph.push(speechAfter);
+      return streaming_graph;
     }
   }
   let is_continued = tone_spec.continued === undefined ? false : tone_spec.continued;
+  let has_base_tone = tone_spec.hasBaseTone ?? false;
   let instrument_type = tone_spec.type || 'default'
 
   // repetition control
@@ -349,7 +312,7 @@ export async function compileSingleLayerAuidoGraph(
   if (is_repeated) {
     let repeat_streams = makeRepeatStreamTree(0, repeat_values, repeat_direction);
     repeated_graph.forEach((g, i) => {
-      let r_stream = new UnitStream(instrument_type, g.glyphs, scales, { is_continued, relative: relative_stream });
+      let r_stream = new UnitStream(id + "-repeat-" + i, instrument_type, g.glyphs, scales, { is_continued, has_base_tone, relative: relative_stream });
       r_stream.duration = repeat_total_duration[i];
       Object.keys(config || {}).forEach(key => {
         r_stream.setConfig(key, config?.[key]);
@@ -383,7 +346,7 @@ export async function compileSingleLayerAuidoGraph(
     });
 
     // post_processing
-    let processed_repeat_stremas: Array<UnitStream | OverlayStream> = postprocessRepeatStreams(repeat_streams);
+    let processed_repeat_stremas: Array<UnitStream | OverlayStream> = postprocessRepeatStreams(repeat_streams, id);
     processed_repeat_stremas.forEach((s, i) => {
       if (!s) { console.warn("empty repeat stream", s); }
       if (has_repeat_speech && s.setConfig) s.setConfig("playRepeatSequenceName", true);
@@ -429,8 +392,8 @@ export async function compileSingleLayerAuidoGraph(
   }
   // if not repeated
   else {
-    stream = new UnitStream(instrument_type, audio_graph, scales, { is_continued, relative: relative_stream });
-    stream.duration = total_duration;
+    stream = new UnitStream(id, instrument_type, audio_graph, scales, { is_continued, relative: relative_stream, has_base_tone });
+    if (!config?.is_streaming) stream.duration = total_duration as number;
     Object.keys(config || {}).forEach(key => {
       (stream as UnitStream).setConfig(key, config?.[key]);
     });
@@ -442,5 +405,5 @@ export async function compileSingleLayerAuidoGraph(
     stream.setRamp(ramp);
     if (audio_spec.description) stream.setDescription(audio_spec.description);
   }
-  return { stream, scales };
+  return { stream, scales, transformer, streaming_encoder, data_sorter };
 }

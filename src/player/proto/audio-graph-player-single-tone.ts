@@ -18,9 +18,11 @@ import {
   setErieGlobalControl,
   setErieGlobalState
 } from '../audio-graph-player-global';
+import {
+  createPanner
+} from "../audio-graph-panner"
 
 import { playPause } from './audio-graph-player-pause';
-
 import { ErieFilters } from '../../classes';
 import {
   ToneType,
@@ -30,30 +32,29 @@ import {
   FM,
   ConfigInterface,
   LoadedSampleCollection,
-  HashedSynthObject,
-  HashedWaveObject,
   Glyph,
   AudioFilterEncoder,
   AudioFilterFinisher,
+  HashedObject,
+  SynthNormed,
+  WaveNormed,
+  AudioFilterPrototype,
 } from '../../types';
 import {
   deepcopy,
   genRid,
-  getDuration1,
-  createPanner
+  getDuration1
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
-import { AudioFilterPrototype } from '../../audioFilters';
-import { rampBy } from '../audio-graph-ramp'; 
-import { make3DScaleFunction } from '../../audio-graph-scale-3d';
+import { rampBy } from '../audio-graph-ramp';
 
 export async function playSingleTone(
   ctx: AudioContext | OfflineAudioContext,
   sound: Glyph,
   config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
@@ -128,11 +129,19 @@ async function __playSingleTone(
   sound: Glyph,
   config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
+  // treat dynamic duration (this is a really special case; for chime only)
+  if (config.dynamic_duration && sound.instrument_type && sound.instrument_type in instSamples) {
+    if ('mono' in instSamples[sound.instrument_type]) {
+      // @ts-ignore
+      let sample = instSamples[sound.instrument_type].mono as AudioBuffer;
+      sound.duration = sample.duration;
+    }
+  }
   // filters
   let ctx: AudioContext | OfflineAudioContext = _ctx, offline = false;
   if (bufferPrimitve?.constructor?.name === AudioPrimitiveBuffer.name) {
@@ -171,8 +180,10 @@ async function __playSingleTone(
 
   // DONE  function to handle this and call as needed (look at ramp)
   const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
-  const panner = createPanner(ctx as any, cartesianInputs, gain);
-  
+  const isStereo = cartesianInputs === 1 && sound.panX !== undefined;
+  const panner = createPanner(ctx as any, cartesianInputs);
+  panner.connect(gain);
+
 
   // play as async promise
   // get the current time
@@ -245,18 +256,21 @@ async function __playSingleTone(
 
   rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
 
-  if (sound.pan !== undefined) {
-    if (panner instanceof StereoPannerNode) {
-      panner.pan.setValueAtTime(sound.pan, ct);
-    }
+  if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
+    panner.pan.setValueAtTime(sound.panX, ct);
+  } else if (!isStereo && panner instanceof PannerNode) {
+    if (sound.panX !== undefined) panner.positionX.setValueAtTime(sound.panX, ct);
+    if (sound.panY !== undefined) panner.positionY.setValueAtTime(sound.panY, ct);
+    if (sound.panZ !== undefined) panner.positionZ.setValueAtTime(sound.panZ, ct);
   }
+
 
   // play & stop
   if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {
     inst.start(0);
     inst.stop(getDuration1(sound))
     let rb = await ctx.startRendering();
-    if (sound.time !== 'after_previous') bufferPrimitve.add(sound.time ?? 0, rb);
+    if (sound.start !== 'after_previous') bufferPrimitve.add(sound.start ?? 0, rb);
     else bufferPrimitve.add('next', rb);
   } else {
     return new Promise((resolve: Function, reject: Function) => {

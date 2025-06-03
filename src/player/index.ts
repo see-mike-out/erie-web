@@ -11,3 +11,4 @@ export * from "./audio-graph-player";
 export * from "./audio-graph-ramp";
 export * from "./audio-graph-synth";
 export * from "./audio-graph-web-speech-generator";
+export * from "./audio-graph-panner";

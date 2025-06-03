@@ -1,4 +1,4 @@
-import { CalculateObject } from "../types/transform";
+import { CalculateObject } from "../types";
 
 export class Calculate {
   _calculate: string;

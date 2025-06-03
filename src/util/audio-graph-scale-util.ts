@@ -18,7 +18,9 @@ import {
   SingleTapPosType,
   SINGLE_TAP_END,
   TapPattern,
-  Glyph
+  Glyph,
+  ScaleType,
+  KeyDomain
 } from "../types";
 import { round } from "./audio-graph-util";
 
@@ -335,10 +337,10 @@ export function noteToFreq(note: number | string) {
 }
 
 export function getEndTime1(a: Glyph) {
-  if (a.time === 'after_previous') {
+  if (a.start === 'after_previous') {
     return (a.duration ?? 0);
   } else {
-    return (a.time ?? 0) + (a.duration ?? 0);
+    return (a.start ?? 0) + (a.duration ?? 0);
   }
 }
 
@@ -347,9 +349,30 @@ export function getDuration1(a: Glyph) {
 }
 
 export function getStartTime1(a: Glyph) {
-  if (typeof a.time === 'number') return a.time;
+  if (typeof a.start === 'number') return a.start;
   else return 0;
 }
 
 export const glyphSorterByEnd = (a: Glyph, b: Glyph) => getEndTime1(a) - getEndTime1(b)
 export const glyphSorterByStart = (a: Glyph, b: Glyph) => getStartTime1(a) - getStartTime1(b)
+
+
+export function validateScale(scale: ScaleType | undefined): boolean {
+  if (!scale) return false;
+
+  // Check if the domain is informative?
+  if (!scale[KeyDomain] || !Array.isArray(scale[KeyDomain]) || scale[KeyDomain].length === 0) return false;
+
+  // OR check if domain min and max are provided
+  if (!scale.domainMax || !scale.domainMin) return false;
+
+  return true;
+}
+
+export function sinDeg(degrees: number): number {
+  return Math.sin(degrees * (Math.PI / 180));
+}
+
+export function cosDeg(degrees: number): number {
+  return Math.cos(degrees * (Math.PI / 180));
+}

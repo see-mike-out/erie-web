@@ -10,13 +10,14 @@ import {
 } from "../util";
 import {
   DataSpec,
-  ParsedDatasetObject
+  DatasetSpecItemNormed,
+  LoadedDatasets
 } from "../types";
 
 export async function getData(
   dataDef: DataSpec,
-  loaded_datasets: { [key: string]: any[] },
-  datasets: { [key: string]: ParsedDatasetObject }
+  loaded_datasets: LoadedDatasets,
+  datasets: { [key: string]: DatasetSpecItemNormed }
 ) {
   let data;
   if ('values' in dataDef && dataDef.values) {

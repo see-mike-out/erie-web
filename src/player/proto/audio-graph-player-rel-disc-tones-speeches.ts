@@ -4,22 +4,25 @@ import {
   sendToneFinishEvent,
   sendToneStartEvent
 } from '../audio-graph-player-event';
-
 import {
   AudioGraphQueueItemText,
   ConfigInterface,
   Glyphs2,
-  HashedSynthObject,
-  HashedWaveObject,
+  HashedObject,
   LoadedSampleCollection,
   Stopped,
+  SynthNormed,
+  WaveNormed,
 } from '../../types';
 import {
   deepcopy,
   genRid
 } from '../../util';
 import { AudioPrimitiveBuffer } from '../../pulse';
-import { isErieGlobalState, setErieGlobalState } from '../audio-graph-player-global';
+import {
+  isErieGlobalState,
+  setErieGlobalState
+} from '../audio-graph-player-global';
 import { playSingleSpeech } from './audio-graph-player-single-speech';
 import { playSingleTone } from './audio-graph-player-single-tone';
 
@@ -28,8 +31,8 @@ export async function playRelativeDiscreteTonesAndSpeeches(
   queue: Glyphs2,
   _config: ConfigInterface,
   instSamples: LoadedSampleCollection,
-  synthDefs: HashedSynthObject,
-  waveDefs: HashedWaveObject,
+  synthDefs: HashedObject<SynthNormed>,
+  waveDefs: HashedObject<WaveNormed>,
   filters: string[],
   bufferPrimitve: AudioPrimitiveBuffer | undefined,
   ttsFetchFunction: any

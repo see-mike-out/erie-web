@@ -7,34 +7,37 @@ import {
   ScaleCollection,
   ToneType,
   TextType,
-  DefaultFrequency
+  DefaultFrequency,
+  OmitDesc
 } from '../types';
 import {
   toOrdinalNumbers,
   deepcopy
 } from '../util';
 
-const OmitDesc = ['time2'];
-
 export class UnitStream {
+  id: string;
   instrument_type: string;
   stream: AudioGraph;
-  option: RecordObject;
   scales: ScaleCollection;
-  config: ConfigInterface;
-  name!: string;
-  title!: string;
-  description!: string;
   ramp: { [key: string]: RampType | undefined };
   audioFilters!: string[];
   duration!: number;
 
+  name!: string;
+  title!: string;
+  description!: string;
+  option: RecordObject;
+  config: ConfigInterface;
+
   constructor(
+    id: string,
     instrument_type: string,
     stream: AudioGraph,
     scales: ScaleCollection,
     opt: RecordObject
   ) {
+    this.id = id;
     this.instrument_type = instrument_type;
     this.stream = stream;
     this.option = opt || {};

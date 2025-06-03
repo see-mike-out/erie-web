@@ -13,7 +13,8 @@ export const DescKeySound = 'sound',
   DescKeyRangeMin = 'range.min',
   DescKeyRangeMax = 'range.max',
   DescKeyRangeLength = 'range.length',
-  DescKeyTimeUnit = 'timeUnit';
+  DescKeyTimeUnit = 'timeUnit',
+  DescKeyIndex = 'index';
 
 export const DescKeyDomainNumberedRegex = /domain\[[0-9]+\]/g;
 
@@ -34,7 +35,8 @@ export const descriptionKeywords = [
   DescKeyRangeMin,
   DescKeyRangeMax,
   DescKeyRangeLength,
-  DescKeyTimeUnit
+  DescKeyTimeUnit,
+  DescKeyIndex
 ];
 
 export type DescItemKey = typeof descriptionKeywords[number] | DescKeyDomainNumbered;
@@ -73,12 +75,14 @@ export type DescriptionMarkupQueueTextItem = {
   text?: string;
   speechRate?: number;
 };
+
 export type DescriptionMarkupQueueSoundItem = {
   type: typeof M_Sound;
   continuous: boolean;
   value: string | number | undefined | Array<string | number | undefined>;
   duration: number;
 };
+
 export type DescriptionMarkupQueueItem
   = DescriptionMarkupQueueTextItem
   | DescriptionMarkupQueueSoundItem;

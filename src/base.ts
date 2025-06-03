@@ -1,4 +1,7 @@
-import { GlobalControl, GlobalState } from "./types";
+import {
+  GlobalControl,
+  GlobalState
+} from "./types";
 import { isBrowserWindowPossible } from "./util";
 
 declare global {

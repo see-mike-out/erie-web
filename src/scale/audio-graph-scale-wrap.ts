@@ -6,13 +6,11 @@ import { makeStaticScaleFunction } from "./audio-graph-scale-static";
 import { makeSpeechChannelScale } from "./audio-graph-scale-speech";
 import { makeTemporalScaleFunction } from "./audio-graph-scale-temp";
 import { makeTimeChannelScale } from "./audio-graph-scale-time";
-
 import {
   asc,
   unique,
   round,
   listString,
-  detectType,
   deepcopy
 } from "../util";
 import {
@@ -22,9 +20,9 @@ import {
   DEF_TAP_DUR_BEAT,
   DEF_TAP_PAUSE_RATE,
   DUR_chn,
+  EncodingItemNormed,
   MAX_TAPPING_DUR,
   NOM,
-  NormalizedEncodingItem,
   ORD,
   PITCH_chn,
   POS,
@@ -45,13 +43,15 @@ import {
   TimeChannels
 } from "../types";
 import { roundToNoteScale } from "../player";
+import { detectType } from "../compile/audio-graph-compile-utils";
 
 export function getAudioScales(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: EncodingItemNormed & ParsedScaleDefinition,
   values: any[] | undefined,
   beat: BeatObject | undefined,
-  data: any[] | undefined
+  data: any[] | undefined,
+  is_streamed?: boolean
 ): ParsedScaleFunction | null {
   // extract default information
   let polarity = encoding.scale?.polarity || POS;
@@ -61,12 +61,7 @@ export function getAudioScales(
   let times = encoding.scale?.times;
   let zero = encoding.scale?.zero !== undefined ? encoding.scale?.zero : false;
   let domainMax, domainMin;
-  // check on this
-  // if (channel instanceof Array && values) {
-  //   let domainSorted = values.toSorted(asc);
-  //   domainMax = domainSorted[domainSorted.length - 1];
-  //   domainMin = domainSorted[0];
-  // } else
+
   if (values && values.length == 2 && values[0] instanceof Array && values[1] instanceof Array) {
     let domainSorted = values[0].concat(values[1]).toSorted(asc);
     domainMax = domainSorted[domainSorted.length - 1];
@@ -96,7 +91,7 @@ export function getAudioScales(
     }
   } else if (scaleType.isTime) {
     // time scales
-    _scale = makeTimeChannelScale(channel, encoding, values, info, scaleType, beat);
+    _scale = makeTimeChannelScale(channel, encoding, values, info, scaleType, beat, is_streamed);
   } else if (scaleType.isSpeech) {
     _scale = makeSpeechChannelScale(channel, encoding, values, info);
   } else {
@@ -161,6 +156,7 @@ export function getAudioScales(
       // 4. default cases (no edits)
       scale = _scale;
     }
+
     // assign scale properties
     if (scale.properties) {
       Object.assign(scale.properties, scaleType);
@@ -201,7 +197,7 @@ export function getAudioScales(
 
 function getScaleType(
   channel: string,
-  encoding: NormalizedEncodingItem & ParsedScaleDefinition,
+  encoding: EncodingItemNormed & ParsedScaleDefinition,
   values: any[] | undefined
 ): RecordObject {
   let isTime = TimeChannels.includes(channel) || TimeChannels.includes(channel[0]);

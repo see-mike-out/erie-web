@@ -1,4 +1,9 @@
-import { RampAbrupt, RampExp, RampFunctionName, RampLinear } from "../encoding";
+import {
+  RampAbrupt,
+  RampExp,
+  RampFunctionName,
+  RampLinear
+} from "../object";
 
 export type RamperCollection = { [key: string]: RampFunctionName | undefined };
 

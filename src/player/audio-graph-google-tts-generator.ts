@@ -15,13 +15,13 @@ export async function GoogleCloudTTSGenerator(
 ): Promise<string | Uint8Array<ArrayBufferLike> | null | undefined> {
   if (typeof window === 'undefined') {
     // node
-    let text = 'speech' in sound ? sound.speech : sound.text;
+    let speech = sound.speech;
     let lang = sound.language || config.language;
     let languageCode = bcp47language.includes(lang) ? lang : 'en-US';
     let ssmlGender = SSMLGENDERS.includes(config.ssmlGender) ? config.ssmlGender : 'NEUTRAL';
     let pitch = sound.pitch, speakingRate = sound.speechRate || config.speechRate || 1;
     const request = {
-      input: { text: text },
+      input: { text: speech },
       voice: { languageCode, ssmlGender },
       audioConfig: { audioEncoding: config?.audioEncoding || 'MULAW', speakingRate, pitch },
     };

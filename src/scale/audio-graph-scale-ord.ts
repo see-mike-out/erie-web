@@ -7,7 +7,6 @@ import {
   getChannelCaps,
   getChannelThresholds
 } from "./audio-graph-scale-thresholds";
-
 import {
   ascending,
   descending,
@@ -36,6 +35,7 @@ export function makeOrdinalScaleFunction(
   encoding: ParsedScaleDefinition,
   values: any[] | undefined,
   info: RecordObject,
+  is_streamed?: boolean
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;

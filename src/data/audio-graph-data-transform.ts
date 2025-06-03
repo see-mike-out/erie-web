@@ -1,4 +1,8 @@
-import { makeAscSortFn, makeDescSortFn, makeIndexSortFn } from "./audio-graph-data-sort"
+import {
+  makeAscSortFn,
+  makeDescSortFn,
+  makeIndexSortFn
+} from "./audio-graph-data-sort"
 import { createBin } from "./audio-graph-transform-bin";
 import { doAggregate } from "./audio-graph-transform-aggregate";
 import { makeBoxPlotTable } from "./audio-graph-transform-boxplot";
@@ -10,8 +14,8 @@ import { getKernelDensity } from "./audio-graph-transform-density";
 
 import {
   AqTableType,
-  Auto,
   DataOrderingItem,
+  Datum,
   InternalData,
   RecordObject,
   TableInfoObject,
@@ -19,10 +23,11 @@ import {
 } from "../types";
 
 import * as aq from "arquero";
+import { GroupbyAuto } from "../types/spec/transform/groupby";
 const fromTidy = aq.from, escape = aq.escape, aqTable = aq.table;
 
 export function transformData(
-  data: any[],
+  data: Datum[],
   transforms: TransformList,
   dimensions: string[]
 ): InternalData {
@@ -53,7 +58,7 @@ export function transformData(
       else if ('aggregate' in transform && transform.aggregate) {
         let aggregates = transform.aggregate;
         let groupby = transform.groupby || [];
-        if (groupby === Auto) {
+        if (groupby === GroupbyAuto) {
           groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }
         table = doAggregate(table, aggregates, groupby);
@@ -70,7 +75,7 @@ export function transformData(
       // calculate
       else if ('calculate' in transform && transform.calculate) {
         let groupby = ('groupby' in transform) ? transform.groupby ?? [] : [];
-        if (groupby === Auto) {
+        if (groupby === GroupbyAuto) {
           groupby = dimensions;
         }
         table = doCalculate(table, transform, groupby);
@@ -100,7 +105,7 @@ export function transformData(
       // boxplot
       else if ('boxplot' in transform && transform.boxplot) {
         let groupby = ('groupby' in transform) ? transform.groupby ?? [] : [];
-        if (groupby === Auto) {
+        if (groupby === GroupbyAuto) {
           groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }
         table = makeBoxPlotTable(table, transform.boxplot, transform.extent, transform.invalid, groupby);
@@ -108,7 +113,7 @@ export function transformData(
       // quantiles
       else if ('quantile' in transform && transform.quantile) {
         let groupby = ('groupby' in transform) ? transform.groupby ?? [] : [];
-        if (groupby === Auto) {
+        if (groupby === GroupbyAuto) {
           groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }
         table = generateQuantiles(table, transform.quantile, transform.n, transform.step, groupby, transform.as);

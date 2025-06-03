@@ -1,5 +1,5 @@
 import {
-  playAbsoluteDiscreteTonesAlt,
+  playAbsoluteDiscreteTones,
   playAbsoluteContinuousTones,
   playSingleTone,
   playSingleSpeech,
@@ -19,7 +19,6 @@ import {
   sendQueueFinishEvent,
   sendQueueStartEvent
 } from "./audio-graph-player-event";
-
 import {
   AudioPrimitiveBuffer,
   concatenateBuffers,
@@ -42,9 +41,6 @@ import {
   QueueItemTypes,
   PlayerStatus,
   ConfigInterface,
-  HashedSampledToneObject,
-  HashedSynthObject,
-  HashedWaveObject,
   AudioGraphQueueItem,
   isTextQueueItem,
   isToneQueueItem,
@@ -64,7 +60,11 @@ import {
   isToneSpeechSeriesQueueItem,
   isSeriesQueueItem,
   CompressedPreGraphItem,
-  LoadedSampleCollection
+  LoadedSampleCollection,
+  HashedObject,
+  SampledToneNormed,
+  SynthNormed,
+  WaveNormed
 } from "../types";
 import {
   notifyStop,
@@ -83,9 +83,9 @@ export class AudioGraphQueue {
   config: ConfigInterface;
   sampledInstruments: string[];
   sampledInstrumentSources: LoadedSampleCollection;
-  samplings: HashedSampledToneObject;
-  synths: HashedSynthObject;
-  waves: HashedWaveObject;
+  samplings: HashedObject<SampledToneNormed>;
+  synths: HashedObject<SynthNormed>;
+  waves: HashedObject<WaveNormed>;
   playId!: string;
   buffers: any[];
 
@@ -108,19 +108,19 @@ export class AudioGraphQueue {
     this.config[key] = value;
   }
 
-  setSampling(samplings: HashedSampledToneObject) {
+  setSampling(samplings: HashedObject<SampledToneNormed>) {
     for (const k in samplings) {
       if (!this.samplings[k]) this.samplings[k] = deepcopy(samplings[k])
     }
   }
 
-  setSynths(synths: HashedSynthObject) {
+  setSynths(synths: HashedObject<SynthNormed>) {
     for (const k in synths) {
       if (!this.synths[k]) this.synths[k] = deepcopy(synths[k])
     }
   }
 
-  setWaves(waves: HashedWaveObject) {
+  setWaves(waves: HashedObject<WaveNormed>) {
     for (const k in waves) {
       if (!this.waves[k]) this.waves[k] = deepcopy(waves[k])
     }
@@ -142,6 +142,7 @@ export class AudioGraphQueue {
 
   add(
     type: typeof QueueItemTypes[number],
+    group_id: number,
     info: PreGraphItem,
     lineConfig?: ConfigInterface,
     at?: number
@@ -150,12 +151,13 @@ export class AudioGraphQueue {
       userSampledInstruments: Set<string> = new Set();
     if (QueueItemTypes.includes(type)) {
       let item: AudioGraphQueueItem = {
+        group_id,
         type,
         config: lineConfig,
       };
       if (type === TextType && isTextQueueItem(item) && isTextInfo(info)) {
-        item.text = info?.speech ?? '';
-        if (info?.speechRate) item.speechRate = info?.speechRate;
+        item.speech = info?.speech ?? '';
+        if (info?.speechRate !== undefined) item.speechRate = info?.speechRate;
         item.language = info.language;
         item.pitch = info.pitch;
         item.loudness = info.loudness;
@@ -163,9 +165,9 @@ export class AudioGraphQueue {
         item.instrument_type = info.instrument_type;
         if (this.isSupportedInst(item.instrument_type)) checkInstrumentSampling.add(item.instrument_type);
         else if (this.isSampling(item.instrument_type)) userSampledInstruments.add(item.instrument_type);
-        item.time = info.sound?.start ?? (info as Glyph).start ?? 0;
+        item.start = info.sound?.start ?? (info as Glyph).start ?? 0;
         item.end = info.sound?.end ?? (getStartTime1(item) + (info.sound?.duration ?? 0.2));
-        item.duration = info.sound?.duration ?? (item.end - getStartTime1(item)) ?? 0.2; // in seconds
+        item.duration = info.sound?.duration ?? item.end - getStartTime1(item); // in seconds
         item.pitch = info.sound?.pitch ?? DefaultFrequency;
         item.detune = info.sound?.detune;
         item.loudness = info.sound?.loudness ?? 1;
@@ -245,9 +247,6 @@ export class AudioGraphQueue {
       } else if (type === Pause && isPauseQueueItem(item) && isPauseInfo(info)) {
         item.duration = info.duration; // in seconds
       }
-      //  else if (type === LegendType) {
-      //   Object.assign(item, info);
-      // }
       Array.from(checkInstrumentSampling).forEach((inst: string) => {
         if (!this.sampledInstruments.includes(inst)) {
           this.sampledInstruments.push(inst);
@@ -266,6 +265,7 @@ export class AudioGraphQueue {
     }
   }
 
+  // todo: deprecate this...
   addMulti(
     multiples: Array<CompressedPreGraphItem>,
     lineConfig: ConfigInterface,
@@ -273,7 +273,7 @@ export class AudioGraphQueue {
     let at = pos;
     for (const mul of multiples) {
       if (mul?.type) {
-        this.add(mul.type, mul, lineConfig, at);
+        this.add(mul.type, 0, mul, lineConfig, at);
         if (at !== undefined) {
           at += 1;
         }
@@ -281,7 +281,8 @@ export class AudioGraphQueue {
     }
   }
 
-  addQueue(queue: AudioGraphQueue, pos?: number) {
+  addQueue(group_id: number, queue: AudioGraphQueue, pos?: number) {
+    queue.queue.forEach((item) => item.group_id = group_id);
     if (pos !== undefined) {
       this.queue.splice(pos, 0, ...queue.queue);
     } else {
@@ -334,7 +335,6 @@ export class AudioGraphQueue {
     item: AudioGraphQueueItem,
     options?: RecordObject
   ) {
-    console.log(this.samplings, this.sampledInstruments)
     let config = deepcopy(this.config);
     if ('config' in item && item.config) Object.assign(config, item.config);
     if ('ramp' in item && item.ramp) config.ramp = item.ramp;
@@ -352,7 +352,6 @@ export class AudioGraphQueue {
     } else if (isToneQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -364,7 +363,6 @@ export class AudioGraphQueue {
     } else if (isToneSeriesQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -373,7 +371,7 @@ export class AudioGraphQueue {
         config.instrument_type = item.instrument_type;
         await playAbsoluteContinuousTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else if (!item.relative) {
-        await playAbsoluteDiscreteTonesAlt(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+        await playAbsoluteDiscreteTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else {
         await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction)
       }
@@ -381,7 +379,6 @@ export class AudioGraphQueue {
     } else if (isToneSpeechSeriesQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -392,7 +389,6 @@ export class AudioGraphQueue {
       let promises = [];
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
-        console.log(inst)
         if (inst && !this.sampledInstrumentSources[inst]) {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
@@ -402,7 +398,7 @@ export class AudioGraphQueue {
           config.instrument_type = stream.instrument_type;
           promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else if (!stream.relative) {
-          promises.push(playAbsoluteDiscreteTonesAlt(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
+          promises.push(playAbsoluteDiscreteTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else {
           promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve, ttsFetchFunction));
         }
@@ -494,8 +490,8 @@ function makeSingleStreamQueueValues(
 ): Glyphs2 {
   let queue_values: Glyph[] = [];
   for (const sound of sounds) {
-    let time = sound.start !== undefined ? sound.start : sound.time;
-    let dur = sound.duration !== undefined ? sound.duration : ((sound.end ?? 0) - getStartTime1({ time }));
+    let start = sound.start;
+    let dur = sound.duration !== undefined ? sound.duration : ((sound.end ?? 0) - getStartTime1({ start }));
     let tap = mergeTapPattern(sound.tapCount, sound.tapSpeed);
     if (sound.tapCount || sound.tapSpeed) {
       if (tap?.totalLength !== undefined) dur = tap.totalLength;
@@ -504,7 +500,7 @@ function makeSingleStreamQueueValues(
       pitch: sound.pitch,
       detune: sound.detune,
       loudness: sound.loudness,
-      time,
+      start,
       duration: dur,
       pan: sound.pan,
       speech: sound.speech,

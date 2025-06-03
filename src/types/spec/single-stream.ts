@@ -1,27 +1,33 @@
-import { ConfigInterface } from "../config"
-import { TickObject } from "../encoding"
-import { SampledToneObject } from "../sampling"
-import { SynthObject } from "../synth"
-import { ToneObject } from "../tone"
-import { TransformList } from "../transform"
-import { WaveObject } from "../wave"
-import { SpecChannel } from "./channel"
-import { DataSpec } from "./data"
+import { ChannelSpec, TickSpec } from "./channel";
+import { DataSpec } from "./data";
+import { SynthSpec } from "./synth";
+import {
+  SampledToneSpec,
+  ToneSpec,
+  WaveSpec
+} from "./tone";
+import { TransformListSpec } from "./transform";
 
 export type SingleStreamSpec = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
   name?: string,
   data: DataSpec,
-  transform?: TransformList,
-  tone: ToneObject,
+  transform?: TransformListSpec,
+  tone: ToneSpec,
   // intentionally open definition because of custom channels
   encoding: {
-    [key: string]: SpecChannel
+    [key: string]: ChannelSpec
   },
-  tick?: TickObject[],
-  sampling?: SampledToneObject[],
-  synth?: SynthObject[],
-  wave?: WaveObject[],
-  config?: ConfigInterface
+  tick?: TickSpec[],
+  sampling?: SampledToneSpec[],
+  synth?: SynthSpec[],
+  wave?: WaveSpec[]
+}
+
+export type ExtendedSingleSpec = SingleStreamSpec & {
+  common_transform: TransformListSpec
+  transform: TransformListSpec
 }

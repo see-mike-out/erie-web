@@ -1,12 +1,3 @@
-import {
-  DatasetSpecItem,
-  DataSpec,
-  EncodingType,
-  ORD,
-  QUANT
-} from "../types";
-import { deepcopy } from "./audio-graph-util";
-
 export function isJSON(d: string) {
   try {
     JSON.parse(d);
@@ -26,16 +17,12 @@ export function isCSV(d: string) {
   return d.match(CSV_format);
 }
 
-export function detectType(values: any[]): EncodingType {
-  if (values.every((d) => d?.constructor.name === "Number")) return QUANT;
-  else return ORD;
+export function aRange(s: number, e: number, incl?: boolean): number[] {
+  let o = [];
+  if (incl) e = e + 1;
+  for (let i = s; i < e; i++) {
+    o.push(i);
+  }
+  return o;
 }
 
-export function addURLtoDataObject<T extends DataSpec | DatasetSpecItem>(data: T, dataBaseUrl: string | undefined): T {
-  let d = deepcopy(data);
-  if (dataBaseUrl && 'url' in d && d.url) {
-    let n = URL.parse(d.url, dataBaseUrl);
-    if (n) d.url = n.href as string;
-  }
-  return d;
-}

@@ -1,5 +1,8 @@
-import { SpeechType, ToneType } from "../internal";
-import { Stopped } from "../render";
+import {
+  SpeechType,
+  ToneType,
+  Stopped
+} from "../object";
 
 export type GlobalControlTone = {
   type: typeof ToneType,
@@ -14,3 +17,5 @@ export type GlobalControlSpeech = {
 export type GlobalControl = GlobalControlTone | GlobalControlSpeech;
 
 export type GlobalState = undefined | typeof Stopped | string;
+
+export type SystemSpeechItem = { speech: string, speechRate?: number };

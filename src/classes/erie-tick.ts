@@ -1,5 +1,7 @@
-import { OscType } from "../types/synth";
-import { TickObject } from "../types/encoding";
+import {
+  OscType,
+  TickObject
+} from "../types";
 
 export class Tick {
   _name: string;

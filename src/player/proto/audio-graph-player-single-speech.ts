@@ -14,7 +14,6 @@ import {
   setErieGlobalControl,
   setErieGlobalState
 } from '../audio-graph-player-global';
-
 import {
   AudioGraphQueueItemText,
   ConfigInterface,

@@ -1,8 +1,8 @@
 import {
+  Datum,
   DataObject,
   DatasetObject
 } from "../types";
-// import { Dataset } from "./erie-datasets";
 import { deepcopy } from "../util";
 import {
   isInstanceOf
@@ -20,7 +20,7 @@ export const AllowedDataTypes = [Values, Url, Name];
 
 export class Data {
   type: DataType;
-  values: any[] | null;
+  values: Datum[] | null;
   url: string | null;
   name: string | null;
 

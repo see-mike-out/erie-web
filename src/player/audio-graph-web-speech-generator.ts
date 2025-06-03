@@ -1,5 +1,4 @@
 import { setErieGlobalControl } from "./audio-graph-player-global";
-
 import {
   AudioGraphQueueItemText,
   AudioGraphSpeechItem,
@@ -19,7 +18,7 @@ export async function WebSpeechGenerator(
   resolve: Function
 ): Promise<void> {
   if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
-  var utterance = new SpeechSynthesisUtterance('speech' in sound ? sound.speech : sound.text);
+  var utterance = new SpeechSynthesisUtterance(sound.speech);
   if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
   else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
   if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;

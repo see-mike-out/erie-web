@@ -19,7 +19,6 @@ import {
   TIME_chn,
   TMP,
   ConfigInterface,
-  NormalizedEncodingItem,
   BeatObject,
   ParsedScaleDescription,
   Glyph,
@@ -29,18 +28,18 @@ import {
   TimeUnitUnits,
   TU_SEC,
   TickObject,
-  NormalizedTone,
-  DefaultGlyphFeatures,
   isDefaultGlyphFeature,
-  CompressedPreGraphItem
+  ToneNormed,
+  EncodingItemNormed,
+  REPEAT_chn,
 } from "../types";
 
 export function makeScaleDescription(
   scale: ParsedScaleFunction,
-  encoding: NormalizedEncodingItem,
+  encoding: EncodingItemNormed,
   dataInfo: TableInfoObject | undefined,
   tickDef: TickObject | undefined,
-  tone_spec: NormalizedTone,
+  tone_spec: ToneNormed,
   config: ConfigInterface,
   beat?: BeatObject
 ): ParsedScaleDescription[] | null {
@@ -62,9 +61,8 @@ export function makeScaleDescription(
       type: TextType, speech: properties?.descriptionDetail, speechRate
     }]
   }
-
   let title = encoding?.scale?.title || listString(unique(properties.field ?? []), ", ", false);
-
+  
   if (channel === TIME_chn) {
     if (!customExpression) expression = `The <title> is mapped to <channel>. `;
     let length = properties.range ? Math.max(...properties.range) : null;
@@ -80,6 +78,14 @@ export function makeScaleDescription(
     }
     if (tickDef?.interval && tickDef?.description !== SKIP) {
       if (!customExpression) expression += `A tick sound is played every ${tickDef.interval} ${timeUnit}. `
+    }
+  } else if (channel === REPEAT_chn) {
+    if (!customExpression) expression = `This stream is repeated by <title>`;
+    let length = properties.range ? Math.max(...properties.range) : null;
+    if (length) {
+      if (!customExpression) expression += `, consisrting of <range.length> parts. `
+    } else {
+      if (!customExpression) expression += `. `
     }
   } else {
     if (encodingType === QUANT) {
@@ -160,7 +166,7 @@ export function makeScaleDescription(
 
   let parsedExprDesc = compileDescriptionMarkup(expression, channel, scale, speechRate, timeUnit);
   let descList: ParsedScaleDescription[] = [];
-  for (const pDesc of parsedExprDesc) {
+  for (const pDesc of parsedExprDesc)
     if (pDesc.type === M_Text) {
       descList.push({
         type: TextType,
@@ -184,7 +190,6 @@ export function makeScaleDescription(
         });
       }
     }
-  }
   return descList;
 }
 

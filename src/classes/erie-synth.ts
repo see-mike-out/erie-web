@@ -2,9 +2,9 @@ import {
   AM,
   FM,
   OscType,
-  SynthObject,
-  SynthType
-} from "../types/synth";
+  SynthType,
+  SynthObject
+} from "../types";
 
 export class SynthTone {
   _name: string;

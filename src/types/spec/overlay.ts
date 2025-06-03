@@ -1,49 +1,59 @@
-import { ConfigInterface } from "../config"
-import { TickObject } from "../encoding"
-import { SampledToneObject } from "../sampling"
-import { SynthObject } from "../synth"
-import { TransformList } from "../transform"
-import { WaveObject } from "../wave"
-import { DatasetSpecItem, DataSpec } from "./data"
+import { TickSpec } from "./channel"
+import {
+  DatasetSpecItem,
+  DataSpec
+} from "./data"
 import { UnitStreamSpec } from "./unit-stream"
+import { TransformListSpec } from "./transform"
+import {
+  SampledToneSpec,
+  WaveSpec
+} from "./tone"
+import { SynthSpec } from "./synth"
 
 export type OverlayStreamSpec1 = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   data: DataSpec,
-  transform?: TransformList,
+  transform?: TransformListSpec,
   overlay: UnitStreamSpec[],
-  tick?: TickObject[],
-  sampling?: SampledToneObject[],
-  synth?: SynthObject[],
-  wave?: WaveObject[],
-  config?: ConfigInterface
+  tick?: TickSpec[],
+  sampling?: SampledToneSpec[],
+  synth?: SynthSpec[],
+  wave?: WaveSpec[]
 }
 
 export type OverlayStreamSpec2 = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   datasets: DatasetSpecItem[]
-  transform?: TransformList,
+  transform?: TransformListSpec,
   overlay: UnitStreamSpec[],
-  tick?: TickObject[],
-  sampling?: SampledToneObject[],
-  synth?: SynthObject[],
-  wave?: WaveObject[],
-  config?: ConfigInterface
+  tick?: TickSpec[],
+  sampling?: SampledToneSpec[],
+  synth?: SynthSpec[],
+  wave?: WaveSpec[]
 }
 
 export type OverlayStreamSpec = OverlayStreamSpec1 | OverlayStreamSpec2;
 
 export type InSeqOverlayStreamSpec = {
   title?: string,
+  skipTitle?: boolean,
   description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
   name?: string,
   data?: DataSpec,
   datasets?: DatasetSpecItem[]
-  transform?: TransformList,
-  overlay: UnitStreamSpec[],
-  config?: ConfigInterface
+  transform?: TransformListSpec,
+  overlay: UnitStreamSpec[]
 }
