@@ -14,6 +14,9 @@ export type BasicToneGlyph = {
   detune?: number;
   loudness?: number;
   pan?: number;
+  panX?: number;
+  panY?: number;
+  panZ?: number;
   postReverb?: number;
   timbre?: string;
   tapCount?: TapCountValue;
