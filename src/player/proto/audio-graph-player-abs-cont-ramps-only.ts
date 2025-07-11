@@ -30,7 +30,7 @@ export async function rampContinuousTone(
   filterNodes: HashedObject<AudioFilterPrototype>,
   filterEncoders: HashedObject<AudioFilterEncoder>,
   filterFinishers: HashedObject<AudioFilterFinisher>,
-  config: ConfigInterface
+  config: ConfigInterface,
 ) {
   let startTime!: number;
   // get the current time

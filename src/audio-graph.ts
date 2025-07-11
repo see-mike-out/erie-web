@@ -59,7 +59,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
     {
       playback: (audio_spec as StreamingSpec).playback,
       notify: (audio_spec as StreamingSpec).notify,
-      test_data: datasets
+      test_data: Object.keys(datasets).length == 0 ? undefined : datasets
     }
   )
 

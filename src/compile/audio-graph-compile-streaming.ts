@@ -73,6 +73,7 @@ export async function compileStreamingStream(
 
   // 4. playback
   let playback: PlaybackQuery | undefined = streaming_options ? {
+    speed: streaming_options.playback?.speed,
     init_by: streaming_options.playback?.init_by,
     unit: streaming_options.playback?.unit,
     limit: streaming_options.playback?.limit ?? DefaultPlaybackLimit,
@@ -106,7 +107,7 @@ export async function compileStreamingStream(
     return acc;
   }, {} as RecordObject);
 
-  sequence.setBase(audio_spec.tone.type, basevalues);
+  sequence.setBase(audio_spec.tone.type, basevalues, audio_spec.tone.sustain);
 
   if (stream.stream.config) {
     Object.keys(stream.stream.config).forEach((key) => {

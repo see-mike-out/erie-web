@@ -34,9 +34,9 @@ export async function getData(
 }
 
 export async function _getData(data_spec: DataSpec) {
-  if ('values' in data_spec && data_spec?.values) {
+  if (data_spec && 'values' in data_spec && data_spec?.values) {
     return data_spec.values;
-  } else if ('url' in data_spec && data_spec?.url) {
+  } else if (data_spec && 'url' in data_spec && data_spec?.url) {
     let read = await (await fetch(data_spec.url)).text();
     if (isJSON(read)) {
       return JSON.parse(read);

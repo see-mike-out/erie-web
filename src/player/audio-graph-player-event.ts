@@ -49,3 +49,9 @@ export function sendQueueFinishEvent(detail: any) {
     document.body.dispatchEvent(chnageEvent);
   }
 }
+export function sendStreamingSignal(detail: any) {
+  if (isBrowserEventPossible()) {
+    let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
+    document.body.dispatchEvent(playEvent);
+  }
+}
