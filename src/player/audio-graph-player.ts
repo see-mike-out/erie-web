@@ -172,6 +172,9 @@ export class AudioGraphQueue {
         item.detune = info.sound?.detune;
         item.loudness = info.sound?.loudness ?? 1;
         item.pan = info.sound?.pan;
+        item.panX = info.sound?.panX;
+        item.panY = info.sound?.panY;
+        item.panZ = info.sound?.panZ;
         item.postReverb = info.sound?.postReverb ?? 0;
         item.timbre = info.sound?.timbre ?? info.instrument_type;
         let tapCount = info.sound?.tapCount,
@@ -503,6 +506,9 @@ function makeSingleStreamQueueValues(
       start,
       duration: dur,
       pan: sound.pan,
+      panX: sound.panX,
+      panY: sound.panY,
+      panZ: sound.panZ,
       speech: sound.speech,
       language: sound.language,
       postReverb: (Math.round((sound.postReverb ?? 0) * 100) / 100),

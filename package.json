@@ -11,7 +11,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "build": "tsc && rollup -c && scripts/post_build.sh"
+    "build": "tsc  --project tsconfig.build.json && rollup -c && scripts/post_build.sh"
   },
   "repository": {
     "type": "git",
