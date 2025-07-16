@@ -36,7 +36,8 @@ export async function rampContinuousTone(
   // get the current time
   let ct = setCurrentTime(ctx);
   for (let sound of q) {
-    let st = ct + getStartTime1(sound), base_et = ct + getEndTime1(sound);
+    let delay = 0.15;
+    let st = ct + getStartTime1(sound) + delay, base_et = ct + getEndTime1(sound) + delay;
     // sampled tone pitch is already set when the instrument was created + they can't compose a continuous tone.
     if (inst instanceof OscillatorNode) {
       // osc pitch
@@ -90,12 +91,12 @@ export async function rampContinuousTone(
     }
     if (sound.isLast) {
       // smooth ending
-      rampBy('linearRampToValueAtTime', gain.gain, (sound.loudness ?? 1), st + 0.05);
-      rampBy('linearRampToValueAtTime', gain.gain, 0, st + 0.15);
+      // rampBy('linearRampToValueAtTime', gain.gain, (sound.loudness ?? 1), st + 0.05);
+      rampBy('setTargetAtTime', gain.gain, 0, base_et, 0.6);
       if (inst instanceof ErieSynth) {
         inst.envelope.gain.cancelScheduledValues(st);
-        rampBy('setValueAtTime', inst.envelope.gain, 1, base_et)
-        rampBy('linearRampToValueAtTime', inst.envelope.gain, 0, base_et + inst.adTime);
+        rampBy('setTargetAtTime', inst.envelope.gain, (sound.loudness ?? 1), base_et, 0.6)
+        rampBy('setTargetAtTime', inst.envelope.gain, 0, base_et, 0.6);
       }
     }
 

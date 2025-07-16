@@ -109,7 +109,7 @@ export class StreamingStream {
   baseStream!: StreamerInstrument;
   baseTone!: any;
   baseValues: RecordObject;
-  baseToneSustain!: boolean;
+  baseToneSustain!: RecordObject;
   currentQueue!: AudioGraphQueue;
 
   status: PlayerStatus
@@ -191,9 +191,9 @@ export class StreamingStream {
     if (d.description) this.description = d.description;
   }
 
-  setBase(toneType?: string, baseValues?: RecordObject, sustain?: boolean) {
+  setBase(toneType?: string, baseValues?: RecordObject, sustain?: RecordObject) {
     this.baseTone = toneType || 'sine';
-    this.baseToneSustain = sustain ?? false;
+    this.baseToneSustain = sustain ?? {};
     if (baseValues) {
       Object.assign(this.baseValues, baseValues);
     }
@@ -358,25 +358,31 @@ export class StreamingStream {
 
     await this.notify('incoming', bufferPrimitve, ttsFetchFunction);
 
-    let playback_history!: Datum[]
-    if (this.option.playback && !test) {
-      let condition = this.option.playback?.condition ?? ((_: any) => true);
-      if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
-    }
-    if (!test && playback_history && playback_history.length > 0) {
-      // play history
-      playback_history.reverse(); // reversing because history queue stores from latest to oldest
-      await this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
-      let inQueue = 0;
-      for (let item of playback_history) {
-        if (inQueue > 0) {
-          await this.notify('next', bufferPrimitve, ttsFetchFunction);
-        }
-        this.setEmitAt('history-' + inQueue);
-        await this._play(this.sorter(this.transformer(item)), this.option.playback?.speed ?? DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction);
-        inQueue++;
+    let play_hitory: boolean = true;
+    if (!this.option.playback || this.option.playback?.init_by == 'manual') play_hitory = false;
+    if (playback_query) play_hitory = true;
+
+    if (play_hitory) {
+      let playback_history!: Datum[]
+      if (this.option.playback && !test) {
+        let condition = this.option.playback?.condition ?? ((_: any) => true);
+        if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
       }
-      await this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+      if (!test && playback_history && playback_history.length > 0) {
+        // play history
+        playback_history.reverse(); // reversing because history queue stores from latest to oldest
+        await this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
+        let inQueue = 0;
+        for (let item of playback_history) {
+          if (inQueue > 0) {
+            await this.notify('next', bufferPrimitve, ttsFetchFunction);
+          }
+          this.setEmitAt('history-' + inQueue);
+          await this._play(this.sorter(this.transformer(item)), this.option.playback?.speed ?? DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction);
+          inQueue++;
+        }
+        await this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+      }
     }
     // play current thing
     await this.notify('beforePlay', bufferPrimitve, ttsFetchFunction);
@@ -417,7 +423,6 @@ export class StreamingStream {
       console.warn('Playback speed must be greater than zero. Defaulted to 1.')
       speed = 1;
     }
-
     let repeat = this.repeat;
 
     let converted_groups: Glyphs2[] = !repeat ? [this.encode(d, speed)] : repeat.order.map((o, oi) => {
@@ -441,11 +446,18 @@ export class StreamingStream {
               ((converted[converted.length - 1].start as number) + (converted[converted.length - 1].duration ?? 0))
               : 'after_previous';
           let duration: number = endTime == 'after_previous' ? converted.map(d => d.duration ?? 0).reduce((a, c) => a + c, 0) : endTime;
-          if (!this.baseToneSustain) {
-            converted.push({
+          if (this.baseToneSustain) {
+            let finish_sound: Glyph = {
               start: endTime,
-              ...this.baseValues
-            })
+            }
+            Object.keys(this.baseValues).forEach((key: keyof Glyph) => {
+              if (!this.baseToneSustain[key] && !['time', 'duration'].includes(key as string)) {
+                finish_sound[key] = this.baseValues[key]
+              } else if (this.baseToneSustain[key] && !['time', 'duration'].includes(key as string)) {
+                finish_sound[key] = converted[converted.length - 1][key]
+              }
+            });
+            converted.push(finish_sound);
           }
           this.unmuteBaseTone();
           await rampContinuousTone(
@@ -564,7 +576,7 @@ export class StreamingStream {
       if (c.loudness === undefined) c.loudness = 1;
     });
 
-    (audio_graph as Glyphs2).hasSpeech = has_speech
+    (audio_graph as Glyphs2).hasSpeech = has_speech;
     return audio_graph as Glyphs2;
   }
 

@@ -107,7 +107,13 @@ export async function compileStreamingStream(
     return acc;
   }, {} as RecordObject);
 
-  sequence.setBase(audio_spec.tone.type, basevalues, audio_spec.tone.sustain);
+  // get base values 
+  let channelSustains: RecordObject = Object.keys(audio_spec.encoding).reduce((acc: RecordObject, cur: string) => {
+    acc[cur] = audio_spec.encoding[cur].sustain ?? false;
+    return acc;
+  }, {} as RecordObject);
+
+  sequence.setBase(audio_spec.tone.type, basevalues, channelSustains);
 
   if (stream.stream.config) {
     Object.keys(stream.stream.config).forEach((key) => {
