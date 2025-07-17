@@ -231,31 +231,34 @@ export async function playAbsoluteContinuousTones(
       tick.start(0);
       tick.stop(endTime);
     }
-    inst.start(0);
-    inst.stop(endTime);
-    let rb = await ctx.startRendering();
-    bufferPrimitve.add(0, rb);
+    // after stopping (need to define before stopping!)
     inst.onended = (e) => {
       setErieGlobalControl(undefined);
       setErieGlobalState(undefined);
       emitNoteStopEvent('tone', q[0]);
       sendToneFinishEvent({ sid });
     };
+    inst.start(0);
+    inst.stop(endTime);
+    let rb = await ctx.startRendering();
+    bufferPrimitve.add(0, rb);
   } else {
     return new Promise((resolve: Function, reject: Function) => {
       if (tick) {
         tick.start(startTime);
         tick.stop(ct + endTime);
       }
-      inst.start(startTime);
-      inst.stop(ct + endTime);
+      // after stopping (need to define before stopping!)
       inst.onended = (e) => {
+        console.log("??");
         setErieGlobalControl(undefined);
         setErieGlobalState(undefined);
         emitNoteStopEvent('tone', q[0]);
         sendToneFinishEvent({ sid });
         resolve();
       };
+      inst.start(startTime);
+      inst.stop(ct + endTime);
     });
   }
 }

@@ -274,10 +274,10 @@ async function __playSingleTone(
     else bufferPrimitve.add('next', rb);
   } else {
     return new Promise((resolve: Function, reject: Function) => {
-      inst.start(ct);
       inst.onended = (_) => {
         resolve();
       };
+      inst.start(ct);
       inst.stop(ct + getDuration1(sound));
     });
   }

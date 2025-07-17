@@ -70,11 +70,8 @@ export async function playAbsoluteSpeeches(
       const inst = makeInstrument(ctx);
       inst.connect(gain);
 
-      // play & stop
-      inst.start(ct + sound.start - 0.02);
-      inst.stop(ct + sound.start);
-
-      // play the sound
+      // after stopping (need to define before stopping!)
+      // this part actually plays the sound
       inst.onended = () => {
         if (config?.falseTiming && isErieGlobalControlType(SpeechType)) {
           closeErieGlobalControl()
@@ -84,6 +81,11 @@ export async function playAbsoluteSpeeches(
           resolve();
         }
       };
+      
+      // play & stop
+      inst.start(ct + sound.start - 0.02);
+      inst.stop(ct + sound.start);
+
       prev = q;
     }
   });

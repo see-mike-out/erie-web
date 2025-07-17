@@ -85,10 +85,7 @@ export async function playAbsoluteDiscreteTones(
       const inst = makeInstrument(timingCtx);
       inst.connect(gain);
 
-      // play & stop
-      inst.start(ct + sound.start);
-      inst.stop(ct + sound.start + 0.01);
-
+      // after stopping (need to define before stopping!)
       inst.onended = async () => {
         if (config?.falseTiming && isErieGlobalControlType(SpeechType)) {
           (window.ErieGlobalControl as GlobalControlSpeech)?.player?.cancel();
@@ -99,6 +96,10 @@ export async function playAbsoluteDiscreteTones(
           resolve();
         }
       };
+
+      // play & stop
+      inst.start(ct + sound.start);
+      inst.stop(ct + sound.start + 0.01);
     }
     if (config.tick) {
       playTick(ctx, config.tick, endTime, ct + 0.01, ct + endTime + 0.01, bufferPrimitve);
