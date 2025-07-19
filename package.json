@@ -33,17 +33,15 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/d3": "^7.4.3",
-    "@types/vega": "^0.0.30",
     "@types/node": "^20.0.0",
+    "@types/vega": "^0.0.30",
     "typescript": "^5.6.3",
     "vitest": "^1.6.1"
   },
   "dependencies": {
-    "@google-cloud/text-to-speech": "^5.1.0",
     "arquero": "^5.2.0",
     "d3": "^7.8.4",
     "esm-wallaby": "^3.2.29",
-    "google-gax": "^4.3.1",
     "grpc-web": "^1.5.0",
     "moment": "^2.29.4",
     "standardized-audio-context": "^25.3.64",
