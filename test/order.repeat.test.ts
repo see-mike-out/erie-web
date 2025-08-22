@@ -129,10 +129,10 @@ const spec: TopLevelSpec = {
 }
 
 
-test('normalize streaming spec', async () => {
+test('normalize streaming spec with rep', async () => {
   let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(spec);
   let ordering_normalized = normalizeOrderSpec(order_spec, normalized);
-  console.log("Normalized", ordering_normalized)
+  //console.log("Normalized", ordering_normalized)
   // console.log(JSON.stringify(normalized, null, 2))
   // console.log(JSON.stringify(scaleDefinitions, null, 2))
 })

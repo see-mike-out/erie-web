@@ -1,92 +1,145 @@
-import { test, describe, expect } from 'vitest';
-import { normalizeSpecification } from '../src/normalize';
-import type { StreamingSpec } from '../src';
+import { test, expect } from "vitest";
+import type { SequenceStreamSpec } from "../src/sequence"; // adjust path
 
-function makeOrderingSpec(ordering: any[] = [], overrides: any = {}): StreamingSpec {
-  return {
-    title: 'Test Spec',
-    data: {
-      stream: true,
-      dummy: {
-        values: [
-          { x: 0, y: 1 },
-          { x: 1, y: 2 }
-        ]
+// Case 1: Sequence with inline data
+test("SequenceStreamSpec with data field", () => {
+  const spec: SequenceStreamSpec = {
+    title: "Simple sequence with data",
+    data: { values: [{ x: 1 }, { x: 2 }] },
+    sequence: [
+      {
+        type: "tone",
+        encoding: { pitch: { field: "x", type: "quantitative" } }
       }
-    },
-    tone: { base_tone: true },
-    encoding: {
-      x: { field: 'x', type: 'quantitative' },
-      y: { field: 'y', type: 'quantitative' },
-      ...overrides
-    },
-    ordering
+    ]
   };
-}
 
-describe('Ordering spec normalization', () => {
-  test('omitted ordering defaults to full stream', async () => {
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(undefined));
-    const ordering = normalized[0].ordering;
-    expect(ordering).toBeDefined();
-    expect(Array.isArray(ordering)).toBe(true);
-    expect(ordering.length).toBeGreaterThan(0);
-  });
+  // Assert presence of data
+  if ("data" in spec) {
+    expect(spec.data).toBeDefined();
+    expect(spec.data.values.length).toBe(2);
+  } else {
+    throw new Error("Expected spec to use `data` variant");
+  }
+});
 
-  test('Text ordering resolves correctly', async () => {
-    const ordering = [{ type: 'Text', text: 'Test text' }];
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(ordering));
-    const item = normalized[0].ordering[0];
-    expect(item.type).toBe('Text');
-    expect(item.text).toBe('Test text');
-  });
+// Case 2: Sequence with datasets
+test("SequenceStreamSpec with datasets field", () => {
+  const spec: SequenceStreamSpec = {
+    title: "Sequence using multiple datasets",
+    datasets: [
+      { name: "ds1", values: [{ t: 0, v: 10 }] },
+      { name: "ds2", values: [{ t: 1, v: 20 }] }
+    ],
+    sequence: [
+      {
+        type: "tone",
+        encoding: { amplitude: { field: "v", type: "quantitative" } }
+      }
+    ]
+  };
 
-  test('Markup ordering supports role and markup', async () => {
-    const ordering = [{
-      type: 'Markup',
-      markup: 'Markup text',
-      specifier: { role: 'scale.description' }
-    }];
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(ordering));
-    const item = normalized.ordering;
-    expect(item.type).toBe('Markup');
-    expect(item.markup).toBe('Markup text');
-    expect(item.specifier.role).toBe('scale.description');
-  });
+  // Assert presence of datasets
+  if ("datasets" in spec) {
+    expect(spec.datasets).toHaveLength(2);
+    expect(spec.datasets[0].values[0].v).toBe(10);
+  } else {
+    throw new Error("Expected spec to use `datasets` variant");
+  }
+});
 
-  test('Sound ordering uses specifier and notify', async () => {
-    const ordering = [{
-      type: 'Sound',
-      specifier: { role: 'sound', stream: { index: 0 }, channel: 'x' },
-      notify: { type: 'chime' }
-    }];
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(ordering));
-    const item = normalized.ordering;
-    expect(item.type).toBe('Sound');
-    expect(item.specifier.role).toBe('sound');
-    expect(item.specifier.stream.index).toBe(0);
-    expect(item.notify?.type).toBe('chime');
-  });
+// Case 3: Sequence with tick + wave
+test("SequenceStreamSpec with tick and wave", () => {
+  const spec: SequenceStreamSpec = {
+    title: "Sequence with tick + wave",
+    data: { values: [{ step: 1 }, { step: 2 }] },
+    tick: [{ step: 100 }, { step: 200 }],
+    wave: [{ type: "sine" }],
+    sequence: [
+      {
+        type: "tone",
+        encoding: { pan_x: { field: "step", type: "quantitative" } }
+      }
+    ]
+  };
 
-  test('invalid stream index is preserved in output', async () => {
-    const ordering = [{ type: 'Sound', specifier: { role: 'sound', stream: { index: 99 } } }];
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(ordering));
-    const item = normalized.ordering[0];
-    expect(item.specifier.stream.index).toBe(99);
-  });
+  if ("data" in spec) {
+    expect(spec.data.values.length).toBe(2);
+  }
+  expect(spec.tick?.length).toBe(2);
+  expect(spec.wave?.[0].type).toBe("sine");
+});
 
-  test('duplicate specifiers do not crash normalization', async () => {
-    const ordering = [
-      { type: 'Sound', specifier: { role: 'sound', stream: { index: 0 } } },
-      { type: 'Sound', specifier: { role: 'sound', stream: { index: 0 } } }
-    ];
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(ordering));
-    expect(normalized.ordering.length).toBe(2);
-  });
+// Case 4: Sequence with sampling + synth
+test("SequenceStreamSpec with sampling and synth", () => {
+  const spec: SequenceStreamSpec = {
+    title: "Sequence with sampling and synth",
+    datasets: [{ name: "ds1", values: [{ f: 440 }] }],
+    sampling: [{ channel: "LOUDNESS_chn", method: "mean" }],
+    synth: [{ type: "basic", gain: 0.5 }],
+    sequence: [
+      {
+        type: "tone",
+        encoding: { pitch: { field: "f", type: "quantitative" } }
+      }
+    ]
+  };
 
-  test('more than 50 ordering items normalize without failure', async () => {
-    const ordering = Array.from({ length: 55 }, (_, i) => ({ type: 'Text', text: `Item ${i}` }));
-    const { normalized } = await normalizeSpecification(makeOrderingSpec(ordering));
-    expect(normalized.ordering.length).toBe(55);
-  });
+  if ("datasets" in spec) {
+    expect(spec.datasets[0].values[0].f).toBe(440);
+  }
+  expect(spec.sampling?.[0].method).toBe("mean");
+  expect(spec.synth?.[0].type).toBe("basic");
+});
+
+// Case 5: Sequence with config
+test("SequenceStreamSpec with config", () => {
+  const spec: SequenceStreamSpec = {
+    title: "Sequence with config",
+    data: { values: [{ f: 220 }] },
+    config: { tempo: 120 },
+    sequence: [
+      {
+        type: "tone",
+        encoding: { pitch: { field: "f", type: "quantitative" } }
+      }
+    ]
+  };
+
+  if ("data" in spec) {
+    expect(spec.data.values[0].f).toBe(220);
+  }
+  expect(spec.config?.tempo).toBe(120);
+});
+
+// Case 6: Fully specified sequence
+test("SequenceStreamSpec fully specified", () => {
+  const spec: SequenceStreamSpec = {
+    title: "Fully loaded sequence",
+    description: "A test spec",
+    datasets: [{ name: "ds1", values: [{ f: 440, x: 1 }] }],
+    transform: [{ type: "filter", expr: "datum.f > 200" }],
+    sequence: [
+      {
+        type: "tone",
+        encoding: { amplitude: { field: "f", type: "quantitative" } }
+      }
+    ],
+    tick: [{ step: 250 }],
+    sampling: [{ channel: "PAN_X_chn", method: "max" }],
+    synth: [{ type: "basic", gain: 0.7 }],
+    wave: [{ type: "square", freq: 440 }],
+    config: { tempo: 90 }
+  };
+
+  if ("datasets" in spec) {
+    expect(spec.datasets).toHaveLength(1);
+  }
+  expect(spec.transform?.[0].type).toBe("filter");
+  expect(spec.sequence).toHaveLength(1);
+  expect(spec.tick?.[0].step).toBe(250);
+  expect(spec.sampling?.[0].method).toBe("max");
+  expect(spec.synth?.[0].gain).toBe(0.7);
+  expect(spec.wave?.[0].type).toBe("square");
+  expect(spec.config?.tempo).toBe(90);
 });

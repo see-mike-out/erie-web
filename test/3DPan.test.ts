@@ -13,7 +13,7 @@ function makeStreamSpec(encoding: any, values = [
     title: '3D Panning Stream',
     data: {
       stream: true,
-      dummy: { values }
+      values: { values }
     },
     tone: { base_tone: true },
     encoding
@@ -105,10 +105,6 @@ describe('Coordinate Range Validation', () => {
 
 describe('3D Panner Settings', () => {
   test('Default Web Audio 3D panner values', async () => {
-    //const spec = makeStreamSpec({ panX: { field: 'year', type: 'quantitative' } });
-    //const { normalized } = await normalizeSpecification(spec);
-    //const panner = (normalized[0] as NormalizedSingleStreamItem).stream.panner;
-    // Mock AudioContext with just the parts we use
     const mockPannerNode: any = {};
     const mockCtx: any = {
       createStereoPanner: () => ({}),

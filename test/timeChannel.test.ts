@@ -36,7 +36,7 @@ describe('Absolute Timing with Fixed Duration', () => {
     const enc = stream.encoding;
 
 
-    console.log(JSON.stringify(normalized, null, 2));
+    //console.log(JSON.stringify(normalized, null, 2));
 
     expect(enc.time.field).toEqual('Miles_per_Gallon');
     expect(enc.time.type).toEqual('quantitative');
@@ -73,7 +73,7 @@ describe('Absolute Timing with Varied Duration', () => {
     const { normalized } = await normalizeSpecification(spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
-    console.log(enc.time2.field);
+    //console.log(enc.time2.field);
     expect(enc.time2).toBeUndefined();
   });
 });
