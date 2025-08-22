@@ -7,7 +7,7 @@ import {
   emitNoteStopEvent
 } from "../audio-graph-note-event";
 import { WebSpeechGenerator } from '../audio-graph-web-speech-generator';
-import { GoogleCloudTTSGenerator } from '../audio-graph-google-tts-generator';
+// import { GoogleCloudTTSGenerator } from '../audio-graph-google-tts-generator';
 import {
   clearPlayerEvents,
   isErieGlobalState,
@@ -61,9 +61,11 @@ export async function playSingleSpeech(
     let speechRendered = await ttsFetchFunction({ text: sound, config });
     let ctx = new AudioContext()
     bufferPrimitve.add('next', await ctx.decodeAudioData(speechRendered));
-  } else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
-    await GoogleCloudTTSGenerator(sound, config);
-  } else {
+  } 
+  // else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+  //   await GoogleCloudTTSGenerator(sound, config);
+  // } 
+  else {
     if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
       console.warn("Google Cloud TTS API can only be used on Node.js Server environment.")
     }

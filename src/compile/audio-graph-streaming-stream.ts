@@ -4,8 +4,10 @@ import {
   emitNoteStopEvent,
   loadSamples,
   playAbsoluteDiscreteTones,
+  playPause,
   playSingleSpeech,
-  rampContinuousTone
+  rampContinuousTone,
+  sendStreamingSignal
 } from '../player';
 import { playIndefininteContinuousTones } from '../player/proto/audio-graph-player-ind-cont-tones';
 import { AudioPrimitiveBuffer } from '../pulse';
@@ -65,7 +67,9 @@ export const DefaultHistoryLimit = 100,
     beforePlay: { chime: 'beforePlay' },
     afterPlay: { chime: 'afterPlay' },
     next: { chime: 'next' }
-  };
+  },
+  PauseForBase = 300,
+  PauseNoBase = 500;
 
 // no recording supported (yet)!
 
@@ -98,12 +102,14 @@ export class StreamingStream {
   history: StreamingHistoryItem[];
   current!: InternalData;
   playQueue: StreamingHistoryItem[];
+  at: null | string | number;
 
   has_base_tone: boolean;
   baseContext!: AudioContext;
   baseStream!: StreamerInstrument;
   baseTone!: any;
   baseValues: RecordObject;
+  baseToneSustain!: RecordObject;
   currentQueue!: AudioGraphQueue;
 
   status: PlayerStatus
@@ -133,7 +139,8 @@ export class StreamingStream {
 
     this.history = [];
     this.current;
-    this.playQueue = []
+    this.playQueue = [];
+    this.at = null;
 
     this.has_base_tone = false;
     this.baseTone;
@@ -184,8 +191,9 @@ export class StreamingStream {
     if (d.description) this.description = d.description;
   }
 
-  setBase(toneType?: string, baseValues?: RecordObject) {
+  setBase(toneType?: string, baseValues?: RecordObject, sustain?: RecordObject) {
     this.baseTone = toneType || 'sine';
+    this.baseToneSustain = sustain ?? {};
     if (baseValues) {
       Object.assign(this.baseValues, baseValues);
     }
@@ -350,24 +358,31 @@ export class StreamingStream {
 
     await this.notify('incoming', bufferPrimitve, ttsFetchFunction);
 
-    let playback_history!: Datum[]
-    if (this.option.playback && !test) {
-      let condition = this.option.playback?.condition ?? ((_: any) => true);
-      if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
-    }
-    if (!test && playback_history && playback_history.length > 0) {
-      // play history
-      playback_history.reverse(); // reversing because history queue stores from latest to oldest
-      await this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
-      let inQueue = 0;
-      for (let item of playback_history) {
-        if (inQueue > 0) {
-          await this.notify('next', bufferPrimitve, ttsFetchFunction);
-        }
-        await this._play(this.sorter(this.transformer(item)), this.option.playback?.speed ?? DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction);
-        inQueue++;
+    let play_hitory: boolean = true;
+    if (!this.option.playback || this.option.playback?.init_by == 'manual') play_hitory = false;
+    if (playback_query) play_hitory = true;
+
+    if (play_hitory) {
+      let playback_history!: Datum[]
+      if (this.option.playback && !test) {
+        let condition = this.option.playback?.condition ?? ((_: any) => true);
+        if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
       }
-      await this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+      if (!test && playback_history && playback_history.length > 0) {
+        // play history
+        playback_history.reverse(); // reversing because history queue stores from latest to oldest
+        await this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
+        let inQueue = 0;
+        for (let item of playback_history) {
+          if (inQueue > 0) {
+            await this.notify('next', bufferPrimitve, ttsFetchFunction);
+          }
+          this.setEmitAt('history-' + inQueue);
+          await this._play(this.sorter(this.transformer(item)), this.option.playback?.speed ?? DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction);
+          inQueue++;
+        }
+        await this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+      }
     }
     // play current thing
     await this.notify('beforePlay', bufferPrimitve, ttsFetchFunction);
@@ -382,6 +397,7 @@ export class StreamingStream {
         }
         let transformed = this.transformer(curr.data);
         this.current = this.sorter(transformed);
+        this.setEmitAt(!test ? 'current-' + inQueue : 'test-' + inQueue)
         await this._play(this.current, 1, bufferPrimitve, ttsFetchFunction);
         // add to history
         if (!test) {
@@ -392,6 +408,7 @@ export class StreamingStream {
     }
     await this.notify('afterPlay', bufferPrimitve, ttsFetchFunction);
     this.status = Stopped;
+    this.setEmitAt(null);
   }
 
   private async _play(
@@ -406,7 +423,6 @@ export class StreamingStream {
       console.warn('Playback speed must be greater than zero. Defaulted to 1.')
       speed = 1;
     }
-
     let repeat = this.repeat;
 
     let converted_groups: Glyphs2[] = !repeat ? [this.encode(d, speed)] : repeat.order.map((o, oi) => {
@@ -430,10 +446,19 @@ export class StreamingStream {
               ((converted[converted.length - 1].start as number) + (converted[converted.length - 1].duration ?? 0))
               : 'after_previous';
           let duration: number = endTime == 'after_previous' ? converted.map(d => d.duration ?? 0).reduce((a, c) => a + c, 0) : endTime;
-          converted.push({
-            start: endTime,
-            ...this.baseValues
-          })
+          if (this.baseToneSustain) {
+            let finish_sound: Glyph = {
+              start: endTime,
+            }
+            Object.keys(this.baseValues).forEach((key: keyof Glyph) => {
+              if (!this.baseToneSustain[key] && !['time', 'duration'].includes(key as string)) {
+                finish_sound[key] = this.baseValues[key]
+              } else if (this.baseToneSustain[key] && !['time', 'duration'].includes(key as string)) {
+                finish_sound[key] = converted[converted.length - 1][key]
+              }
+            });
+            converted.push(finish_sound);
+          }
           this.unmuteBaseTone();
           await rampContinuousTone(
             this.baseContext,
@@ -551,7 +576,7 @@ export class StreamingStream {
       if (c.loudness === undefined) c.loudness = 1;
     });
 
-    (audio_graph as Glyphs2).hasSpeech = has_speech
+    (audio_graph as Glyphs2).hasSpeech = has_speech;
     return audio_graph as Glyphs2;
   }
 
@@ -560,6 +585,7 @@ export class StreamingStream {
     //@ts-ignore
     if (this.status == Stopped) return;
     if (this.option.notify?.[when] !== false) {
+      this.setEmitAt('notify-' + when);
       let ctx = this.baseContext;
       let notificationItem = this.option.notify?.[when] ?? DefaultNoitfyOptions[when];
       if (notificationItem === true) notificationItem = DefaultNoitfyOptions[when];
@@ -567,6 +593,7 @@ export class StreamingStream {
         this.muteBaseTone()
         if ('speech' in notificationItem && notificationItem.speech) {
           // todo: test
+          await playPause(this.has_base_tone ? PauseForBase : PauseNoBase);
           await playSingleSpeech(
             {
               type: TextType,
@@ -580,6 +607,7 @@ export class StreamingStream {
             bufferPrimitve,
             ttsFetchFunction,
           )
+          await playPause(this.has_base_tone ? PauseForBase : PauseNoBase);
         } else if ('sample' in notificationItem && notificationItem.sample) {
           // todo: test
           try {
@@ -596,17 +624,27 @@ export class StreamingStream {
               timbre: when
             }] as Glyphs2;
             glyphs.hasSpeech = false;
+
+            await playPause(this.has_base_tone ? PauseForBase : PauseNoBase);
             await playAbsoluteDiscreteTones(ctx, glyphs, this.noitify_samples, {}, {}, {}, [], bufferPrimitve);
+            await playPause(this.has_base_tone ? PauseForBase : PauseNoBase);
           } catch {
             console.warn("Sampling failed")
           }
         } else if ('chime' in notificationItem && notificationItem.chime) {
-          // todo: test
+          await playPause(this.has_base_tone ? PauseForBase : PauseNoBase);
           await playChime(undefined, when as keyof typeof Chimes, bufferPrimitve)
+          await playPause(this.has_base_tone ? PauseForBase : PauseNoBase);
         }
         this.unmuteBaseTone()
       }
     }
+  }
+
+  setEmitAt(at: string | null | number) {
+    this.at = at;
+    // event
+    sendStreamingSignal({ at: this.at });
   }
 
   private async getNotificationSampling() {

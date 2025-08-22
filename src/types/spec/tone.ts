@@ -5,6 +5,7 @@ export interface ToneSpec {
   continued?: boolean,
   filter?: string[],
   hasBaseTone?: boolean
+  sustain?: boolean
 }
 
 export interface SampledToneSpec {

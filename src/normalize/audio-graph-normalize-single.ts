@@ -302,7 +302,8 @@ export function normalizeSingleSpec(
       timeUnit: o_enc.timeUnit,
       timeUnitName: o_enc.timeUnitName,
       timeLevel: o_enc.timeLevel,
-      skipDescription: skip
+      skipDescription: skip,
+      sustain: 'sustain' in o_enc && o_enc.sustain ? o_enc.sustain : false
     } as EncodingItemNormed;
   }
   // if time2 channel is defined, set the scale for it

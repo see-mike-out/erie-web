@@ -101,3 +101,7 @@ Paper (will be updated)
   note = {\url{https://doi.org/10.1145/3613904.3642442}}
 }
 ```
+
+## [Deprecated] Google Cloud TTS Suport
+
+Why? It does not import the `uuid` package in a flexible way, causing lots of errors when building applications with Erie. 

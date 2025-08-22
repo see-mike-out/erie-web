@@ -64,5 +64,6 @@ export interface StreamingChannelSpec {
   sort?: SortValues;
   timeUnit?: keyof typeof timeUnitDomainDefs,
   timeUnitName?: string | string[] | number[],
-  timeLevel?: timeLevelValues
+  timeLevel?: timeLevelValues,
+  sustain?: boolean
 }

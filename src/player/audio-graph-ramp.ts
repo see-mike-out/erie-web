@@ -20,7 +20,7 @@ export function rampBy(
       param.setValueAtTime(value, time_at);
       break;
     case 'setTargetAtTime':
-      if (speed !== undefined) param.setTargetAtTime(value, time_at, speed);
+      if (speed !== undefined) param.setTargetAtTime(value, time_at, speed ?? 0.6);
       else console.error("Speed paramemter must be defined for setTargetAtTime method.")
       break;
     default:
