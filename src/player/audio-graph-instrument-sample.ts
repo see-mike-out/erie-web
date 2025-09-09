@@ -144,14 +144,14 @@ export async function loadSamples(
     if (smaplingDef[instrument_name].sample?.mono) {
       // single
       try {
-        samples = await makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono);
+        samples = await makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono, `${baseUrl || ''}`);
       } catch (e) {
         console.error(e);
       }
     } else {
       // multi
       try {
-        samples = await makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample);
+        samples = await makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample, `${baseUrl || ''}`);
         samples.multiNote = true;
       } catch (e) {
         console.error(e);
@@ -165,7 +165,8 @@ export async function loadSamples(
 
 export async function makeMultiScaleSamplingNode(
   ctx: AudioContext,
-  def: SamplingItem
+  def: SamplingItem,
+  base?: string
 ): Promise<LoadedMultiSample> {
   let samples: RecordObject = { multiNote: true },
     keys = Object.keys(def) as Array<keyof SamplingItem>;
@@ -174,7 +175,7 @@ export async function makeMultiScaleSamplingNode(
   }
   for (const key of keys) {
     if (def[key]) {
-      let sampleRes = await fetch(def[key]);
+      let sampleRes = await fetch((base ?? "") + def[key]);
       let sampleBuffer = await sampleRes.arrayBuffer();
       let source = await ctx.decodeAudioData(sampleBuffer)
       samples[key as OctaveKey] = source;
@@ -185,9 +186,10 @@ export async function makeMultiScaleSamplingNode(
 
 export async function makeSingleScaleSamplingNode(
   ctx: AudioContext,
-  def: string
+  def: string,
+  base?: string
 ): Promise<LoadedMonoSample> {
-  let sampleRes = await fetch(def);
+  let sampleRes = await fetch((base ?? "") + def);
   let sampleBuffer = await sampleRes.arrayBuffer();
   let source = await ctx.decodeAudioData(sampleBuffer)
   return {

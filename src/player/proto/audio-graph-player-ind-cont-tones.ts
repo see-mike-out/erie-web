@@ -38,7 +38,8 @@ import {
   WaveNormed,
   AudioFilterPrototype,
   StreamerInstrument,
-  InstrumentNode
+  InstrumentNode,
+  RecordObject
 } from '../../types';
 import {
   makeTick,
@@ -168,7 +169,6 @@ export function playIndefininteContinuousTones(
     rampBy('setValueAtTime', gain.gain, base.loudness, ct);
   }
 
-
   if (isStereo && base.panX !== undefined && panner instanceof StereoPannerNode) {
     rampBy('setValueAtTime', panner.pan, base.panX, ct, 0.35);
   } else if (!isStereo && panner instanceof PannerNode) {
@@ -183,18 +183,22 @@ export function playIndefininteContinuousTones(
     }
   }
 
-  const tick = makeTick(ctx, config.tick, 'indefinite') as (() => InstrumentNode);
-  if (tick) {
+  const tick = config.tick ? makeTick(ctx, config.tick, 'indefinite', instSamples) as (() => InstrumentNode) : null;
+  let tick_interval_id: any = null
+  if (tick !== null) {
     function play_tick() {
-      let t = tick() as InstrumentNode
-      let st = ctx.currentTime
-      t.start(st);
-      t.stop(st + config.tick.band);
+      if (!window.ErieGlobalStreamingControl?.streaming_base_tick_mute) {
+        // @ts-ignore
+        let t = tick() as InstrumentNode
+        let st = ctx.currentTime
+        t.start(st);
+        t.stop(st + config.tick.band + config.tick.interval / 2);
+      }
     }
     play_tick();
-    let tick_interval_id = setInterval(play_tick, config.tick.band);
+    tick_interval_id = setInterval(play_tick, config.tick.interval * 1000 + 30);
     inst.onended = () => {
-      clearInterval(tick_interval_id);
+      if (tick_interval_id) clearInterval(tick_interval_id);
     };
   }
   inst.start(ct);
@@ -206,6 +210,7 @@ export function playIndefininteContinuousTones(
     filterEncoders,
     filterFinishers,
     tick,
+    tick_interval_id,
     panner,
     isStereo,
     destination,

@@ -46,4 +46,5 @@ export interface PlaybackSpec {
   condition?: string, // condition on the current data points
   limit?: number,
   speed?: number,
+  instrument?: string
 }

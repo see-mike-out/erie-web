@@ -3,6 +3,7 @@ import { BinSpec } from "./bin";
 import { BoxplotSpec } from "./boxplot";
 import { CalculateSpec } from "./calculate";
 import { DensitySpec } from "./density";
+import { DiffingSpec } from "./diffing";
 import { FilterSpec } from "./filter";
 import { FoldSpec } from "./fold";
 import { QuantileSpec } from "./quantile";
@@ -15,7 +16,8 @@ export type TransformItemSpec = AggregateSpec
   | FilterSpec
   | FoldSpec
   | BoxplotSpec
-  | QuantileSpec;
+  | QuantileSpec
+  | DiffingSpec;
 
 export type TransformListSpec = Array<TransformItemSpec>
 

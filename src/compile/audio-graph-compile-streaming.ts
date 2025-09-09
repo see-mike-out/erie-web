@@ -1,14 +1,17 @@
+import { NoiseTypes } from "../player";
 import { getData } from "../data";
 import {
   ConfigNormed,
   HashedObject,
   LoadedDatasets,
+  MultiNoteInstruments,
   NormalizedSingleStreamItem,
   NormalizedStreamItem,
+  OscTypes,
   ParsedScaleDefinition,
   PlaybackQuery,
   RecordObject,
-  REPEAT_chn,
+  SingleNoteInstruments,
   StreamingOptionNormed,
   StreamingSpec,
   TAPCNT_chn,
@@ -72,12 +75,22 @@ export async function compileStreamingStream(
   let scales = await makeScales(scaleHash, normalized, loaded_datasets, config);
 
   // 4. playback
+  let definedInsturments = [
+    ...NoiseTypes,
+    ...MultiNoteInstruments,
+    ...SingleNoteInstruments,
+    ...OscTypes,
+    ...(audio_spec.synth?.map(d => d.name) ?? []),
+    ...(audio_spec.wave?.map(d => d.name) ?? []),
+    ...(audio_spec.sampling?.map(d => d.name) ?? [])
+  ];
   let playback: PlaybackQuery | undefined = streaming_options ? {
     speed: streaming_options.playback?.speed,
     init_by: streaming_options.playback?.init_by,
     unit: streaming_options.playback?.unit,
     limit: streaming_options.playback?.limit ?? DefaultPlaybackLimit,
-    condition: streaming_options.playback?.condition ? makeParamFilter(streaming_options.playback?.condition) : (_: any) => true
+    condition: streaming_options.playback?.condition ? makeParamFilter(streaming_options.playback?.condition) : (_: any) => true,
+    instrument: streaming_options.playback?.instrument && definedInsturments.includes(streaming_options.playback?.instrument) ? streaming_options.playback?.instrument : undefined
   } : undefined;
 
   // make sequence
@@ -97,7 +110,7 @@ export async function compileStreamingStream(
   }
   let slag = await compileSingleLayerAuidoGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales)
   if (slag?.stream) sequence.setStream(slag?.stream as UnitStream);
-  if (slag?.transformer) sequence.setTransformer(slag?.transformer);
+  if (slag?.transformer) sequence.setTransformer(slag?.transformer, stream.stream.transform?.some((t) => 'diffing' in t) ?? false);
   if (slag?.streaming_encoder) sequence.setEncoder(slag?.streaming_encoder);
   if (slag?.data_sorter) sequence.setSorter(slag?.data_sorter);
 
@@ -113,7 +126,19 @@ export async function compileStreamingStream(
     return acc;
   }, {} as RecordObject);
 
-  sequence.setBase(audio_spec.tone.type, basevalues, channelSustains);
+  let baseToneOptions: RecordObject = {
+    asTick: audio_spec.tone.baseToneAsTick ?? false,
+    tickInterval: audio_spec.tone.tickInterval ?? 5
+  }
+  if (typeof baseToneOptions.asTick == 'string') {
+    let baseToneTickDef = tick[baseToneOptions.asTick];
+    if (baseToneTickDef) {
+      baseToneOptions = { ...baseToneOptions, ...baseToneTickDef };
+      baseToneOptions.tickInterval = baseToneTickDef.interval ?? baseToneOptions.tickInterval;
+    }
+  }
+
+  sequence.setBase(baseToneOptions.oscType ?? audio_spec.tone.type, basevalues, channelSustains, baseToneOptions);
 
   if (stream.stream.config) {
     Object.keys(stream.stream.config).forEach((key) => {
@@ -131,9 +156,11 @@ function checkStreamingSpec(spec: NormalizedStreamItem) {
     console.error('A streaming audio graph cannot have overlaid streams.')
   }
   if ('stream' in spec) {
-    let is_continued = spec.stream.tone.continued ?? false, has_base_tone = spec.stream.tone.hasBaseTone ?? false;
-    if (!is_continued && has_base_tone) {
-      console.error('A streaming audio graph with a base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
+    let is_continued = spec.stream.tone.continued ?? false,
+      has_base_tone = spec.stream.tone.hasBaseTone ?? false,
+      base_tone_as_tick = spec.stream.tone.baseToneAsTick ?? false;
+    if (!is_continued && has_base_tone && !base_tone_as_tick) {
+      console.error('A streaming audio graph with a non-tick base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
     }
     if (is_continued && (TAPCNT_chn in spec.stream.encoding || TAPSPD_chn in spec.stream.encoding)) {
       console.error('A continuous streaming audio graph cannot have a tapping channel.');

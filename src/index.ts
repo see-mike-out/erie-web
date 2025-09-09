@@ -6,3 +6,4 @@ export * from "./audio-graph";
 export * from "./pulse";
 export * from "./scale";
 export * from "./chimes";
+export * from "./compile";

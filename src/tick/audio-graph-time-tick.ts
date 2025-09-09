@@ -1,6 +1,7 @@
 import { round } from "../util";
 import {
   InstrumentNode,
+  LoadedSampleCollection,
   TickNormed
 } from "../types";
 import { AudioPrimitiveBuffer } from "../pulse";
@@ -18,7 +19,8 @@ export const Def_Tick_Interval = 0.5,
 export function makeTick(
   ctx: AudioContext | OfflineAudioContext,
   def: TickNormed,
-  duration: number | 'indefinite'
+  duration: number | 'indefinite',
+  instSamples?: LoadedSampleCollection
 ): InstrumentNode | (() => InstrumentNode) | null {
   // ticker definition;
   if (!def) return null;
@@ -43,7 +45,7 @@ export function makeTick(
     if (duration > totalTime) {
       tickPattern.push({ pause: duration - totalTime });
     }
-    let tickInst = makeInstrument(ctx, 'default');
+    let tickInst = makeInstrument(ctx, def.instrument ?? 'default', instSamples);
     if ('frequency' in tickInst) tickInst.frequency.value = 150;
     if (def.pitch && 'frequency' in tickInst) tickInst.frequency.value = def.pitch;
     if (def.oscType && 'type' in tickInst) tickInst.type = def.oscType;
@@ -71,7 +73,7 @@ export function makeTick(
     if (def.playAtTime0 === undefined) def.playAtTime0 = true;
     let tickPattern = def.playAtTime0 ? [{ tick: tickDur }, { pause }] : [{ pause }, { tick: tickDur }];
     return () => {
-      let tickInst = makeInstrument(ctx, 'default');
+      let tickInst = makeInstrument(ctx, def.instrument ?? 'default', instSamples);
       if ('frequency' in tickInst) tickInst.frequency.value = 150;
       if (def.pitch && 'frequency' in tickInst) tickInst.frequency.value = def.pitch;
       if (def.oscType && 'type' in tickInst) tickInst.type = def.oscType;
@@ -82,7 +84,7 @@ export function makeTick(
       let acc = 0;
       for (const p of tickPattern) {
         if (p.tick) {
-          gain.gain.setTargetAtTime(def.loudness || Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
+          gain.gain.setTargetAtTime(def.loudness ?? Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
           acc += p.tick
         } else if (p.pause) {
           gain.gain.setTargetAtTime(0, ctx.currentTime + acc, 0.015);

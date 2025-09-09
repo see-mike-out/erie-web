@@ -4,7 +4,7 @@
   "description": "A declarative grammar for data sonification for web",
   "main": "dist/index.js",
   "module": "src/index.ts",
-  "types": "dist/_types/index.ts",
+  "types": "dist/src/index.d.ts",
   "unpkg": "build/erie-web.min.js",
   "jsdelivr": "build/erie-web.min.js",
   "browser": {
@@ -12,7 +12,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "build": "tsc  --project tsconfig.build.json && rollup -c && scripts/post_build.sh"
+    "build": "rm -rf dist & tsc  --project tsconfig.build.json && rollup -c && scripts/post_build.sh"
   },
   "repository": {
     "type": "git",

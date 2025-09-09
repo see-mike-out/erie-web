@@ -63,16 +63,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
     }
   )
 
-  // 5. Rregistrations
-  sequence.setSampling(toHashedObject(samplings, 'name'));
-  sequence.setSynths(toHashedObject(synths, 'name'));
-  sequence.setWaves(toHashedObject(waves, 'name'));
-
   // 6. Configs
-  if (audio_spec?.config?.recording) {
-    sequence.setConfig("recording", true);
-  }
-
   if (audio_spec.config) {
     Object.keys(audio_spec.config).forEach((key) => {
       if (audio_spec.config?.[key]) {
@@ -80,6 +71,20 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
       }
     });
   }
+  if (options) {
+    sequence.setConfig('options', options);
+  }
+  
+  if (audio_spec?.config?.recording) {
+    sequence.setConfig("recording", true);
+  }
+
+  // 5. Rregistrations
+  sequence.setSampling(toHashedObject(samplings, 'name'));
+  sequence.setSynths(toHashedObject(synths, 'name'));
+  sequence.setWaves(toHashedObject(waves, 'name'));
+
+
   if (typeof window !== 'undefined'
     && 'erieRecorderReady' in window
     && window?.erieRecorderReady) {

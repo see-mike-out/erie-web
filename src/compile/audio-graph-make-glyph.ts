@@ -75,7 +75,7 @@ export function makeGlyph(
   let speechBefore!: Glyph, speechAfter!: Glyph;
   for (const channel of channels) {
     if (scales[channel]) {
-      glyph[channel] = scales[channel](datum[encoding[channel].field as string]);
+      glyph[channel] = scales[channel](datum[encoding[channel].field as string] ?? datum);
     }
     // adjust for tapcount
     if (TapChannels.includes(channel)) {

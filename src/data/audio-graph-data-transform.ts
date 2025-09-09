@@ -11,6 +11,7 @@ import { filterTable } from "./audio-graph-transform-filter";
 import { foldTable } from "./audio-graph-transform-fold";
 import { generateQuantiles } from "./audio-graph-transform-quantile";
 import { getKernelDensity } from "./audio-graph-transform-density";
+import { diffTable } from "./audio-graph-transform-diffing";
 
 import {
   AqTableType,
@@ -117,6 +118,15 @@ export function transformData(
           groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }
         table = generateQuantiles(table, transform.quantile, transform.n, transform.step, groupby, transform.as);
+      }
+      // diffing
+      else if ('diffing' in transform && transform.diffing) {
+        let groupby = ('groupby' in transform) ? transform.groupby ?? [] : [];
+        if (groupby === GroupbyAuto) {
+          groupby = dimensions.filter((d) => table.columnNames().includes(d));
+        }
+        // carry over is not considered.
+        table = diffTable(table, transform.diffing, groupby, transform.as, transform.keepFirstAsZero);
       }
     }
   }

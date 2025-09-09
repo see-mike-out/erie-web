@@ -12,14 +12,16 @@ export interface PlaybackQuery {
   unit?: typeof PlaybackUnits[number],
   condition?: ((d: Datum) => boolean) | null,
   limit?: number,
-  speed?: number
+  speed?: number,
+  instrument?: string,
 }
 
 export type StreamingOption = {
   playback?: PlaybackQuery
   notify?: NotifySpec,
   test_data?: LoadedDatasets,
-  save_limit?: number
+  save_limit?: number,
+  instrument?: string
 };
 
 export type StreamingHistoryItem = {

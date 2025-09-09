@@ -40,6 +40,8 @@ export interface TickSpec {
   band?: number,
   playAtTime0?: boolean,
   oscType?: OscType,
+  sample?: string,
+  instrument?: string,
   pitch?: number
   loudness?: number,
   description?: string

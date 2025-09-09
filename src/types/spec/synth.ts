@@ -6,14 +6,14 @@ import {
 export interface SynthSpec {
   name: string;
   type: SynthType;
-  carrierType: OscType;
-  carrierPitch: number;
-  carrierDetune: number;
-  carrierVolume: number;
-  modulatorType: OscType;
-  modulatorPitch: number;
-  modulatorVolume: number;
-  modulation: number;
+  carrierType?: OscType;
+  carrierPitch?: number;
+  carrierDetune?: number;
+  carrierVolume?: number;
+  modulatorType?: OscType;
+  modulatorPitch?: number;
+  modulatorVolume?: number;
+  modulation?: number;
   harmonicity: number;
   attackTime?: number;
   releaseTime?: number;

@@ -5,7 +5,8 @@ import {
   GlobalControl,
   GlobalState,
   ConfigInterface,
-  Stopped
+  Stopped,
+  GlobalStreamingControl
 } from "../types";
 import {
   isBrowserWindowPossible,
@@ -19,6 +20,7 @@ export function setCurrentTime(ctx: AudioContext | OfflineAudioContext) {
 
 declare global {
   interface Window {
+    ErieGlobalStreamingControl: GlobalStreamingControl;
     ErieGlobalControl?: GlobalControl;
     ErieGlobalState?: GlobalState;
     ErieGlobalPlayerEvents?: Map<string, (e: KeyboardEvent) => void>;
@@ -127,3 +129,15 @@ export function clearPlayerEvents() {
     }
   }
 }
+
+
+export function setErieGlobalStreamingControl(key: keyof GlobalStreamingControl, value: any) {
+  if (isBrowserWindowPossible()) {
+    // @ts-ignore
+    if (!('ErieGlobalStreamingControl' in window)) window.ErieGlobalStreamingControl = {} as GlobalStreamingControl;
+    window.ErieGlobalStreamingControl[key] = value;
+  } else {
+    Globals.ErieGlobalStreamingControl[key] = value;
+  }
+}
+

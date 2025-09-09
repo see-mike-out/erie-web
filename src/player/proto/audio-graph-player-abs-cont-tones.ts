@@ -250,7 +250,6 @@ export async function playAbsoluteContinuousTones(
       }
       // after stopping (need to define before stopping!)
       inst.onended = (e) => {
-        console.log("??");
         setErieGlobalControl(undefined);
         setErieGlobalState(undefined);
         emitNoteStopEvent('tone', q[0]);

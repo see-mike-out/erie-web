@@ -21,6 +21,7 @@ export interface StreamerInstrument {
   filterEncoders: HashedObject<AudioFilterEncoder>,
   filterFinishers: HashedObject<AudioFilterFinisher>,
   tick: InstrumentNode | (() => InstrumentNode) | null,
+  tick_interval_id?: any | null,
   panner: StereoPannerNode | PannerNode,
   isStereo: boolean,
   destination: AudioNode,

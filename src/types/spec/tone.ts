@@ -5,7 +5,9 @@ export interface ToneSpec {
   continued?: boolean,
   filter?: string[],
   hasBaseTone?: boolean
-  sustain?: boolean
+  sustain?: boolean,
+  baseToneAsTick?: boolean | string,
+  tickInterval?: number
 }
 
 export interface SampledToneSpec {

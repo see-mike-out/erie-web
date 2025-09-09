@@ -8,7 +8,7 @@ import {
   RecordObject,
   TransformerFunction
 } from "../types";
-import { unique } from "../util";
+import { deepcopy, unique } from "../util";
 
 function get_forced_dimensions(spec: NormalizedSingleStream) {
   return Object.keys(spec.encoding).map((d) => {
@@ -30,7 +30,12 @@ export function applyTransforms(data: RecordObject[], spec: NormalizedSingleStre
 
 export function getTransformers(spec: NormalizedSingleStream): TransformerFunction {
   let forced_dimensions = get_forced_dimensions(spec);
-  return (dt: RecordObject[]) => {
-    return transformData(dt, [...(spec.common_transform || []), ...(spec.transform || [])], unique(forced_dimensions))
+  return (_dt: RecordObject[], dt_old?: RecordObject[]) => {
+    let transforms = [...(spec.common_transform || []), ...(spec.transform || [])];
+    let dt = deepcopy(_dt);
+    if (dt_old && transforms.some(t => ('diffing' in t) && (t.carryOver ?? true))) {
+      dt.splice(0, 0, ...deepcopy(dt_old))
+    }
+    return transformData(dt, transforms, unique(forced_dimensions))
   };
 }

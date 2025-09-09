@@ -31,4 +31,4 @@ export class InternalData extends Array {
 
 export type AqTableType = ReturnType<typeof aq.table>;
 
-export type TransformerFunction = (o: any) => InternalData;
+export type TransformerFunction = (o: any, old?: any) => InternalData;
