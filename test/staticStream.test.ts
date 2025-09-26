@@ -1,15 +1,17 @@
 import { describe, test, expect } from "vitest";
-import { normalizeSpecification } from '../src/normalize';
-import type { StreamingSpec } from "../src/types/spec";
+import type { OverlayStreamSpec, StreamingSpec, TopLevelSpec, UnitStreamSpec } from "../src/types/spec";
+import { isSingleStream, normalizeSpecification } from "../src/normalize";
+import { DatasetSpecItemNormed } from "types";
+
 describe("Static Stream Normalization", () => {
-  test("Case 1: Single sonification stream normalizes correctly", () => {
+  test("Case 1: Single sonification stream normalizes correctly", async () => {
     const spec: StreamingSpec = {
       title: "Simple Stream",
       description: "A single stream test",
       data: {
         stream: true,
         test: {
-            values: [{ x: 1, y: 2 }]
+          values: [{ x: 1, y: 2 }]
         }
       },
       tone: {
@@ -17,21 +19,21 @@ describe("Static Stream Normalization", () => {
       },
       encoding: {
         pitch: {
-          channel: "pitch",
           field: "y"
         }
       }
     };
 
-    const result = normalizeStream(spec);
-
-    expect(result.normalized.length).toBe(1);
-    expect(isNormalizedSingleStreamItem(result.normalized[0])).toBe(true);
-    expect(result.normalized[0]).toHaveProperty("stream");
-    expect(result.datasets).toBeDefined();
+    const { normalized } = await normalizeSpecification(spec);
+    expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+    if ('stream' in normalized[0]) {
+      expect(normalized.length).toBe(1);
+      expect(normalized[0]).toHaveProperty("stream");
+      expect(normalized[0].stream.data).toBeDefined();
+    }
   });
 
-  test("Case 2: Sequence sonification stream normalizes correctly", () => {
+  test("Case 2: Sequence sonification stream normalizes correctly", async () => {
     const spec: StreamingSpec = {
       title: "Sequence",
       description: "Sequence of streams",
@@ -50,78 +52,84 @@ describe("Static Stream Normalization", () => {
       }
     };
 
-    const result = normalizeStream(spec);
+    const { normalized, datasets } = await normalizeSpecification(spec);
+    expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
 
-    expect(result.normalized.length).toBe(1);
-    expect(isNormalizedSingleStreamItem(result.normalized[0])).toBe(true);
-    expect(result.datasets["ds1"].values.length).toBe(1);
+    if ('stream' in normalized[0]) {
+      expect(normalized.length).toBe(1);
+      expect(normalized[0]).toHaveProperty("stream");
+      expect('values' in datasets['test']).toBe(true);
+      if ('values' in datasets['test']) {
+        expect(datasets['test'].values.length).toBe(1);
+      }
+    }
   });
 
-  test("Case 3: Overlay sonification stream normalizes correctly", () => {
-    const spec: StreamingSpec = {
+  test("Case 3: Overlay sonification stream normalizes correctly", async () => {
+    const spec: OverlayStreamSpec = {
       title: "Overlay Test",
       description: "Two overlapping streams",
-      data: {
-        stream: true,
-        test: {
-          values: [{ time: 0, value: 1 }, {time: 1, value: 2}]
-        }
-      },
-      stream: [
+      datasets: [{
+        name: 'overlay_ds',
+        values: [{ time: 0, value: 1 }, { time: 1, value: 2 }]
+      }],
+      overlay: [
         {
           name: "stream1",
           data: { name: "overlay_ds" },
-          tone: { waveform: "sine", freq: 440 },
+          tone: { type: "sine" },
           encoding: {
-            pitch: { channel: "pitch", field: "value" }
+            pitch: { field: "value" }
           }
         },
         {
           name: "stream2",
           data: { name: "overlay_ds" },
-          tone: { waveform: "triangle", freq: 880 },
+          tone: { type: "triangle" },
           encoding: {
-            volume: { channel: "volume", field: "value" }
+            loudness: { field: "value" }
           }
         }
       ]
     };
 
-    const result = normalizeStream(spec);
+    const { normalized, datasets } = await normalizeSpecification(spec);
+    expect(normalized.length > 0 && 'overlay' in normalized[0]).toBe(true);
 
-    expect(result.normalized.length).toBe(1);
-    expect(isNormalizedOverlayItem(result.normalized[0])).toBe(true);
-    const overlayItem = result.normalized[0];
-    expect(overlayItem.overlay.length).toBe(2);
-    expect(overlayItem.overlay[0].tone.freq).toBe(440);
-    expect(overlayItem.overlay[1].tone.freq).toBe(880);
+    if ('overlay' in normalized[0]) {
+      expect(normalized.length).toBe(1);
+      expect(normalized[0]).toHaveProperty("overlay");
+      expect(normalized[0].overlay.length).toBe(2);
+      expect('values' in datasets['overlay_ds']).toBe(true);
+      if ('values' in datasets['overlay_ds']) {
+        expect(datasets['overlay_ds'].values.length).toBe(2);
+      }
+    }
   });
 
-  test("UnitStream includes required tone and encoding fields", () => {
-    const unitStream = {
+  test("UnitStream includes required tone and encoding fields", async () => {
+    const unitStream: UnitStreamSpec = {
       name: "basic_unit",
       data: {
         values: [{ time: 0, x: 10 }]
       },
-      tone: { waveform: "sawtooth", freq: 300 },
+      tone: { type: "sawtooth" },
       encoding: {
         pitch: {
-          channel: "pitch",
           field: "x"
         }
       }
     };
 
-    const spec: StreamingSpec = {
-      stream: [unitStream]
+    const spec: TopLevelSpec = {
+      sequence: [unitStream, unitStream]
     };
 
-    const result = normalizeStream(spec);
-    expect(result.normalized[0]).toHaveProperty("stream");
-    expect(result.normalized[0].stream.tone.waveform).toBe("sawtooth");
+    const { normalized } = await normalizeSpecification(spec);
+    console.log(normalized)
+    expect(normalized.length == 3 && 'intro' in normalized[0]).toBe(true);
+    expect(normalized.length == 3 && 'stream' in normalized[1]).toBe(true);
+    expect(normalized.length == 3 && 'stream' in normalized[1]).toBe(true);
   });
 });
-function normalizeStream(spec: StreamingSpec) {
-    throw new Error("Function not implemented.");
-}
 

@@ -98,7 +98,7 @@ export function normalizeSingleSpec(
   const polarSaturation = polarChannels.filter(channel => spec.encoding[channel] !== undefined).length;
 
 
-  if (cartesianSaturation > polarSaturation) {
+  if (cartesianSaturation >= polarSaturation) {
     polarChannels.forEach(channel => {
       if (spec.encoding[channel]) {
         console.warn(`Dropping Polar channel ${channel} in favor of Cartesian channels due to higher saturation.`);
@@ -128,6 +128,7 @@ export function normalizeSingleSpec(
     }
   }
   let has_repeated_overlay = false;
+  let reject_time2_for_binning = false;
   for (const channel of Object.keys(spec.encoding)) {
     let o_enc = spec.encoding[channel];
     let _field = o_enc.field ?? undefined;
@@ -178,6 +179,9 @@ export function normalizeSingleSpec(
     if (o_enc.bin) {
       if (!o_enc.field) {
         console.error("Bin without a field name is not possible.")
+      }
+      if (channel == TIME_chn && spec.encoding[TIME2_chn] !== undefined) {
+        reject_time2_for_binning = true;
       }
       if (o_enc.bin instanceof Object) {
         further_transforms.push({
@@ -306,8 +310,13 @@ export function normalizeSingleSpec(
       sustain: 'sustain' in o_enc && o_enc.sustain ? o_enc.sustain : false
     } as EncodingItemNormed;
   }
+  // if time is binned and time2 is set, reject time2
+  if (reject_time2_for_binning) {
+    console.warn("Reject time2 because time is binned");
+    delete encoding[TIME2_chn];
+  }
   // if time2 channel is defined, set the scale for it
-  if (encoding[TIME2_chn]) {
+  else if (encoding[TIME2_chn]) {
     encoding[TIME2_chn].scale = { id: encoding[TIME_chn]?.scale?.id };
     scaleDefinitions.forEach((d) => {
       if (d.channel === TIME_chn && d.id === encoding[TIME_chn]?.scale?.id) {
@@ -349,22 +358,7 @@ export function normalizeSingleSpec(
     if (!transform) transform = [];
     transform.push({ aggregate: encoding_aggregates, groupby: GroupbyAuto })
   }
-
-  // [todo]  <- future support
-  /** if (transform !== undefined && (transform?.length ?? 0) > 0) {
-        transform.forEach((t) => {
-          if ((t.boxplot || t.quantile) && !t.groupby) t.groupby = Auto;
-        });
-      } */
-
-  // config (removing bc config only exists at the top level)
-  // let config: ConfigInterface | undefined = undefined;
-  // if (spec.config) {
-  //   config = {};
-  //   Object.assign(config, spec.config);
-  //   config = config;
-  // }
-
+  
   let normalized: NormalizedSingleStream = {
     title,
     name,

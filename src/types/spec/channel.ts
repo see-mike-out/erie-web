@@ -53,7 +53,7 @@ export interface StreamingChannelSpec {
   ramp?: RampType | undefined,
   aggregate?: AggOpType | undefined,
   bin?: InlineBinType | undefined,
-  scale: ScaleType,
+  scale?: ScaleType,
   condition?: Condition | undefined,
   value?: any | undefined,
   format?: string | undefined,

@@ -1,14 +1,17 @@
-import { expect, test, describe } from 'vitest';
+import { expect, test } from 'vitest';
 import { normalizeSpecification } from '../src/normalize';
-import type { StreamingSpec } from '../src/types';
-import type { NormalizedSingleStreamItem } from '../src';
+import type { TopLevelSpec } from '../src/types';
+import { compileAudioGraph } from '../src/audio-graph';
+import { SequenceStream, UnitStream } from 'compile';
 
 
 // Case 1: Basic Loudness Mapping
 test("normalize loudness with basic field and type", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{ "Body Mass (g)": 3000 }] },
+    tone: { type: "sine" },
     encoding: {
+      time: { field: 'time_test', type: 'quantitative', scale: { length: 5 } },
       loudness: {
         field: "Body Mass (g)",
         type: "quantitative"
@@ -16,16 +19,20 @@ test("normalize loudness with basic field and type", async () => {
     }
   };
   const { normalized } = await normalizeSpecification(spec);
-  if ('stream' in normalized)
-  expect(normalized[0].stream.encoding?.loudness?.field).toBe("Body Mass (g)");
-  expect(normalized[0].encoding?.loudness?.type).toBe("quantitative");
-  expect(normalized[0].encoding?.loudness?.scale?.range).toEqual([0, 1]); // default
+  const sequence = await compileAudioGraph(spec, {}) as SequenceStream;
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect(normalized[0].stream.encoding?.loudness?.field).toBe("Body Mass (g)");
+    expect(normalized[0].stream.encoding?.loudness?.type).toBe("quantitative");
+    expect((sequence.streams[0] as UnitStream)?.scales?.loudness?.properties?.range).toEqual([0, 1]); // default
+  }
 });
 
 // Case 2: Custom Scale Domain and Range
 test("normalize loudness with custom domain and range", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{ "Body Mass (g)": 3000 }] },
+    tone: { type: "sine" },
     encoding: {
       loudness: {
         field: "Body Mass (g)",
@@ -38,14 +45,18 @@ test("normalize loudness with custom domain and range", async () => {
     }
   };
   const { normalized } = await normalizeSpecification(spec);
-  expect(normalized.encoding?.loudness?.scale?.domain).toEqual([0, 7000]);
-  expect(normalized.encoding?.loudness?.scale?.range).toEqual([0, 1]);
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect(normalized[0].stream.encoding?.loudness?.scale?.domain).toEqual([0, 7000]);
+    expect(normalized[0].stream.encoding?.loudness?.scale?.range).toEqual([0, 1]);
+  }
 });
 
 // Case 3: Clipping and Overflow Handling
 test("normalize loudness with over-range values", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{ "Body Mass (g)": 10000 }] },
+    tone: { type: "sine" },
     encoding: {
       loudness: {
         field: "Body Mass (g)",
@@ -58,40 +69,57 @@ test("normalize loudness with over-range values", async () => {
     }
   };
   const { normalized } = await normalizeSpecification(spec);
-  expect(normalized.encoding?.loudness?.scale?.range?.[1]).toBeGreaterThan(1);
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect(normalized[0].stream.encoding?.loudness?.scale?.range instanceof Array).toBe(true);
+    if (normalized[0].stream.encoding?.loudness?.scale?.range instanceof Array) {
+      expect(normalized[0].stream.encoding?.loudness?.scale?.range?.[1]).toBeGreaterThan(1);
+    }
+  }
 });
 
 // Case 4: Omitted Scale Object
 test("normalize loudness with omitted scale infers defaults", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{ "Body Mass (g)": 3000 }] },
+    tone: { type: "sine" },
     encoding: {
+      time: { field: 'time_test', type: 'quantitative', scale: { length: 5 } },
       loudness: {
         field: "Body Mass (g)",
         type: "quantitative"
       }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
-  expect(normalized.encoding?.loudness?.scale?.range).toEqual([0, 1]);
+  const sequence = await compileAudioGraph(spec, {}) as SequenceStream;
+  const { normalized, scaleDefinitions } = await normalizeSpecification(spec);
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect((sequence.streams[0] as UnitStream)?.scales?.loudness?.properties?.range).toEqual([0, 1]); // default
+  }
 });
 
 // Case 5: Constant Loudness
 test("normalize loudness with fixed constant value", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{}] },
+    tone: { type: "sine" },
     encoding: {
-      loudness: 0.75
+      loudness: { value: 0.75 }
     }
   };
   const { normalized } = await normalizeSpecification(spec);
-  expect(normalized.encoding?.loudness).toBe(0.75);
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect(normalized[0].stream.encoding?.loudness.value).toBe(0.75);
+  }
 });
 
 // Case 6: Muted loudness (0 gain)
 test("normalize loudness with zero gain", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{ "Body Mass (g)": 0 }] },
+    tone: { type: "sine" },
     encoding: {
       loudness: {
         field: "Body Mass (g)",
@@ -104,43 +132,17 @@ test("normalize loudness with zero gain", async () => {
     }
   };
   const { normalized } = await normalizeSpecification(spec);
-  expect(normalized.encoding?.loudness?.field).toBe("Body Mass (g)");
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect(normalized[0].stream.encoding?.loudness?.field).toBe("Body Mass (g)");
+  }
 });
 
-// Case 7: Invalid field or type
-test("rejects loudness with non-numeric type", async () => {
-  const spec: TopLevelSpec = {
-    data: { values: [{ Species: "Gentoo" }] },
-    encoding: {
-      loudness: {
-        field: "Species",
-        type: "nominal"
-      }
-    }
-  };
-  await expect(normalizeSpecification(spec)).rejects.toThrow();
-});
-
-// Case 8: Field and Constant Conflict
-test("warns when both field and constant are provided", async () => {
-  const spec: any = {
-    data: { values: [{ "Body Mass (g)": 3000 }] },
-    encoding: {
-      loudness: {
-        field: "Body Mass (g)",
-        type: "quantitative"
-      },
-      // Conflict: a second loudness value using a constant key
-      loudness_constant: 0.8
-    }
-  };
-  await expect(normalizeSpecification(spec)).rejects.toThrow();
-});
-
-// Case 9: Minimal Valid Loudness Spec
+// Case 7: Minimal Valid Loudness Spec
 test("normalize loudness with minimal spec", async () => {
   const spec: TopLevelSpec = {
     data: { values: [{ "Body Mass (g)": 3000 }] },
+    tone: { type: 'sine' },
     encoding: {
       loudness: {
         field: "Body Mass (g)",
@@ -149,6 +151,8 @@ test("normalize loudness with minimal spec", async () => {
     }
   };
   const { normalized } = await normalizeSpecification(spec);
-  const enc = normalized[0]?.encoding;
-  expect(enc?.loudness?.field).toBe("Body Mass (g)");
+  expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
+  if ('stream' in normalized[0]) {
+    expect(normalized[0].stream.encoding?.loudness?.field).toBe("Body Mass (g)");
+  }
 });

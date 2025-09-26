@@ -21,7 +21,7 @@ export type SequenceStreamSpec1 = {
   skipDescription?: boolean,
   skipLength?: boolean,
   name?: string,
-  data: DataSpec,
+  data?: DataSpec,
   transform?: TransformListSpec,
   sequence: Array<UnitStreamSpec | InSeqOverlayStreamSpec>,
   tick?: TickSpec[],
