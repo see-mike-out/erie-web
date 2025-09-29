@@ -3,16 +3,19 @@ import { deepcopy } from "../util";
 
 export class Quantile {
   _quantile: string;
-  _n: number;
-  _step: number;
+  _n?: number;
+  _step?: number;
   _as?: [string, string];
   _groupby?: string[];
 
-  constructor(c: string, n: number, step: number, as?: [string, string]) {
+  constructor(c: string, n?: number, step?: number, as?: [string, string]) {
     this._quantile = c;
     this._n = n;
-    this._step = step;
-    if (as) this._as = as;
+    this._step = (step && step > 0 && step < 1) ? step : undefined;
+    if (this._n == undefined && this._step == undefined) {
+      console.error("Must specify n or step. ")
+    }
+    if (as && as.length == this._quantile.length) this._as = as;
   }
 
   quantile(c: string) {
@@ -21,7 +24,7 @@ export class Quantile {
   }
 
   as(c: [string, string]) {
-    if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
+    if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == this._quantile.length) {
       this._as = c;
     } else {
       console.error("Wrong length/type for qunatile 'as'.")
@@ -36,7 +39,11 @@ export class Quantile {
   }
 
   step(t: number) {
-    this._step = t;
+    if (t > 0 && t < 1) {
+      this._step = t;
+    } else {
+      console.error("Step value must be between 0 and 1 (exclusive).")
+    }
     return this;
   }
 

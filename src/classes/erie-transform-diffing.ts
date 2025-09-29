@@ -8,7 +8,7 @@ export class Diffing {
   _as?: string[];
   _groupby?: string[];
 
-  constructor(c: string[], a?: string[], carryOver?: boolean, keepFirstAsZero?: boolean) {
+  constructor(c: string[], carryOver?: boolean, keepFirstAsZero?: boolean,  a?: string[]) {
     this._diffing = c;
     if (a) this._as = a;
     this._carryOver = carryOver ?? true;
@@ -60,7 +60,7 @@ export class Diffing {
   }
 
   clone(): Diffing {
-    let _c = new Diffing(this._diffing, this._as, this._carryOver, this._keepFirstAsZero);
+    let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
     _c._groupby = this._groupby;
     return _c;
   }
