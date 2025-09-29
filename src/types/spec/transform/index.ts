@@ -6,4 +6,5 @@ export * from "./filter";
 export * from "./fold";
 export * from "./boxplot";
 export * from "./quantile";
-export * from "./transform"
+export * from "./transform";
+export * from "./diffing";

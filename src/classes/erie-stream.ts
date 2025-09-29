@@ -48,6 +48,8 @@ import { TickList } from "./erie-tick";
 import { Channel } from "./erie-channel";
 import { StreamObject } from "../types/api/stream";
 import { DatasetObject } from "../types/api/data";
+import { intNotify, Notify } from "./erie-notify";
+import { Playback } from "./erie-playback";
 
 export class Stream {
   _name?: string;
@@ -63,6 +65,8 @@ export class Stream {
   tick?: TickList;
   encoding: { [key: string]: Channel };
   config?: Config;
+  notify?: { [key: string]: Notify };
+  playback?: Playback;
 
   constructor() {
     this.data = new Data();
@@ -92,6 +96,8 @@ export class Stream {
       [HARMONICITY_chn]: new HarmonicityChannel()
     };
     this.config = new Config();
+    this.notify = intNotify();
+    this.playback = new Playback();
   }
 
   name(n: string) {
@@ -146,6 +152,11 @@ export class Stream {
     _c.sampling = this.sampling?.clone();
     _c.wave = this.wave?.clone();
     _c.tone = this.tone.clone();
+    _c.playback = this.playback?.clone();
+    _c.notify = Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+      if (this.notify?.[curr]) acc[curr] = this.notify?.[curr];
+      return acc;
+    }, {} as { [key: string]: Notify })
     _c.encoding = {};
     Object.keys(this.encoding).forEach((chn) => {
       if (this.encoding[chn].defined) {

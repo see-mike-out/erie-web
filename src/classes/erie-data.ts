@@ -5,59 +5,118 @@ import {
 } from "../types";
 import { deepcopy } from "../util";
 import {
+  isArrayOf,
   isInstanceOf
 } from "./erie-util";
 
 export const Values = 'values',
   Url = 'url',
   Name = 'name',
-  Unset = 'unset';
+  Unset = 'unset',
+  Streaming = 'streaming';
 export type DataType = typeof Values
   | typeof Url
   | typeof Name
-  | typeof Unset;
-export const AllowedDataTypes = [Values, Url, Name];
+  | typeof Unset
+  | typeof Streaming;
+export const AllowedDataTypes = [Values, Url, Name, Streaming];
 
 export class Data {
   type: DataType;
-  values: Datum[] | null;
-  url: string | null;
-  name: string | null;
+  _values: Datum[] | null;
+  _url: string | null;
+  _name: string | null;
+  _streaming: boolean;
+  _test: { url: string } | { values: Datum[] } | null;
 
   constructor() {
     this.type = 'unset';
-    this.values = null;
-    this.url = null;
-    this.name = null;
+    this._values = null;
+    this._url = null;
+    this._name = null;
+    this._streaming = false;
+    this._test = null;
   }
 
   set(type: DataType | Dataset, e: any) {
     if (isInstanceOf(type, Dataset)) {
       this.type = Name;
-      this.name = (<Dataset>type)._name;
-    } else if (!AllowedDataTypes.includes(<DataType>type)) {
-      throw new TypeError(`Unspported data type ${type}}. It must be either one of ${AllowedDataTypes.join(", ")}.`);
+      this._name = (<Dataset>type)._name;
+      // cancel others
+      this._values = null;
+      this._url = null;
+      this._name = null;
+      this._streaming = false;
+      this._test = null;
     } else {
-      if (type === Values) {
-        this.type = Values;
-        this.values = e;
-      } else if (type === Url) {
-        this.type = Url;
-        this.url = e;
-      } else if (type === Name) {
-        this.type = Name;
-        this.name = e;
-      }
+      console.warn("data.set method is only for a dataset object.")
     }
+    return this;
+  }
+
+  values(v: Datum[]) {
+    if (isArrayOf(v, Object)) {
+      this.type = Values;
+      this._values = deepcopy(v);
+      // cancel others
+      this._name = null;
+      this._url = null;
+      this._name = null;
+      this._streaming = false;
+      this._test = null;
+    } else {
+      console.warn("only tidy data can be provided.")
+    }
+    return this;
+  }
+
+  url(v: string) {
+    if (typeof v === 'string') {
+      this.type = Values;
+      this._url = v;
+      // cancel others
+      this._values = null;
+      this._name = null;
+      this._name = null;
+      this._streaming = false;
+      this._test = null;
+    } else {
+      console.warn("only string-based url can be provided.")
+    }
+    return this;
+  }
+
+  streaming(test?: Datum[] | string) {
+    this.type = Streaming;
+    this._name = null;
+    this._name = null;
+    this._streaming = true;
+    if (typeof test === 'string') {
+      this._test = { url: test };
+    } else if (isArrayOf(test, Object)) {
+      this._test = { values: deepcopy(test as Datum[]) };
+    } else if (this._url) {
+      // get from those already set
+      this._test = { url: this._url }
+    } else if (this._values) {
+      // get from those already set
+      this._test = { values: deepcopy(this._values) }
+    } else {
+      console.warn("only string-based url or tidy data can be provided for the test data for streaming spec.")
+    }
+    this._url = null;
+    this._values = null;
     return this;
   }
 
   get(): DataObject {
     return {
       type: this.type,
-      values: deepcopy(this.values),
-      url: this.url,
-      name: this.name
+      values: deepcopy(this._values),
+      url: this._url,
+      name: this._name,
+      streaming: this._streaming,
+      test: this._test
     }
   }
 
@@ -65,11 +124,14 @@ export class Data {
     let _c = new Data();
     _c.type = this.type;
     if (this.type === Values) {
-      _c.values = deepcopy(this.values);
+      _c._values = deepcopy(this._values);
     } else if (this.type === Url) {
-      _c.url = this.url;
+      _c._url = this._url;
     } else if (this.type === Name) {
-      _c.name = this.name;
+      _c._name = this._name;
+    } else if (this.type === Streaming) {
+      _c._streaming = this._streaming;
+      _c._test = deepcopy(this._test);
     }
     return _c;
   }

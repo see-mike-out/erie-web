@@ -172,7 +172,7 @@
         HARMONICITY_chn
     ];
     /*----- DEFAULT RANGES -----*/
-    const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 10, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
+    const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 1, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
     const ChannelThresholds = {
         [TIME_chn]: { max: null, min: 0 },
         [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
@@ -3132,58 +3132,116 @@
             return true;
     }
 
-    const Values = 'values', Url = 'url', Name = 'name', Unset = 'unset';
-    const AllowedDataTypes = [Values, Url, Name];
+    const Values = 'values', Url = 'url', Name = 'name', Unset$1 = 'unset', Streaming = 'streaming';
+    const AllowedDataTypes = [Values, Url, Name, Streaming];
     class Data {
         constructor() {
             this.type = 'unset';
-            this.values = null;
-            this.url = null;
-            this.name = null;
+            this._values = null;
+            this._url = null;
+            this._name = null;
+            this._streaming = false;
+            this._test = null;
         }
         set(type, e) {
             if (isInstanceOf(type, Dataset)) {
                 this.type = Name;
-                this.name = type._name;
-            }
-            else if (!AllowedDataTypes.includes(type)) {
-                throw new TypeError(`Unspported data type ${type}}. It must be either one of ${AllowedDataTypes.join(", ")}.`);
+                this._name = type._name;
+                // cancel others
+                this._values = null;
+                this._url = null;
+                this._name = null;
+                this._streaming = false;
+                this._test = null;
             }
             else {
-                if (type === Values) {
-                    this.type = Values;
-                    this.values = e;
-                }
-                else if (type === Url) {
-                    this.type = Url;
-                    this.url = e;
-                }
-                else if (type === Name) {
-                    this.type = Name;
-                    this.name = e;
-                }
+                console.warn("data.set method is only for a dataset object.");
             }
+            return this;
+        }
+        values(v) {
+            if (isArrayOf(v, Object)) {
+                this.type = Values;
+                this._values = deepcopy(v);
+                // cancel others
+                this._name = null;
+                this._url = null;
+                this._name = null;
+                this._streaming = false;
+                this._test = null;
+            }
+            else {
+                console.warn("only tidy data can be provided.");
+            }
+            return this;
+        }
+        url(v) {
+            if (typeof v === 'string') {
+                this.type = Values;
+                this._url = v;
+                // cancel others
+                this._values = null;
+                this._name = null;
+                this._name = null;
+                this._streaming = false;
+                this._test = null;
+            }
+            else {
+                console.warn("only string-based url can be provided.");
+            }
+            return this;
+        }
+        streaming(test) {
+            this.type = Streaming;
+            this._name = null;
+            this._name = null;
+            this._streaming = true;
+            if (typeof test === 'string') {
+                this._test = { url: test };
+            }
+            else if (isArrayOf(test, Object)) {
+                this._test = { values: deepcopy(test) };
+            }
+            else if (this._url) {
+                // get from those already set
+                this._test = { url: this._url };
+            }
+            else if (this._values) {
+                // get from those already set
+                this._test = { values: deepcopy(this._values) };
+            }
+            else {
+                console.warn("only string-based url or tidy data can be provided for the test data for streaming spec.");
+            }
+            this._url = null;
+            this._values = null;
             return this;
         }
         get() {
             return {
                 type: this.type,
-                values: deepcopy(this.values),
-                url: this.url,
-                name: this.name
+                values: deepcopy(this._values),
+                url: this._url,
+                name: this._name,
+                streaming: this._streaming,
+                test: this._test
             };
         }
         clone() {
             let _c = new Data();
             _c.type = this.type;
             if (this.type === Values) {
-                _c.values = deepcopy(this.values);
+                _c._values = deepcopy(this._values);
             }
             else if (this.type === Url) {
-                _c.url = this.url;
+                _c._url = this._url;
             }
             else if (this.type === Name) {
-                _c.name = this.name;
+                _c._name = this._name;
+            }
+            else if (this.type === Streaming) {
+                _c._streaming = this._streaming;
+                _c._test = deepcopy(this._test);
             }
             return _c;
         }
@@ -3448,7 +3506,7 @@
             return _c;
         }
     }
-    class Sampling {
+    let Sampling$1 = class Sampling {
         constructor() {
             this.sampling = [];
         }
@@ -3464,7 +3522,7 @@
             _c.sampling = this.sampling.map((d) => d.clone());
             return _c;
         }
-    }
+    };
 
     class Tone {
         constructor(type, c) {
@@ -3606,13 +3664,408 @@
         }
     }
 
+    const ChimeBeat = 0.33;
+    function getChimeBeat(n) {
+        return ChimeBeat * n;
+    }
+    const ChimeBeforePlay = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // C -> G
+    const ChimeNext = [{
+            start: getChimeBeat(0.15), duration: getChimeBeat(1.5), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1.65), duration: getChimeBeat(1), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2.65), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // C -> C
+    const ChimeAfterPlay = [{
+            start: getChimeBeat(0.15), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1.15), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }]; // G -> C
+    const ChimeIncoming = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1.5), duration: getChimeBeat(1), pitch: noteFreqRange[5].e, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(3), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // C -> G -> E -> C
+    const ChimeBeforePlayback = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // D -> G (low octave)
+    const ChimeAfterPlayback = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // G -> D
+    const chimeSynth = {
+        name: 'chimeSynth',
+        type: 'FM',
+        carrierType: 'sine',
+        carrierPitch: 220,
+        carrierDetune: 0,
+        carrierVolume: 1,
+        modulatorType: 'sine',
+        modulatorPitch: 440,
+        modulatorVolume: 1,
+        modulation: 1,
+        harmonicity: 1,
+        attackTime: 0.05,
+        releaseTime: 0.05,
+        sustain: 0.2,
+        decayTime: 0
+    };
+    const Chimes = {
+        'beforePlay': ChimeBeforePlay,
+        'afterPlay': ChimeAfterPlay,
+        'beforePlayback': ChimeBeforePlayback,
+        'afterPlayback': ChimeAfterPlayback,
+        'incoming': ChimeIncoming,
+        'next': ChimeNext
+    };
+
+    let ErieGlobalSynth;
+    function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            if (!ErieGlobalSynth)
+                ErieGlobalSynth = window.speechSynthesis;
+            var utterance = new SpeechSynthesisUtterance(sound.speech);
+            if ((config === null || config === void 0 ? void 0 : config.speechRate) !== undefined)
+                utterance.rate = config === null || config === void 0 ? void 0 : config.speechRate;
+            else if ((sound === null || sound === void 0 ? void 0 : sound.speechRate) !== undefined)
+                utterance.rate = sound === null || sound === void 0 ? void 0 : sound.speechRate;
+            if ((sound === null || sound === void 0 ? void 0 : sound.pitch) !== undefined)
+                utterance.pitch = sound.pitch;
+            if ((sound === null || sound === void 0 ? void 0 : sound.loudness) !== undefined)
+                utterance.volume = sound.loudness;
+            if (sound === null || sound === void 0 ? void 0 : sound.language)
+                utterance.lang = (bcp47language.includes(sound.language) ? sound.language : (_a = (typeof document !== undefined ? document : {}).documentElement) === null || _a === void 0 ? void 0 : _a.lang);
+            else
+                utterance.lang = ((_b = (typeof document !== undefined ? document : {}).documentElement) === null || _b === void 0 ? void 0 : _b.lang);
+            onstart();
+            ErieGlobalSynth.speak(utterance);
+            setErieGlobalControl({ type: SpeechType, player: ErieGlobalSynth });
+            utterance.onend = () => {
+                onend();
+                if (resolve)
+                    resolve();
+            };
+        });
+    }
+
+    // chime instrument -> FM Synth
+    function playChime(ctx, _chime, bufferPrimitve) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (ctx === undefined) {
+                ctx = new AudioContext();
+            }
+            let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
+            let chime_queue = chime;
+            chime_queue.hasSpeech = false;
+            yield playAbsoluteDiscreteTones(ctx, chime_queue, {}, {}, // sampled
+            { chimeSynth }, // synth defs
+            {}, // wave defs
+            [], bufferPrimitve);
+        });
+    }
+
+    const Unset = 'unset', Chime = 'chime', Speech = 'speech', Sampling = 'sampling';
+    class Notify {
+        constructor(t) {
+            this._type = Unset;
+            if (t)
+                this.type(t);
+            this._loudness = 1;
+            this._detune = 0;
+        }
+        type(t) {
+            if ([Chime, Speech, Sampling].includes(t)) {
+                this._type = t;
+                if (this._type == Chime) {
+                    // cancel
+                    delete this._speech;
+                    delete this._language;
+                    delete this._speechRate;
+                    delete this._pitch;
+                    delete this._sample;
+                    delete this._detune;
+                }
+                else if (this._type == Speech) {
+                    // cancel
+                    delete this._chime;
+                    delete this._sample;
+                    delete this._detune;
+                }
+                else if (this._type == Sampling) {
+                    // cancel
+                    delete this._chime;
+                    delete this._speech;
+                    delete this._language;
+                    delete this._speechRate;
+                    delete this._pitch;
+                }
+            }
+            else {
+                console.warn("Unsupported type", t, "ignored.");
+            }
+            return this;
+        }
+        speech(t) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (this._type != Speech) {
+                console.warn("Only supported for speech-type cnotifications.");
+            }
+            else if (typeof t == 'string') {
+                this._speech = t;
+            }
+            return this;
+        }
+        loudness(n) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (typeof n == 'number' && n > 0) {
+                this._loudness = n;
+            }
+            return this;
+        }
+        pitch(n) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (this._type != Speech) {
+                console.warn("Only supported for speech-type cnotifications.");
+            }
+            else if (typeof n == 'number' && n > 0) {
+                this._pitch = n;
+            }
+            return this;
+        }
+        detune(n) {
+            if (this._type != Sampling) {
+                console.warn("Only supported for sampling-type cnotifications.");
+            }
+            else if (typeof n == 'number' && n > 0) {
+                this._detune = n;
+            }
+            return this;
+        }
+        language(s) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (this._type != Speech) {
+                console.warn("Only supported for speech-type cnotifications.");
+            }
+            else if (typeof s == 'string' && bcp47language.includes(s)) {
+                this._language = s;
+            }
+            return this;
+        }
+        chime(s) {
+            if (this._type != Chime) {
+                console.warn("Only supported for chime-type cnotifications.");
+            }
+            else if (isChimeName(s)) {
+                this._chime = s;
+            }
+            return this;
+        }
+        sample(s) {
+            if (this._type != Sampling) {
+                console.warn("Only supported for sampling-type cnotifications.");
+            }
+            else if (typeof s == 'string') {
+                this._sample = s;
+            }
+            return this;
+        }
+        get() {
+            if (this._type == Unset)
+                return undefined;
+            else if (this._type == Speech) {
+                if (this._speech) {
+                    return {
+                        speech: this._speech,
+                        loudness: this._loudness,
+                        pitch: this._pitch,
+                        language: this._language,
+                        speechRate: this._speechRate
+                    };
+                }
+                else {
+                    return true;
+                }
+            }
+            else if (this._type == Sampling) {
+                if (this._sample) {
+                    return {
+                        chime: this._sample,
+                        loudness: this._loudness,
+                    };
+                }
+                else {
+                    console.error("Undefined sampling URL");
+                }
+            }
+            else if (this._type == Chime) {
+                if (this._chime) {
+                    return {
+                        chime: this._chime,
+                        loudness: this._loudness,
+                    };
+                }
+                else {
+                    console.error("Undefined chime name");
+                }
+            }
+        }
+        clone() {
+            let _c = new Notify();
+            if (_c) {
+                _c._type = this._type;
+                _c._speech = this._speech;
+                _c._loudness = this._loudness;
+                _c._pitch = this._pitch;
+                _c._detune = this._detune;
+                _c._language = this._language;
+                _c._speechRate = this._speechRate;
+                _c._chime = this._chime;
+                _c._sample = this._sample;
+            }
+            return _c;
+        }
+    }
+    function isChimeName(s) {
+        return (typeof s == 'string') && (s in Chimes);
+    }
+    function intNotify() {
+        return {
+            incoming: new Notify(),
+            beforePlayback: new Notify(),
+            afterPlayback: new Notify(),
+            beforePlay: new Notify(),
+            afterPlay: new Notify(),
+            next: new Notify()
+        };
+    }
+
+    class Playback {
+        constructor() {
+            this._init_by = 'manual';
+            this._unit = 'instance';
+            this._limit = 3;
+            this._speed = 1.5;
+        }
+        init_by(i) {
+            if (PlaybackTypes.includes(i)) {
+                this._init_by = i;
+            }
+            else {
+                console.error("Unsupported playback initiation type.");
+            }
+            return this;
+        }
+        unit(i) {
+            if (PlaybackUnits.includes(i)) {
+                this._unit = i;
+                if (this._unit != 'condition') {
+                    this._condition = undefined;
+                }
+            }
+            else {
+                console.error("Unsupported playback unit type.");
+            }
+            return this;
+        }
+        condition(i) {
+            if (typeof i === 'string') {
+                this._unit = i;
+            }
+            else {
+                console.error("A playback condition must be a string.");
+            }
+            return this;
+        }
+        limit(i) {
+            if (typeof i === 'number') {
+                this._limit = i;
+            }
+            else {
+                console.error("Playback limit must be a number.");
+            }
+            return this;
+        }
+        speed(i) {
+            if (typeof i === 'number') {
+                this._speed = i;
+            }
+            else {
+                console.error("Playback speed must be a number.");
+            }
+            return this;
+        }
+        instrument(i) {
+            if (typeof i === 'string') {
+                this._instrument = i;
+            }
+            else {
+                console.error("Playback instrument must be a string.");
+            }
+            return this;
+        }
+        get() {
+            return {
+                init_by: this._init_by,
+                unit: this._unit,
+                condition: this._condition,
+                limit: this._limit,
+                speed: this._speed,
+                instrument: this._instrument
+            };
+        }
+        clone() {
+            let c = new Playback();
+            if (this._init_by !== undefined)
+                c.init_by(this._init_by);
+            if (this._unit !== undefined)
+                c.unit(this._unit);
+            if (this._condition !== undefined)
+                c.condition(this._condition);
+            if (this._limit !== undefined)
+                c.limit(this._limit);
+            if (this._speed !== undefined)
+                c.speed(this._speed);
+            if (this._instrument !== undefined)
+                c.instrument(this._instrument);
+            return c;
+        }
+    }
+
     class Stream {
         constructor() {
             this.data = new Data();
             this.datasets = new Datasets();
             this.transform = new Transform();
             this.synth = new Synth();
-            this.sampling = new Sampling();
+            this.sampling = new Sampling$1();
             this.wave = new Wave();
             this.tone = new Tone();
             this.tick = new TickList();
@@ -3635,6 +4088,8 @@
                 [HARMONICITY_chn]: new HarmonicityChannel()
             };
             this.config = new Config();
+            this.notify = intNotify();
+            this.playback = new Playback();
         }
         name(n) {
             this._name = n;
@@ -3673,7 +4128,7 @@
             return g;
         }
         clone() {
-            var _a, _b, _d, _e, _f, _g;
+            var _a, _b, _d, _e, _f, _g, _h, _j;
             let _c = new Stream();
             _c._name = this._name;
             _c._title = this._title;
@@ -3685,19 +4140,34 @@
             _c.sampling = (_e = this.sampling) === null || _e === void 0 ? void 0 : _e.clone();
             _c.wave = (_f = this.wave) === null || _f === void 0 ? void 0 : _f.clone();
             _c.tone = this.tone.clone();
+            _c.playback = (_g = this.playback) === null || _g === void 0 ? void 0 : _g.clone();
+            _c.notify = Object.keys((_h = this.notify) !== null && _h !== void 0 ? _h : {}).reduce((acc, curr) => {
+                var _a, _b;
+                if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                    acc[curr] = (_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr];
+                return acc;
+            }, {});
             _c.encoding = {};
             Object.keys(this.encoding).forEach((chn) => {
                 if (this.encoding[chn].defined) {
                     _c.encoding[chn] = this.encoding[chn].clone();
                 }
             });
-            _c.config = (_g = this.config) === null || _g === void 0 ? void 0 : _g.clone();
+            _c.config = (_j = this.config) === null || _j === void 0 ? void 0 : _j.clone();
             return _c;
         }
     }
 
     class Overlay {
         constructor(...a) {
+            this.datasets = new Datasets();
+            this.transform = new Transform();
+            this.data = new Data();
+            this.sampling = new Sampling$1();
+            this.synth = new Synth();
+            this.wave = new Wave();
+            this.tick = new TickList();
+            this.config = new Config();
             let args = [...a];
             if (isInstanceOf(args[0], String)) {
                 this._name = args[0];
@@ -3710,14 +4180,6 @@
             else if (isArrayOf(args, Stream)) {
                 this.addStreams(args);
             }
-            this.datasets = new Datasets();
-            this.transform = new Transform();
-            this.data = new Data();
-            this.sampling = new Sampling();
-            this.synth = new Synth();
-            this.wave = new Wave();
-            this.tick = new TickList();
-            this.config = new Config();
         }
         name(n) {
             this._name = n;
@@ -3835,6 +4297,14 @@
                 this._name = args[0];
                 args.splice(0, 1);
             }
+            this.datasets = new Datasets();
+            this.transform = new Transform();
+            this.data = new Data();
+            this.sampling = new Sampling$1();
+            this.synth = new Synth();
+            this.wave = new Wave();
+            this.tick = new TickList();
+            this.config = new Config();
             this.sequence = [];
             if (isArrayOf(args[0], [Stream, Overlay])) {
                 this.addStreams(args[0]);
@@ -3842,14 +4312,6 @@
             else if (isArrayOf(args, [Stream, Overlay])) {
                 this.addStreams(args);
             }
-            this.datasets = new Datasets();
-            this.transform = new Transform();
-            this.data = new Data();
-            this.sampling = new Sampling();
-            this.synth = new Synth();
-            this.wave = new Wave();
-            this.tick = new TickList();
-            this.config = new Config();
         }
         name(n) {
             this._name = n;
@@ -5122,36 +5584,6 @@
         });
     }
 
-    let ErieGlobalSynth;
-    function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            if (!ErieGlobalSynth)
-                ErieGlobalSynth = window.speechSynthesis;
-            var utterance = new SpeechSynthesisUtterance(sound.speech);
-            if ((config === null || config === void 0 ? void 0 : config.speechRate) !== undefined)
-                utterance.rate = config === null || config === void 0 ? void 0 : config.speechRate;
-            else if ((sound === null || sound === void 0 ? void 0 : sound.speechRate) !== undefined)
-                utterance.rate = sound === null || sound === void 0 ? void 0 : sound.speechRate;
-            if ((sound === null || sound === void 0 ? void 0 : sound.pitch) !== undefined)
-                utterance.pitch = sound.pitch;
-            if ((sound === null || sound === void 0 ? void 0 : sound.loudness) !== undefined)
-                utterance.volume = sound.loudness;
-            if (sound === null || sound === void 0 ? void 0 : sound.language)
-                utterance.lang = (bcp47language.includes(sound.language) ? sound.language : (_a = (typeof document !== undefined ? document : {}).documentElement) === null || _a === void 0 ? void 0 : _a.lang);
-            else
-                utterance.lang = ((_b = (typeof document !== undefined ? document : {}).documentElement) === null || _b === void 0 ? void 0 : _b.lang);
-            onstart();
-            ErieGlobalSynth.speak(utterance);
-            setErieGlobalControl({ type: SpeechType, player: ErieGlobalSynth });
-            utterance.onend = () => {
-                onend();
-                if (resolve)
-                    resolve();
-            };
-        });
-    }
-
     function playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction) {
         return __awaiter(this, void 0, void 0, function* () {
             // if it is from a discrete series and being stopped, then do nothing
@@ -6128,7 +6560,7 @@
         const polarChannels = [PAN_RADIUS_chn, PAN_POLAR_chn, PAN_AZIMUTH_chn];
         const cartesianSaturation = cartesianChannels.filter(channel => spec.encoding[channel] !== undefined).length;
         const polarSaturation = polarChannels.filter(channel => spec.encoding[channel] !== undefined).length;
-        if (cartesianSaturation > polarSaturation) {
+        if (cartesianSaturation >= polarSaturation) {
             polarChannels.forEach(channel => {
                 if (spec.encoding[channel]) {
                     console.warn(`Dropping Polar channel ${channel} in favor of Cartesian channels due to higher saturation.`);
@@ -6160,6 +6592,7 @@
             }
         }
         let has_repeated_overlay = false;
+        let reject_time2_for_binning = false;
         for (const channel of Object.keys(spec.encoding)) {
             let o_enc = spec.encoding[channel];
             let _field = (_c = o_enc.field) !== null && _c !== void 0 ? _c : undefined;
@@ -6215,6 +6648,9 @@
             if (o_enc.bin) {
                 if (!o_enc.field) {
                     console.error("Bin without a field name is not possible.");
+                }
+                if (channel == TIME_chn && spec.encoding[TIME2_chn] !== undefined) {
+                    reject_time2_for_binning = true;
                 }
                 if (o_enc.bin instanceof Object) {
                     further_transforms.push({
@@ -6349,8 +6785,13 @@
                 sustain: 'sustain' in o_enc && o_enc.sustain ? o_enc.sustain : false
             };
         }
+        // if time is binned and time2 is set, reject time2
+        if (reject_time2_for_binning) {
+            console.warn("Reject time2 because time is binned");
+            delete encoding[TIME2_chn];
+        }
         // if time2 channel is defined, set the scale for it
-        if (encoding[TIME2_chn]) {
+        else if (encoding[TIME2_chn]) {
             encoding[TIME2_chn].scale = { id: (_m = (_l = encoding[TIME_chn]) === null || _l === void 0 ? void 0 : _l.scale) === null || _m === void 0 ? void 0 : _m.id };
             scaleDefinitions.forEach((d) => {
                 var _a, _b;
@@ -6395,19 +6836,6 @@
                 transform = [];
             transform.push({ aggregate: encoding_aggregates, groupby: GroupbyAuto });
         }
-        // [todo]  <- future support
-        /** if (transform !== undefined && (transform?.length ?? 0) > 0) {
-              transform.forEach((t) => {
-                if ((t.boxplot || t.quantile) && !t.groupby) t.groupby = Auto;
-              });
-            } */
-        // config (removing bc config only exists at the top level)
-        // let config: ConfigInterface | undefined = undefined;
-        // if (spec.config) {
-        //   config = {};
-        //   Object.assign(config, spec.config);
-        //   config = config;
-        // }
         let normalized = {
             title,
             name,
@@ -8261,19 +8689,18 @@
         }
     }
 
+    //  [max, min]
     function getChannelThresholds(channel, extraChannelType) {
-        var _a, _b, _c, _d;
-        let min = ((_a = ChannelThresholds[channel]) === null || _a === void 0 ? void 0 : _a.max)
-            || ((_b = ChannelThresholds[extraChannelType]) === null || _b === void 0 ? void 0 : _b.max), max = ((_c = ChannelThresholds[channel]) === null || _c === void 0 ? void 0 : _c.min)
-            || ((_d = ChannelThresholds[extraChannelType]) === null || _d === void 0 ? void 0 : _d.min);
-        return [min, max];
+        var _a, _b, _c, _d, _e, _f;
+        let max = (_b = (_a = ChannelThresholds[channel]) === null || _a === void 0 ? void 0 : _a.max) !== null && _b !== void 0 ? _b : (_c = ChannelThresholds[extraChannelType]) === null || _c === void 0 ? void 0 : _c.max;
+        let min = (_e = (_d = ChannelThresholds[channel]) === null || _d === void 0 ? void 0 : _d.min) !== null && _e !== void 0 ? _e : (_f = ChannelThresholds[extraChannelType]) === null || _f === void 0 ? void 0 : _f.min;
+        return [max, min];
     }
     function getChannelCaps(channel, extraChannelType) {
-        var _a, _b, _c, _d;
-        let min = ((_a = ChannelCaps[channel]) === null || _a === void 0 ? void 0 : _a.max)
-            || ((_b = ChannelCaps[extraChannelType]) === null || _b === void 0 ? void 0 : _b.max), max = ((_c = ChannelCaps[channel]) === null || _c === void 0 ? void 0 : _c.min)
-            || ((_d = ChannelCaps[extraChannelType]) === null || _d === void 0 ? void 0 : _d.min);
-        return [min, max];
+        var _a, _b, _c, _d, _e, _f;
+        let max = (_b = (_a = ChannelCaps[channel]) === null || _a === void 0 ? void 0 : _a.max) !== null && _b !== void 0 ? _b : (_c = ChannelCaps[extraChannelType]) === null || _c === void 0 ? void 0 : _c.max;
+        let min = (_e = (_d = ChannelCaps[channel]) === null || _d === void 0 ? void 0 : _d.min) !== null && _e !== void 0 ? _e : (_f = ChannelCaps[extraChannelType]) === null || _f === void 0 ? void 0 : _f.min;
+        return [max, min];
     }
 
     function makeNominalScaleFunction(channel, encoding, values, info, is_streamed) {
@@ -10046,96 +10473,6 @@
         }
     }
 
-    const ChimeBeat = 0.33;
-    function getChimeBeat(n) {
-        return ChimeBeat * n;
-    }
-    const ChimeBeforePlay = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // C -> G
-    const ChimeNext = [{
-            start: getChimeBeat(0.15), duration: getChimeBeat(1.5), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1.65), duration: getChimeBeat(1), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2.65), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // C -> C
-    const ChimeAfterPlay = [{
-            start: getChimeBeat(0.15), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1.15), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }]; // G -> C
-    const ChimeIncoming = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1.5), duration: getChimeBeat(1), pitch: noteFreqRange[5].e, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(3), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // C -> G -> E -> C
-    const ChimeBeforePlayback = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // D -> G (low octave)
-    const ChimeAfterPlayback = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // G -> D
-    const chimeSynth = {
-        name: 'chimeSynth',
-        type: 'FM',
-        carrierType: 'sine',
-        carrierPitch: 220,
-        carrierDetune: 0,
-        carrierVolume: 1,
-        modulatorType: 'sine',
-        modulatorPitch: 440,
-        modulatorVolume: 1,
-        modulation: 1,
-        harmonicity: 1,
-        attackTime: 0.05,
-        releaseTime: 0.05,
-        sustain: 0.2,
-        decayTime: 0
-    };
-    const Chimes = {
-        'beforePlay': ChimeBeforePlay,
-        'afterPlay': ChimeAfterPlay,
-        'beforePlayback': ChimeBeforePlayback,
-        'afterPlayback': ChimeAfterPlayback,
-        'incoming': ChimeIncoming,
-        'next': ChimeNext
-    };
-
-    // chime instrument -> FM Synth
-    function playChime(ctx, _chime, bufferPrimitve) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (ctx === undefined) {
-                ctx = new AudioContext();
-            }
-            let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
-            let chime_queue = chime;
-            chime_queue.hasSpeech = false;
-            yield playAbsoluteDiscreteTones(ctx, chime_queue, {}, {}, // sampled
-            { chimeSynth }, // synth defs
-            {}, // wave defs
-            [], bufferPrimitve);
-        });
-    }
-
     class SequenceStream {
         constructor() {
             this.streams = [];
@@ -10729,7 +11066,7 @@
         };
     }
 
-    const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 2, DefaultNoitfyOptions = {
+    const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 1.5, DefaultNoitfyOptions = {
         beforePlayback: { speech: 'Old data', language: 'en-US', speechRate: 1 },
         afterPlayback: { speech: 'End of old data', language: 'en-US', speechRate: 1 },
         incoming: { speech: 'Incoming', language: 'en-US', speechRate: 1 },
@@ -11972,6 +12309,163 @@
         });
     }
 
+    class Boxplot {
+        constructor(c, extent, invalid) {
+            this._boxplot = c;
+            this._extent = extent;
+            this._invalid = invalid;
+        }
+        boxplot(c) {
+            this._boxplot = c;
+            return this;
+        }
+        extent(t) {
+            this._extent = t;
+            return this;
+        }
+        invalid(t) {
+            this._invalid = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                boxplot: this._boxplot,
+                extent: this._extent,
+                invalid: this._invalid,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
+    class Diffing {
+        constructor(c, a, carryOver, keepFirstAsZero) {
+            this._diffing = c;
+            if (a)
+                this._as = a;
+            this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
+            this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
+        }
+        diffing(c) {
+            this._diffing = c;
+            return this;
+        }
+        as(c) {
+            this._as = c;
+            return this;
+        }
+        carryOver(t) {
+            this._carryOver = t;
+            return this;
+        }
+        keepFirstAsZero(t) {
+            this._keepFirstAsZero = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                diffing: deepcopy(this._diffing),
+                as: deepcopy(this._as),
+                carryOver: this._carryOver,
+                keepFirstAsZero: this._keepFirstAsZero,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Diffing(this._diffing, this._as, this._carryOver, this._keepFirstAsZero);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
+    class Quantile {
+        constructor(c, n, step, as) {
+            this._quantile = c;
+            this._n = n;
+            this._step = step;
+            if (as)
+                this._as = as;
+        }
+        quantile(c) {
+            this._quantile = c;
+            return this;
+        }
+        as(c) {
+            if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
+                this._as = c;
+            }
+            else {
+                console.error("Wrong length/type for qunatile 'as'.");
+            }
+            return this;
+        }
+        n(t) {
+            this._n = t;
+            return this;
+        }
+        step(t) {
+            this._step = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                quantile: this._quantile,
+                as: deepcopy(this._as),
+                n: this._n,
+                step: this._step,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
     function make3DScaleFunction(encoding) {
         const { domain, range, default: defaultValue = { x: 0, y: 0, z: 0 } } = encoding;
         const scale = d3Scale.scaleLinear().domain(domain).range(range);
@@ -12021,6 +12515,7 @@
     exports.BiquadEncoder = BiquadEncoder;
     exports.BiquadFilter = BiquadFilter;
     exports.BiquadFinisher = BiquadFinisher;
+    exports.Boxplot = Boxplot;
     exports.BrownNoise = BrownNoise;
     exports.BufferChannels = BufferChannels$1;
     exports.CORR = CORR;
@@ -12094,6 +12589,7 @@
     exports.DescKeyTimeUnit = DescKeyTimeUnit;
     exports.DescKeyTitle = DescKeyTitle;
     exports.DetuneChannel = DetuneChannel;
+    exports.Diffing = Diffing;
     exports.DistortionEncoder = DistortionEncoder;
     exports.DistortionFilter = DistortionFilter;
     exports.DistortionFinisher = DistortionFinisher;
@@ -12207,6 +12703,7 @@
     exports.NomPalletes = NomPalletes;
     exports.NonTimeChannels = NonTimeChannels;
     exports.NotchBiquadFilter = NotchBiquadFilter;
+    exports.Notify = Notify;
     exports.NotifyAfterPlay = NotifyAfterPlay;
     exports.NotifyAfterPlayback = NotifyAfterPlayback;
     exports.NotifyBeforePlay = NotifyBeforePlay;
@@ -12247,6 +12744,7 @@
     exports.PinkNoise = PinkNoise;
     exports.PitchChannel = PitchChannel;
     exports.PlayAt = PlayAt;
+    exports.Playback = Playback;
     exports.PlaybackAuto = PlaybackAuto;
     exports.PlaybackConditional = PlaybackConditional;
     exports.PlaybackManual = PlaybackManual;
@@ -12261,6 +12759,7 @@
     exports.QUANT = QUANT;
     exports.QUANTILE = QUANTILE;
     exports.QuantPreferredRange = QuantPreferredRange;
+    exports.Quantile = Quantile;
     exports.QueueItemTypes = QueueItemTypes;
     exports.REL = REL;
     exports.REPEAT_chn = REPEAT_chn;
@@ -12300,7 +12799,7 @@
     exports.SYMLOG = SYMLOG;
     exports.SampleRate = SampleRate$1;
     exports.SampledTone = SampledTone;
-    exports.Sampling = Sampling;
+    exports.Sampling = Sampling$1;
     exports.ScaleDescriptionOrder = ScaleDescriptionOrder;
     exports.Sequence = Sequence;
     exports.SequenceStream = SequenceStream;
@@ -12314,6 +12813,7 @@
     exports.SpeechType = SpeechType;
     exports.Stopped = Stopped;
     exports.Stream = Stream;
+    exports.Streaming = Streaming;
     exports.StreamingStream = StreamingStream;
     exports.SupportedInstruments = SupportedInstruments;
     exports.SupportedPolarity = SupportedPolarity;
@@ -12358,7 +12858,7 @@
     exports.ToneType = ToneType;
     exports.Transform = Transform;
     exports.UnitStream = UnitStream;
-    exports.Unset = Unset;
+    exports.Unset = Unset$1;
     exports.Url = Url;
     exports.VALID = VALID;
     exports.VARIANCE = VARIANCE;
@@ -12425,6 +12925,7 @@
     exports.getTransformers = getTransformers;
     exports.glyphSorterByEnd = glyphSorterByEnd;
     exports.glyphSorterByStart = glyphSorterByStart;
+    exports.intNotify = intNotify;
     exports.isArrayOf = isArrayOf;
     exports.isAudioGraphQueue = isAudioGraphQueue;
     exports.isBrowserEventPossible = isBrowserEventPossible;

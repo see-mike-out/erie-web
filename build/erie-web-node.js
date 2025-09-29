@@ -25,121 +25,37 @@ function _interopNamespaceDefault(e) {
 var aq__namespace = /*#__PURE__*/_interopNamespaceDefault(aq);
 var vega__namespace = /*#__PURE__*/_interopNamespaceDefault(vega);
 
-function isBrowserEventPossible() {
-    var _a;
-    return typeof document === 'object' && ((_a = document === null || document === void 0 ? void 0 : document.body) === null || _a === void 0 ? void 0 : _a.dispatchEvent);
-}
-function isBrowserWindowPossible() {
-    return typeof window === 'object';
-}
+/******************************************************************************
+Copyright (c) Microsoft Corporation.
 
-function unique(arr) {
-    return Array.from(new Set(arr));
-}
-function deepcopy(i) {
-    return JSON.parse(JSON.stringify(i));
-}
-function round(n, d) {
-    let e = Math.pow(10, -d);
-    return Math.round(n * e) / e;
-}
-function floor(n, d) {
-    let e = Math.pow(10, -d);
-    return Math.floor(n * e) / e;
-}
-const RidLetters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
-const NRidLetters = RidLetters.length - 1;
-function genRid(n) {
-    if (!n)
-        n = 6;
-    let rid = [];
-    for (let i = 0; i < n; i++) {
-        let k = Math.round(Math.random() * NRidLetters);
-        rid.push(RidLetters[k]);
-    }
-    return rid.join('');
-}
-function getFirstDefined(...args) {
-    for (const arg of args) {
-        if (arg !== undefined)
-            return arg;
-    }
-    return args[args.length - 1];
-}
-function asc(a, b) {
-    if (typeof a === 'number' && typeof b === 'number')
-        return a - b;
-    else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
-        return a - b;
-    else if (a === null || a === void 0 ? void 0 : a.localeCompare)
-        return a.localeCompare(b);
-    else
-        return a > b ? 1 : a < b ? -1 : 0;
-}
-function desc(a, b) {
-    if (typeof a === 'number' && typeof b === 'number')
-        return b - a;
-    else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
-        return b - a;
-    else if (b === null || b === void 0 ? void 0 : b.localeCompare)
-        return b.localeCompare(a);
-    else
-        return a < b ? 1 : a > b ? -1 : 0;
-}
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
 
-function listString(arr, delim, isAnd, _and) {
-    if (arr.length == 0)
-        return "";
-    else if (arr.length == 1)
-        return arr[0];
-    else if (arr.length == 2 && isAnd)
-        return `${arr[0]} ${_and || 'and'} ${arr[1]}`;
-    else if (arr.length == 2 && !isAnd)
-        return `${arr[0]}${delim || ' '}${arr[1]} `;
-    else if (!isAnd) {
-        return arr.join(delim);
-    }
-    else {
-        let last = arr[arr.length - 1];
-        let rest = arr.slice(0, arr.length - 1);
-        let space_before_and = delim.endsWith(' ');
-        return rest.join(delim) + delim + `${space_before_and ? '' : ' '}${(_and === null || _and === void 0 ? void 0 : _and.trim()) || 'and'} ` + last;
-    }
-}
-function toOrdinalNumbers(n) {
-    // upto 23
-    return ["zeroth", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "nineth",
-        "tenth", "eleventh", "twelveth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
-        "twentieth", "twenty-first", "twenty-second", "twenty-third"][n] || n + "th";
-}
-/**
- * convert an array of objects to an dict-like object of objects
- * @param a
- * @param k
- * @param dp
- * @returns
- */
-function toHashedObject(a, k, dp) {
-    let o = {};
-    a.forEach((d) => {
-        let key = d[k];
-        if (dp) {
-            o[key] = deepcopy(d);
-        }
-        else {
-            o[key] = d;
-        }
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+/* global Reflect, Promise, SuppressedError, Symbol */
+
+
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
-    return o;
 }
-function bufferToArrayBuffer(x) {
-    let arrayBuffer = new ArrayBuffer(x.length);
-    let arr = new Uint8Array(arrayBuffer);
-    for (let i = 0; i < x.length; ++i) {
-        arr[i] = x[i];
-    }
-    return arrayBuffer;
-}
+
+typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+    var e = new Error(message);
+    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+};
 
 const PlaybackManual = 'manual', PlaybackConditional = 'conditional', PlaybackAuto = 'always';
 const PlaybackTypes = [PlaybackManual, PlaybackConditional, PlaybackAuto];
@@ -260,7 +176,7 @@ const DefaultChannels = [
     HARMONICITY_chn
 ];
 /*----- DEFAULT RANGES -----*/
-const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 10, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
+const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 1, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
 const ChannelThresholds = {
     [TIME_chn]: { max: null, min: 0 },
     [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
@@ -715,6 +631,122 @@ function isOscType(iType) {
     return OscTypes.includes(iType);
 }
 
+function isBrowserEventPossible() {
+    var _a;
+    return typeof document === 'object' && ((_a = document === null || document === void 0 ? void 0 : document.body) === null || _a === void 0 ? void 0 : _a.dispatchEvent);
+}
+function isBrowserWindowPossible() {
+    return typeof window === 'object';
+}
+
+function unique(arr) {
+    return Array.from(new Set(arr));
+}
+function deepcopy(i) {
+    return JSON.parse(JSON.stringify(i));
+}
+function round(n, d) {
+    let e = Math.pow(10, -d);
+    return Math.round(n * e) / e;
+}
+function floor(n, d) {
+    let e = Math.pow(10, -d);
+    return Math.floor(n * e) / e;
+}
+const RidLetters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+const NRidLetters = RidLetters.length - 1;
+function genRid(n) {
+    if (!n)
+        n = 6;
+    let rid = [];
+    for (let i = 0; i < n; i++) {
+        let k = Math.round(Math.random() * NRidLetters);
+        rid.push(RidLetters[k]);
+    }
+    return rid.join('');
+}
+function getFirstDefined(...args) {
+    for (const arg of args) {
+        if (arg !== undefined)
+            return arg;
+    }
+    return args[args.length - 1];
+}
+function asc(a, b) {
+    if (typeof a === 'number' && typeof b === 'number')
+        return a - b;
+    else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
+        return a - b;
+    else if (a === null || a === void 0 ? void 0 : a.localeCompare)
+        return a.localeCompare(b);
+    else
+        return a > b ? 1 : a < b ? -1 : 0;
+}
+function desc(a, b) {
+    if (typeof a === 'number' && typeof b === 'number')
+        return b - a;
+    else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
+        return b - a;
+    else if (b === null || b === void 0 ? void 0 : b.localeCompare)
+        return b.localeCompare(a);
+    else
+        return a < b ? 1 : a > b ? -1 : 0;
+}
+
+function listString(arr, delim, isAnd, _and) {
+    if (arr.length == 0)
+        return "";
+    else if (arr.length == 1)
+        return arr[0];
+    else if (arr.length == 2 && isAnd)
+        return `${arr[0]} ${_and || 'and'} ${arr[1]}`;
+    else if (arr.length == 2 && !isAnd)
+        return `${arr[0]}${delim || ' '}${arr[1]} `;
+    else if (!isAnd) {
+        return arr.join(delim);
+    }
+    else {
+        let last = arr[arr.length - 1];
+        let rest = arr.slice(0, arr.length - 1);
+        let space_before_and = delim.endsWith(' ');
+        return rest.join(delim) + delim + `${space_before_and ? '' : ' '}${(_and === null || _and === void 0 ? void 0 : _and.trim()) || 'and'} ` + last;
+    }
+}
+function toOrdinalNumbers(n) {
+    // upto 23
+    return ["zeroth", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "nineth",
+        "tenth", "eleventh", "twelveth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
+        "twentieth", "twenty-first", "twenty-second", "twenty-third"][n] || n + "th";
+}
+/**
+ * convert an array of objects to an dict-like object of objects
+ * @param a
+ * @param k
+ * @param dp
+ * @returns
+ */
+function toHashedObject(a, k, dp) {
+    let o = {};
+    a.forEach((d) => {
+        let key = d[k];
+        if (dp) {
+            o[key] = deepcopy(d);
+        }
+        else {
+            o[key] = d;
+        }
+    });
+    return o;
+}
+function bufferToArrayBuffer(x) {
+    let arrayBuffer = new ArrayBuffer(x.length);
+    let arr = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < x.length; ++i) {
+        arr[i] = x[i];
+    }
+    return arrayBuffer;
+}
+
 function makeParamFilter(expr) {
     if (typeof expr !== 'string')
         return null;
@@ -1085,38 +1117,6 @@ function cosDeg(degrees) {
     return Math.cos(degrees * (Math.PI / 180));
 }
 
-/******************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-/* global Reflect, Promise, SuppressedError, Symbol */
-
-
-function __awaiter(thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-}
-
-typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-    var e = new Error(message);
-    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
-};
-
 function playSystemSpeech(sound, config) {
     return __awaiter(this, void 0, void 0, function* () {
         return new Promise((resolve, reject) => {
@@ -1179,6 +1179,608 @@ function aRange(s, e, incl) {
     return o;
 }
 
+class UnitStream {
+    constructor(id, instrument_type, stream, scales, opt) {
+        this.id = id;
+        this.instrument_type = instrument_type;
+        this.stream = stream;
+        this.option = opt || {};
+        this.scales = scales;
+        this.config = {};
+        this.name;
+        this.ramp = {};
+    }
+    setTitle(t) {
+        this.title = t;
+    }
+    setDescription(d) {
+        this.description = d;
+    }
+    setName(name) {
+        this.name = name;
+    }
+    setConfig(key, value) {
+        this.config[key] = value;
+    }
+    setFilters(audioFilters) {
+        this.audioFilters = audioFilters;
+    }
+    setRamp(ramp) {
+        this.ramp = deepcopy(ramp);
+    }
+    make_tone_text(i) {
+        var _a, _b;
+        let text = [];
+        let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`);
+        if (this.name)
+            text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: (_a = this.config) === null || _a === void 0 ? void 0 : _a.speechRate });
+        else
+            text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: (_b = this.config) === null || _b === void 0 ? void 0 : _b.speechRate });
+        text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
+        return text;
+    }
+    make_scale_text(channel) {
+        let scales = this.scales;
+        let text = Object.keys(scales)
+            .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
+            .map((c) => {
+            var _a, _b;
+            return {
+                id: (_a = scales[c]) === null || _a === void 0 ? void 0 : _a.scaleId,
+                channel: c,
+                description: (_b = scales[c]) === null || _b === void 0 ? void 0 : _b.description
+            };
+        });
+        return text.flat();
+    }
+    prerender() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            return {
+                instrument_type: this.instrument_type,
+                sounds: this.stream,
+                continued: (_a = this.option) === null || _a === void 0 ? void 0 : _a.is_continued,
+                relative: (_b = this.option) === null || _b === void 0 ? void 0 : _b.relative,
+                filters: this.audioFilters,
+                ramp: this.ramp,
+                duration: this.duration
+            };
+        });
+    }
+}
+function isUnitStreamObject(o) {
+    var _a;
+    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === UnitStream.name;
+}
+
+// event-related
+function sendToneStartEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnPlayTone", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendToneFinishEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnFinishTone", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendSpeechStartEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendSpeechFinishEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendQueueStartEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendQueueFinishEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendStreamingSignal(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
+        document.body.dispatchEvent(playEvent);
+    }
+}
+
+function roundToNote(freq, scales) {
+    let min_diff = 5000, min_diff_note;
+    for (const noteName of noteScaleOrder) {
+        let diff = Math.abs(scales[noteName] - freq);
+        if (diff < min_diff) {
+            min_diff = diff;
+            min_diff_note = noteName;
+        }
+    }
+    return {
+        note_name: min_diff_note,
+        prev_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) - 1],
+        next_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) + 1],
+        note_freq: scales[min_diff_note],
+        detune: detuneAmmount[min_diff_note]
+    };
+}
+function roundToNoteScale(freq) {
+    var _a;
+    let octave;
+    for (const range of noteFreqRange) {
+        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
+            octave = range;
+        }
+        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
+            octave = range;
+        }
+        else if (range.gf <= freq && freq < range.fs) {
+            octave = range;
+        }
+    }
+    if (octave !== undefined) {
+        return (_a = roundToNote(freq, octave)) === null || _a === void 0 ? void 0 : _a.note_freq;
+    }
+    else {
+        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
+        return null;
+    }
+}
+function determineNoteRange(freq, config) {
+    var _a, _b;
+    let octave;
+    for (const range of noteFreqRange) {
+        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
+            octave = range;
+        }
+        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
+            octave = range;
+        }
+        else if (range.gf <= freq && freq < range.fs) {
+            octave = range;
+        }
+    }
+    if (octave !== undefined) {
+        let rounded_note = roundToNote(freq, octave);
+        if (config === null || config === void 0 ? void 0 : config.round) {
+            return {
+                octave: octave.octave,
+                original_freq: freq,
+                freq: rounded_note.note_freq,
+                note: rounded_note.note_name,
+                detune: rounded_note.detune
+            };
+        }
+        else {
+            let detune_base = rounded_note.detune;
+            let note_diff = rounded_note.note_freq - freq;
+            let detune = 0;
+            if (note_diff < 0) {
+                let note_left = octave[rounded_note.prev_note];
+                if (!rounded_note.prev_note) {
+                    note_left = (_a = noteFreqRange[octave.octave - 1]) === null || _a === void 0 ? void 0 : _a.f;
+                }
+                detune =
+                    Math.round(-100 * Math.abs(note_diff / (note_left - rounded_note.note_freq))) +
+                        detune_base;
+                if (!note_left) {
+                    detune = detune_base;
+                }
+            }
+            else if (note_diff > 0) {
+                let note_right = octave[rounded_note.next_note];
+                if (!rounded_note.next_note) {
+                    note_right = (_b = noteFreqRange[octave.octave + 1]) === null || _b === void 0 ? void 0 : _b.g;
+                }
+                detune =
+                    Math.round(100 * Math.abs(note_diff / (note_right - rounded_note.note_freq))) +
+                        detune_base;
+                if (!note_right) {
+                    detune = detune_base;
+                }
+            }
+            else {
+                detune = detune_base;
+            }
+            return { octave: octave.octave, freq, detune };
+        }
+    }
+    else {
+        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
+        return null;
+    }
+}
+function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        let samples;
+        if (MultiNoteInstruments.includes(instrument_name)) {
+            samples = { multiNote: true };
+            for (const octave of noteFreqRange) {
+                let sampleRes = yield fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
+                let sampleBuffer = yield sampleRes.arrayBuffer();
+                let source = yield ctx.decodeAudioData(sampleBuffer);
+                samples[`C${octave.octave}`] = source;
+            }
+        }
+        else if (SingleNoteInstruments.includes(instrument_name)) {
+            samples = yield makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
+        }
+        else if (smaplingDef[instrument_name]) {
+            if ((_a = smaplingDef[instrument_name].sample) === null || _a === void 0 ? void 0 : _a.mono) {
+                // single
+                try {
+                    samples = yield makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono, `${baseUrl || ''}`);
+                }
+                catch (e) {
+                    console.error(e);
+                }
+            }
+            else {
+                // multi
+                try {
+                    samples = yield makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample, `${baseUrl || ''}`);
+                    samples.multiNote = true;
+                }
+                catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        else {
+            console.warn(`The instrument "${instrument_name}" is not supported or sampled.`);
+        }
+        return samples;
+    });
+}
+function makeMultiScaleSamplingNode(ctx, def, base) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let samples = { multiNote: true }, keys = Object.keys(def);
+        if (!keys.every(scaleKeyCheck$1)) {
+            console.error("A sampling note must be 'C' in octave 0 to 7");
+        }
+        for (const key of keys) {
+            if (def[key]) {
+                let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def[key]);
+                let sampleBuffer = yield sampleRes.arrayBuffer();
+                let source = yield ctx.decodeAudioData(sampleBuffer);
+                samples[key] = source;
+            }
+        }
+        return samples;
+    });
+}
+function makeSingleScaleSamplingNode(ctx, def, base) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def);
+        let sampleBuffer = yield sampleRes.arrayBuffer();
+        let source = yield ctx.decodeAudioData(sampleBuffer);
+        return {
+            mono: source,
+            multiNote: false
+        };
+    });
+}
+function scaleKeyCheck$1(key) {
+    return key.match(/^[C][0-7]$/);
+}
+
+function makeSynth(ctx, definition) {
+    let synth = new ErieSynth(ctx, definition.type || FM);
+    synth.generate(definition);
+    return synth;
+}
+class ErieSynth {
+    constructor(ctx, type) {
+        this.ctx = ctx;
+        this.frequency = new ErieSynthFrequency(this);
+        this.onended;
+        this.type = type;
+    }
+    generate(definition) {
+        if (this.type === FM) {
+            this.generateFM(definition);
+        }
+        else if (this.type === AM) {
+            this.generateAM(definition);
+        }
+    }
+    generateFM(definition) {
+        this.initDef = definition;
+        // carrier
+        this.carrier = this.ctx.createOscillator();
+        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
+        this.carrier.frequency.value = this.carrierPitch;
+        this.carrier.type = definition.carrierType || 'sine';
+        this.carrierType = definition.carrierType || 'sine';
+        if (definition.carrierDetune) {
+            this.carrierDetune = definition.carrierDetune;
+            this.carrier.detune.value = definition.carrierDetune;
+        }
+        // modulator
+        this.modulator = this.ctx.createOscillator();
+        this.modulator.type = definition.modulatorType || 'sine';
+        this.modulatorType = definition.modulatorType || 'sine';
+        // modulator gain
+        this.modulatorGain = this.ctx.createGain();
+        this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainFM;
+        this.modulatorGain.gain.value = this.modulatorVolume;
+        // modulator pitch > modulation index > harmonicity > carrier's pitch > default pitch
+        if (definition.modulatorPitch !== undefined) {
+            this.modulatorPitch = definition.modulatorPitch;
+        }
+        else if (definition.modulation !== undefined) {
+            this.modulation = definition.modulation;
+            this.modulatorPitch = this.modulatorVolume / this.modulation;
+        }
+        else if (definition.harmonicity !== undefined) {
+            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
+        }
+        else if (this.carrierPitch !== undefined) {
+            this.modulatorPitch = this.carrierPitch;
+        }
+        else {
+            this.modulatorPitch = DefModPitch;
+        }
+        this.modulator.frequency.value = this.modulatorPitch;
+        // envelope
+        this.envelope = this.ctx.createGain();
+        this.attackTime = definition.attackTime || 0.1;
+        this.releaseTime = definition.releaseTime || 0.1;
+        this.sustain = definition.sustain || 0.8;
+        this.decayTime = definition.decayTime || 0.2;
+        // Connect the nodes
+        this.modulator.connect(this.modulatorGain);
+        this.modulatorGain.connect(this.carrier.frequency);
+        this.carrier.connect(this.envelope);
+    }
+    generateAM(definition) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        this.initDef = definition;
+        // carrier
+        this.carrier = this.ctx.createOscillator();
+        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
+        this.carrier.frequency.value = this.carrierPitch;
+        this.carrier.type = (_a = definition.carrierType) !== null && _a !== void 0 ? _a : 'sine';
+        this.carrierType = (_b = definition.carrierType) !== null && _b !== void 0 ? _b : 'sine';
+        if (definition.carrierDetune) {
+            this.carrierDetune = definition.carrierDetune;
+            this.carrier.detune.value = definition.carrierDetune;
+        }
+        this.carrierVolume = (_c = definition.carrierVolume) !== null && _c !== void 0 ? _c : 1;
+        // modulator
+        this.modulator = this.ctx.createOscillator();
+        this.modulator.type = (_d = definition.modulatorType) !== null && _d !== void 0 ? _d : 'sine';
+        this.modulatorType = (_e = definition.modulatorType) !== null && _e !== void 0 ? _e : 'sine';
+        // modulator gain
+        this.modulatorGain = this.ctx.createGain();
+        if (definition.modulation !== undefined) {
+            this.modulation = definition.modulation;
+            this.modulatorVolume = ((_f = this.carrierVolume) !== null && _f !== void 0 ? _f : 1) * this.modulation;
+        }
+        else {
+            this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainAM;
+        }
+        this.modulatorGain.gain.value = this.modulatorVolume;
+        // modulator pitch 
+        if (definition.modulatorPitch !== undefined) {
+            this.modulatorPitch = definition.modulatorPitch;
+        }
+        else if (definition.harmonicity !== undefined) {
+            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
+        }
+        else if (this.carrierPitch !== undefined) {
+            this.modulatorPitch = this.carrierPitch;
+        }
+        else {
+            this.modulatorPitch = DefModPitch;
+        }
+        this.modulator.frequency.value = this.modulatorPitch;
+        // envelope
+        this.envelope = this.ctx.createGain();
+        this.attackTime = (_g = definition.attackTime) !== null && _g !== void 0 ? _g : 0.1;
+        this.releaseTime = (_h = definition.releaseTime) !== null && _h !== void 0 ? _h : 0.05;
+        this.sustain = (_j = definition.sustain) !== null && _j !== void 0 ? _j : 0.8;
+        this.decayTime = (_k = definition.decayTime) !== null && _k !== void 0 ? _k : 0.1;
+        // Connect the nodes
+        this.modulator.connect(this.modulatorGain.gain);
+        this.carrier.connect(this.modulatorGain);
+        this.modulatorGain.connect(this.envelope);
+    }
+    connect(node) {
+        this.envelope.connect(node);
+    }
+    start(time) {
+        this.carrier.start(time);
+        this.modulator.start(time);
+    }
+    stop(time) {
+        this.carrier.onended = this.onended;
+        this.carrier.stop(time + this.attackTime + this.releaseTime);
+        this.modulator.stop(time + this.attackTime + this.releaseTime);
+    }
+    get adTime() {
+        var _a, _b;
+        return ((_a = this.attackTime) !== null && _a !== void 0 ? _a : 0) + ((_b = this.decayTime) !== null && _b !== void 0 ? _b : 0);
+    }
+}
+class ErieSynthFrequency {
+    constructor(synther) {
+        this.value = DefModPitch;
+        this.automationRate = 'a-rate';
+        this.maxValue = 22050;
+        this.minValue = -22055;
+        this.synther = synther;
+    }
+    setValueAtTime(value, time) {
+        this.synther.carrier.frequency.setValueAtTime(value, time);
+    }
+    setTargetAtTime(value, time, timeConstant) {
+        this.synther.carrier.frequency.setTargetAtTime(value, time, timeConstant);
+    }
+    linearRampToValueAtTime(value, endTime) {
+        this.synther.carrier.frequency.linearRampToValueAtTime(value, endTime);
+    }
+    exponentialRampToValueAtTime(value, endTime) {
+        this.synther.carrier.frequency.exponentialRampToValueAtTime(value, endTime);
+    }
+    setValueCurveAtTime(values, startTime, duration) {
+        this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
+    }
+}
+// inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
+const AMMppaer = (amount) => (amount + 1) / 2;
+
+const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
+const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
+// inspired by : https://noisehack.com/generate-noise-web-audio-api/ (but it's not using audioscriptprocess, which is deprecated)
+// and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
+function makeNoiseNode(ctx, type, duration // seconds
+) {
+    // here, duration is the noise node's duration, for continuous tone it's the entire length;
+    const bufferSize = ctx.sampleRate * duration;
+    // Create an empty buffer
+    const noiseBuffer = new AudioBuffer({
+        length: bufferSize,
+        sampleRate: ctx.sampleRate,
+        numberOfChannels: 2
+    });
+    // Fill the buffer with noise
+    const data0 = noiseBuffer.getChannelData(0);
+    const data1 = noiseBuffer.getChannelData(0);
+    // for pink
+    let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
+    for (let i = 0; i < bufferSize; i++) {
+        if (type === PinkNoise) {
+            PinkNoiseFunction(coeffs);
+            data0[i] = coeffs.o;
+        }
+        else if (type === BrownNoise) {
+            BrownNoiseFunction(coeffs);
+            data0[i] = coeffs.o;
+        }
+        else {
+            data0[i] = WhiteNoiseFunction();
+        }
+        data1[i] = data0[i];
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    return noise;
+}
+function WhiteNoiseFunction() {
+    return Math.random() * 2 - 1;
+}
+function PinkNoiseFunction(c) {
+    let w = WhiteNoiseFunction();
+    c.p0 = 0.99886 * c.p0 + w * 0.0555179;
+    c.p1 = 0.99332 * c.p1 + w * 0.0750759;
+    c.p2 = 0.96900 * c.p2 + w * 0.1538520;
+    c.p3 = 0.86650 * c.p3 + w * 0.3104856;
+    c.p4 = 0.55000 * c.p4 + w * 0.5329522;
+    c.p5 = -0.7616 * c.p5 - w * 0.0168980;
+    c.o = c.p0 + c.p1 + c.p2 + c.p3 + c.p4 + c.p5 + c.p6 + w * 0.5362;
+    c.o *= 0.11;
+    c.p6 = w * 0.115926; // gain compensation
+}
+function BrownNoiseFunction(c) {
+    let w = WhiteNoiseFunction();
+    c.o = (c.p0 + (0.02 * w)) / 1.02;
+    c.p0 = c.o;
+    c.o *= 3.5; // gain compensation
+}
+
+function makeContext() {
+    return new AudioContext();
+}
+function makeOfflineContext(length) {
+    return new OfflineAudioContext(BufferChannels$1, SampleRate$1 * length, SampleRate$1);
+}
+function makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound, contEndTime) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (iType === "default") {
+        return ctx.createOscillator();
+    }
+    else if (isOscType(iType)) {
+        let osc = ctx.createOscillator();
+        osc.type = iType;
+        return osc;
+    }
+    else if (typeof iType === 'string' && NoiseTypes.includes(iType)) {
+        let dur = (_a = contEndTime !== null && contEndTime !== void 0 ? contEndTime : sound === null || sound === void 0 ? void 0 : sound.duration) !== null && _a !== void 0 ? _a : 0;
+        if (sound && 'detune' in sound && (sound === null || sound === void 0 ? void 0 : sound.detune) !== undefined && (sound === null || sound === void 0 ? void 0 : sound.detune) > 0)
+            dur += dur * ((sound === null || sound === void 0 ? void 0 : sound.detune) / 600);
+        return makeNoiseNode(ctx, iType, dur * 1.1);
+    }
+    else if (typeof iType === 'string' && MultiNoteInstruments.includes(iType)) {
+        let note = determineNoteRange((_b = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, {});
+        let sample = (_c = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _c === void 0 ? void 0 : _c[('C' + note.octave)];
+        let source = ctx.createBufferSource();
+        source.buffer = sample;
+        source.detune.value = note.detune;
+        return source;
+    }
+    else if (typeof iType === 'string' && SingleNoteInstruments.includes(iType) && instSamples) {
+        let sample = instSamples[iType].mono;
+        let source = ctx.createBufferSource();
+        source.buffer = sample;
+        return source;
+    }
+    else if (typeof iType === 'string' && ((_d = Object.keys(waveDefs || {})) === null || _d === void 0 ? void 0 : _d.includes(iType)) && waveDefs) {
+        let real_parsed = new Float32Array(waveDefs[iType].real);
+        let imag_parsed = new Float32Array(waveDefs[iType].imag);
+        const wave = ctx.createPeriodicWave(real_parsed, imag_parsed, { disableNormalization: waveDefs[iType].disableNormalization || false });
+        let osc = ctx.createOscillator();
+        osc.setPeriodicWave(wave);
+        return osc;
+    }
+    else if (typeof iType === 'string' && ((_e = Object.keys(instSamples || {})) === null || _e === void 0 ? void 0 : _e.includes(iType)) && instSamples) {
+        let sample;
+        let note = determineNoteRange((_f = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _f !== void 0 ? _f : DefaultFrequency, {});
+        if (instSamples[iType].multiNote) {
+            sample = (_g = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _g === void 0 ? void 0 : _g[('C' + note.octave)];
+        }
+        else {
+            sample = instSamples[iType].mono;
+        }
+        let source = ctx.createBufferSource();
+        source.buffer = sample;
+        if (instSamples[iType].multiNote) {
+            source.detune.value = note.detune;
+        }
+        return source;
+    }
+    else if (typeof iType === 'string' && ((_h = Object.keys(synthDefs || {})) === null || _h === void 0 ? void 0 : _h.includes(iType)) && synthDefs) {
+        let synth = makeSynth(ctx, synthDefs[iType]);
+        return synth;
+    }
+    else {
+        return ctx.createOscillator();
+    }
+}
+
 const Globals = {
     ErieGlobalControl: undefined,
     ErieGlobalState: undefined,
@@ -1201,6 +1803,518 @@ function getSampleBaseUrl(url) {
     else {
         return Globals.ErieSampleBaseUrl;
     }
+}
+
+function setCurrentTime(ctx) {
+    return ctx.currentTime;
+}
+// export let ErieGlobalControl: GlobalControl, ErieGlobalState: GlobalState;
+function setErieGlobalControl(ctrl) {
+    if (isBrowserWindowPossible()) {
+        if (!('ErieGlobalControl' in window))
+            window.ErieGlobalControl = undefined;
+        window.ErieGlobalControl = ctrl;
+    }
+    else {
+        Globals.ErieGlobalControl = ctrl;
+    }
+}
+function isErieGlobalControlType(t) {
+    var _a, _b;
+    if (isBrowserWindowPossible()) {
+        return ((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.type) === t;
+    }
+    else {
+        return ((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.type) === t;
+    }
+}
+function isErieGlobalControlAudioContext() {
+    var _a, _b, _c, _d;
+    if (isBrowserWindowPossible()) {
+        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof AudioContext) || (((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof OfflineAudioContext);
+    }
+    else {
+        return (((_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player) instanceof AudioContext) || (((_d = Globals.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) instanceof OfflineAudioContext);
+    }
+}
+function isErieGlobalControlSpeechSynthesis() {
+    var _a, _b;
+    if (isBrowserWindowPossible()) {
+        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof SpeechSynthesis);
+    }
+    else {
+        return (((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof SpeechSynthesis);
+    }
+}
+function closeErieGlobalControl() {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    if (isBrowserWindowPossible()) {
+        if (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) && 'cancel' in ((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player)) {
+            (_c = window.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player.cancel();
+        }
+        else if (((_d = window.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) && 'close' in ((_e = window.ErieGlobalControl) === null || _e === void 0 ? void 0 : _e.player)) {
+            (_f = window.ErieGlobalControl) === null || _f === void 0 ? void 0 : _f.player.close();
+        }
+    }
+    else {
+        if (((_g = Globals.ErieGlobalControl) === null || _g === void 0 ? void 0 : _g.player) && 'cancel' in ((_h = Globals.ErieGlobalControl) === null || _h === void 0 ? void 0 : _h.player)) {
+            (_j = Globals.ErieGlobalControl) === null || _j === void 0 ? void 0 : _j.player.cancel();
+        }
+        else if (((_k = Globals.ErieGlobalControl) === null || _k === void 0 ? void 0 : _k.player) && 'close' in ((_l = Globals.ErieGlobalControl) === null || _l === void 0 ? void 0 : _l.player)) {
+            (_m = Globals.ErieGlobalControl) === null || _m === void 0 ? void 0 : _m.player.close();
+        }
+    }
+}
+function setErieGlobalState(state) {
+    if (isBrowserWindowPossible()) {
+        if (!('ErieGlobalState' in window))
+            window.ErieGlobalState = undefined;
+        window.ErieGlobalState = state;
+    }
+    else {
+        Globals.ErieGlobalState = state;
+    }
+}
+function isErieGlobalState(state) {
+    if (isBrowserWindowPossible()) {
+        return window.ErieGlobalState === state;
+    }
+    else {
+        return Globals.ErieGlobalState === state;
+    }
+}
+function setPlayerEvents(queue, config) {
+    if (typeof window !== 'undefined') {
+        const stop = function (event) {
+            if ('key' in event && event.key == 'x') {
+                setErieGlobalState(Stopped);
+                queue.state = Stopped;
+                closeErieGlobalControl();
+                notifyStop(config);
+            }
+        };
+        if (isBrowserWindowPossible()) {
+            window.addEventListener('keypress', stop);
+            if (!window.ErieGlobalPlayerEvents)
+                window.ErieGlobalPlayerEvents = new Map();
+            window.ErieGlobalPlayerEvents.set('stop-event', stop);
+        }
+        else {
+            Globals.ErieGlobalPlayerEvents.set('stop-event', stop);
+        }
+    }
+}
+function clearPlayerEvents() {
+    if (typeof window !== 'undefined') {
+        if (isBrowserWindowPossible()) {
+            if (!window.ErieGlobalPlayerEvents)
+                window.ErieGlobalPlayerEvents = new Map();
+            let stop = window.ErieGlobalPlayerEvents.get('stop-event');
+            if (stop)
+                window.removeEventListener('keypress', stop);
+            window.ErieGlobalPlayerEvents.delete('stop-event');
+        }
+        else {
+            Globals.ErieGlobalPlayerEvents.delete('stop-event');
+        }
+    }
+}
+function setErieGlobalStreamingControl(key, value) {
+    if (isBrowserWindowPossible()) {
+        // @ts-ignore
+        if (!('ErieGlobalStreamingControl' in window))
+            window.ErieGlobalStreamingControl = {};
+        window.ErieGlobalStreamingControl[key] = value;
+    }
+    else {
+        Globals.ErieGlobalStreamingControl[key] = value;
+    }
+}
+
+function rampBy(ramperType, // default -> linear
+param, // any audio parameter that has ramping methods
+value, // the value to set
+time_at, // when to set the value
+speed) {
+    switch (ramperType) {
+        case 'exponentialRampToValueAtTime':
+            // exponential ramping does not allow value 0
+            param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
+            break;
+        case 'linearRampToValueAtTime':
+            param.linearRampToValueAtTime(value, time_at);
+            break;
+        case 'setValueAtTime':
+            param.setValueAtTime(value, time_at);
+            break;
+        case 'setTargetAtTime':
+            if (speed !== undefined)
+                param.setTargetAtTime(value, time_at, speed !== null && speed !== void 0 ? speed : 0.6);
+            else
+                console.error("Speed paramemter must be defined for setTargetAtTime method.");
+            break;
+        default:
+            param.linearRampToValueAtTime(value, time_at);
+            break;
+    }
+}
+// note: how rampers are processed
+/*
+Precondition: A ramping method can only defined for a continuous tone.
+1. A ramping method is first defined in a spec under a channel.
+2. It is collected and passed along to a unit stream (only a unit stream) to aovid any potential collision.
+3. When a unit stream is played, it is passed as configuration information and the proper ramping function is selected using the rampBy function.
+*/
+
+// extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
+class BiquadFilter extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        this.ctx = ctx;
+        this.filter = ctx.createBiquadFilter();
+        this.destination = this.filter;
+        this.useGain = false;
+    }
+    initialize(time) {
+        this.filter.gain.setValueAtTime(1, time);
+    }
+    connect(node) {
+        this.filter.connect(node);
+    }
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+class LowpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'lowpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class HighpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'highpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class BandpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'bandpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class LowshelfBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'lowshelf';
+        this.destination = this.filter;
+        this.useGain = true;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class HighshelfBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'highshelf';
+        this.destination = this.filter;
+        this.useGain = true;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class PeakingBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'peaking';
+        this.destination = this.filter;
+        this.useGain = true;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class NotchBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'notch';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class AllpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'allpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+const BiquadEncoder = function (filter, sound, startTime, rampers) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (filter.useGain) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadGain, filter.filter.gain, ((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime);
+    }
+    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadPitch, filter.filter.frequency, ((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime);
+    }
+    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadQ, filter.filter.Q, ((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime);
+    }
+    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadDetune, filter.filter.detune, ((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime);
+    }
+};
+const BiquadFinisher = function (filter, sound, startTime, duration, rampers) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (filter.useGain) {
+        filter.filter.gain.setValueAtTime(((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime + duration);
+    }
+    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
+        filter.filter.frequency.setValueAtTime(((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime + duration);
+    }
+    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
+        filter.filter.Q.setValueAtTime(((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime + duration);
+    }
+    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
+        filter.filter.detune.setValueAtTime(((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime + duration);
+    }
+};
+
+class DefaultDynamicCompressor extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        this.ctx = ctx;
+        this.filter = ctx.createDynamicsCompressor();
+        this.destination = this.filter;
+    }
+    initialize() {
+        this.filter.attack.value = 20;
+        this.filter.knee.value = 40;
+        this.filter.ratio.value = 18;
+        this.filter.release.value = 0.25;
+        this.filter.threshold.value = -50;
+    }
+    connect(node) {
+        this.filter.connect(node);
+    }
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+const CompressorEncoder = function (filter, sound, startTime, rampers) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.dcAttack) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcAttack, filter.filter.attack, (_b = sound.others.dcAttack) !== null && _b !== void 0 ? _b : 1, startTime);
+    if (((_c = sound.others) === null || _c === void 0 ? void 0 : _c.dcKnee) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcKnee, filter.filter.knee, (_d = sound.others.dcKnee) !== null && _d !== void 0 ? _d : 1, startTime);
+    if (((_e = sound.others) === null || _e === void 0 ? void 0 : _e.dcRatio) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcRatio, filter.filter.ratio, (_f = sound.others.dcRatio) !== null && _f !== void 0 ? _f : 1, startTime);
+    if (((_g = sound.others) === null || _g === void 0 ? void 0 : _g.dcReduction) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcReduction, filter.filter.release, (_h = sound.others.dcReduction) !== null && _h !== void 0 ? _h : 1, startTime);
+    if (((_j = sound.others) === null || _j === void 0 ? void 0 : _j.dcThreshold) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcThreshold, filter.filter.threshold, (_k = sound.others.dcThreshold) !== null && _k !== void 0 ? _k : 1, startTime);
+};
+const CompressorFinisher = function (filter, sound, startTime, duration, rampers) {
+};
+
+class DistortionFilter extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        this.ctx = ctx;
+        this.filter = ctx.createWaveShaper();
+        this.destination = this.filter;
+    }
+    initialize(s, e) {
+        // s: starting time is not important but for formatting
+        this.filter.curve = makeDistortionCurve(e);
+    }
+    connect(node) {
+        this.filter.connect(node);
+    }
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+// https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
+function makeDistortionCurve(amount) {
+    const k = amount !== null && amount !== void 0 ? amount : 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n_samples; i++) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + k) * x * 10 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+}
+const DistortionEncoder = function (filter, sound, startTime, rampers) {
+    var _a;
+    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.distortion) !== undefined) {
+        filter.filter.curve = makeDistortionCurve(sound.others.distortion);
+    }
+    else {
+        filter.filter.curve = makeDistortionCurve(100);
+    }
+};
+const DistortionFinisher = function (filter, sound, startTime, duration, rampers) {
+    filter.filter.curve = makeDistortionCurve(50);
+};
+
+// This is a basic sample for how to define a custom filter
+class GainerFilter extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        // always needs an (offline) audio context
+        this.ctx = ctx;
+        // static parameters
+        this.attackTime = 0.1;
+        this.releaseTime = 0.1;
+        // always needs a `filter` property for dynamic parameters to be used by the encoder and finisher
+        // the name can change but... just stick to this
+        this.filter = ctx.createGain();
+        // always needs a desitnation that is connectable; sometimes it can be something other than the filter object.
+        // the name can never be changed because this is the property that other interfaces gonna access to this node.
+        this.destination = this.filter;
+    }
+    // [required] this is ran when the filter is applied for the first time
+    initialize(time) {
+        this.filter.gain.cancelScheduledValues(time);
+        this.filter.gain.setValueAtTime(0, time);
+    }
+    // the follwoing methods are required to satisfiy the basic audio node structure
+    // [required] this defines how this filter connects itself to another node
+    connect(node) {
+        this.filter.connect(node);
+    }
+    // [required] this defines how this filter *dis*connects itself to another node
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+// an encoder changes values at a time
+// must use `rampBy` function as a standard interface for ramping functions
+const GainerEncoder = function (filter, sound, startTime, rampers) {
+    var _a, _b;
+    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, // ramper methods (if provided, otherwise, 'linear')
+    filter.filter.gain, // actual node to set the value
+    (_b = (_a = sound.others) === null || _a === void 0 ? void 0 : _a.gain2) !== null && _b !== void 0 ? _b : 1, // the gain value
+    startTime + filter.attackTime // when the gain value kicks in
+    );
+};
+// a finisher sets the final values when the sound is done.
+// must use `rampBy` function as a standard interface for ramping functions
+const GainerFinisher = function (filter, sound, startTime, duration, rampers) {
+    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, filter.filter.gain, 0, (startTime || 0) + (duration || 1) - filter.releaseTime);
+};
+
+const PresetFilters = {
+    'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
+    'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'bandpass': { filter: BandpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'lowshelf': { filter: LowshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'highshelf': { filter: HighshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'peaking': { filter: PeakingBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'notch': { filter: NotchBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'allpass': { filter: AllpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'defaultCompressor': { filter: DefaultDynamicCompressor, encoder: CompressorEncoder, finisher: CompressorFinisher },
+    'distortion': { filter: DistortionFilter, encoder: DistortionEncoder, finisher: DistortionFinisher }
+};
+const FilterExtraChannelTypes = {
+    gain2: { type: LOUDNESS_chn },
+    biquadDetune: { type: DETUNE_chn },
+    biquadPitch: { type: PITCH_chn }
+};
+
+function emitNotePlayEvent(type, note) {
+    if (isBrowserEventPossible()) {
+        document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
+            detail: {
+                type,
+                note
+            }
+        }));
+    }
+}
+function emitNoteStopEvent(type, note) {
+    if (isBrowserEventPossible()) {
+        document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
+            detail: {
+                type,
+                note
+            }
+        }));
+    }
+}
+
+function createPanner(ctx, cartesianInputs) {
+    if (cartesianInputs <= 1) {
+        const stereoPanner = ctx.createStereoPanner();
+        return stereoPanner;
+    }
+    else {
+        // default values: https://webaudio.github.io/web-audio-api/#PannerNode
+        // TODO: max Distance? Scales within 1? -> comment each value
+        const panner3D = ctx.createPanner();
+        panner3D.panningModel = 'equalpower';
+        panner3D.distanceModel = 'inverse';
+        panner3D.refDistance = 1;
+        panner3D.maxDistance = 10000;
+        panner3D.rolloffFactor = 1;
+        panner3D.coneInnerAngle = 360;
+        panner3D.coneOuterAngle = 360;
+        panner3D.coneOuterGain = 0;
+        return panner3D;
+    }
+}
+
+function playPause(ms, config) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
 }
 
 let ErieFilters = {};
@@ -2022,58 +3136,116 @@ function configValidator(k, v) {
         return true;
 }
 
-const Values = 'values', Url = 'url', Name = 'name', Unset = 'unset';
-const AllowedDataTypes = [Values, Url, Name];
+const Values = 'values', Url = 'url', Name = 'name', Unset$1 = 'unset', Streaming = 'streaming';
+const AllowedDataTypes = [Values, Url, Name, Streaming];
 class Data {
     constructor() {
         this.type = 'unset';
-        this.values = null;
-        this.url = null;
-        this.name = null;
+        this._values = null;
+        this._url = null;
+        this._name = null;
+        this._streaming = false;
+        this._test = null;
     }
     set(type, e) {
         if (isInstanceOf(type, Dataset)) {
             this.type = Name;
-            this.name = type._name;
-        }
-        else if (!AllowedDataTypes.includes(type)) {
-            throw new TypeError(`Unspported data type ${type}}. It must be either one of ${AllowedDataTypes.join(", ")}.`);
+            this._name = type._name;
+            // cancel others
+            this._values = null;
+            this._url = null;
+            this._name = null;
+            this._streaming = false;
+            this._test = null;
         }
         else {
-            if (type === Values) {
-                this.type = Values;
-                this.values = e;
-            }
-            else if (type === Url) {
-                this.type = Url;
-                this.url = e;
-            }
-            else if (type === Name) {
-                this.type = Name;
-                this.name = e;
-            }
+            console.warn("data.set method is only for a dataset object.");
         }
+        return this;
+    }
+    values(v) {
+        if (isArrayOf(v, Object)) {
+            this.type = Values;
+            this._values = deepcopy(v);
+            // cancel others
+            this._name = null;
+            this._url = null;
+            this._name = null;
+            this._streaming = false;
+            this._test = null;
+        }
+        else {
+            console.warn("only tidy data can be provided.");
+        }
+        return this;
+    }
+    url(v) {
+        if (typeof v === 'string') {
+            this.type = Values;
+            this._url = v;
+            // cancel others
+            this._values = null;
+            this._name = null;
+            this._name = null;
+            this._streaming = false;
+            this._test = null;
+        }
+        else {
+            console.warn("only string-based url can be provided.");
+        }
+        return this;
+    }
+    streaming(test) {
+        this.type = Streaming;
+        this._name = null;
+        this._name = null;
+        this._streaming = true;
+        if (typeof test === 'string') {
+            this._test = { url: test };
+        }
+        else if (isArrayOf(test, Object)) {
+            this._test = { values: deepcopy(test) };
+        }
+        else if (this._url) {
+            // get from those already set
+            this._test = { url: this._url };
+        }
+        else if (this._values) {
+            // get from those already set
+            this._test = { values: deepcopy(this._values) };
+        }
+        else {
+            console.warn("only string-based url or tidy data can be provided for the test data for streaming spec.");
+        }
+        this._url = null;
+        this._values = null;
         return this;
     }
     get() {
         return {
             type: this.type,
-            values: deepcopy(this.values),
-            url: this.url,
-            name: this.name
+            values: deepcopy(this._values),
+            url: this._url,
+            name: this._name,
+            streaming: this._streaming,
+            test: this._test
         };
     }
     clone() {
         let _c = new Data();
         _c.type = this.type;
         if (this.type === Values) {
-            _c.values = deepcopy(this.values);
+            _c._values = deepcopy(this._values);
         }
         else if (this.type === Url) {
-            _c.url = this.url;
+            _c._url = this._url;
         }
         else if (this.type === Name) {
-            _c.name = this.name;
+            _c._name = this._name;
+        }
+        else if (this.type === Streaming) {
+            _c._streaming = this._streaming;
+            _c._test = deepcopy(this._test);
         }
         return _c;
     }
@@ -2297,7 +3469,7 @@ class Synth {
     }
 }
 
-function scaleKeyCheck$1(key) {
+function scaleKeyCheck(key) {
     return key.match(/^[C][0-7]$/);
 }
 class SampledTone {
@@ -2313,7 +3485,7 @@ class SampledTone {
     }
     setSample(s) {
         Object.keys(s).forEach((k) => {
-            if (!scaleKeyCheck$1(k) || k === undefined) {
+            if (!scaleKeyCheck(k) || k === undefined) {
                 throw new TypeError('The key of a sampling object should be "C" + "0-7".');
             }
             else if (k === "mono") {
@@ -2338,7 +3510,7 @@ class SampledTone {
         return _c;
     }
 }
-class Sampling {
+let Sampling$1 = class Sampling {
     constructor() {
         this.sampling = [];
     }
@@ -2354,7 +3526,7 @@ class Sampling {
         _c.sampling = this.sampling.map((d) => d.clone());
         return _c;
     }
-}
+};
 
 class Tone {
     constructor(type, c) {
@@ -2496,13 +3668,408 @@ class Wave {
     }
 }
 
+const ChimeBeat = 0.33;
+function getChimeBeat(n) {
+    return ChimeBeat * n;
+}
+const ChimeBeforePlay = [{
+        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+    }]; // C -> G
+const ChimeNext = [{
+        start: getChimeBeat(0.15), duration: getChimeBeat(1.5), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1.65), duration: getChimeBeat(1), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(2.65), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+    }]; // C -> C
+const ChimeAfterPlay = [{
+        start: getChimeBeat(0.15), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1.15), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+    }]; // G -> C
+const ChimeIncoming = [{
+        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1.5), duration: getChimeBeat(1), pitch: noteFreqRange[5].e, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(2), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(3), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+    }]; // C -> G -> E -> C
+const ChimeBeforePlayback = [{
+        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+    }]; // D -> G (low octave)
+const ChimeAfterPlayback = [{
+        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
+    }, {
+        start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+    }]; // G -> D
+const chimeSynth = {
+    name: 'chimeSynth',
+    type: 'FM',
+    carrierType: 'sine',
+    carrierPitch: 220,
+    carrierDetune: 0,
+    carrierVolume: 1,
+    modulatorType: 'sine',
+    modulatorPitch: 440,
+    modulatorVolume: 1,
+    modulation: 1,
+    harmonicity: 1,
+    attackTime: 0.05,
+    releaseTime: 0.05,
+    sustain: 0.2,
+    decayTime: 0
+};
+const Chimes = {
+    'beforePlay': ChimeBeforePlay,
+    'afterPlay': ChimeAfterPlay,
+    'beforePlayback': ChimeBeforePlayback,
+    'afterPlayback': ChimeAfterPlayback,
+    'incoming': ChimeIncoming,
+    'next': ChimeNext
+};
+
+let ErieGlobalSynth;
+function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        if (!ErieGlobalSynth)
+            ErieGlobalSynth = window.speechSynthesis;
+        var utterance = new SpeechSynthesisUtterance(sound.speech);
+        if ((config === null || config === void 0 ? void 0 : config.speechRate) !== undefined)
+            utterance.rate = config === null || config === void 0 ? void 0 : config.speechRate;
+        else if ((sound === null || sound === void 0 ? void 0 : sound.speechRate) !== undefined)
+            utterance.rate = sound === null || sound === void 0 ? void 0 : sound.speechRate;
+        if ((sound === null || sound === void 0 ? void 0 : sound.pitch) !== undefined)
+            utterance.pitch = sound.pitch;
+        if ((sound === null || sound === void 0 ? void 0 : sound.loudness) !== undefined)
+            utterance.volume = sound.loudness;
+        if (sound === null || sound === void 0 ? void 0 : sound.language)
+            utterance.lang = (bcp47language.includes(sound.language) ? sound.language : (_a = (typeof document !== undefined ? document : {}).documentElement) === null || _a === void 0 ? void 0 : _a.lang);
+        else
+            utterance.lang = ((_b = (typeof document !== undefined ? document : {}).documentElement) === null || _b === void 0 ? void 0 : _b.lang);
+        onstart();
+        ErieGlobalSynth.speak(utterance);
+        setErieGlobalControl({ type: SpeechType, player: ErieGlobalSynth });
+        utterance.onend = () => {
+            onend();
+            if (resolve)
+                resolve();
+        };
+    });
+}
+
+// chime instrument -> FM Synth
+function playChime(ctx, _chime, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (ctx === undefined) {
+            ctx = new AudioContext();
+        }
+        let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
+        let chime_queue = chime;
+        chime_queue.hasSpeech = false;
+        yield playAbsoluteDiscreteTones(ctx, chime_queue, {}, {}, // sampled
+        { chimeSynth }, // synth defs
+        {}, // wave defs
+        [], bufferPrimitve);
+    });
+}
+
+const Unset = 'unset', Chime = 'chime', Speech = 'speech', Sampling = 'sampling';
+class Notify {
+    constructor(t) {
+        this._type = Unset;
+        if (t)
+            this.type(t);
+        this._loudness = 1;
+        this._detune = 0;
+    }
+    type(t) {
+        if ([Chime, Speech, Sampling].includes(t)) {
+            this._type = t;
+            if (this._type == Chime) {
+                // cancel
+                delete this._speech;
+                delete this._language;
+                delete this._speechRate;
+                delete this._pitch;
+                delete this._sample;
+                delete this._detune;
+            }
+            else if (this._type == Speech) {
+                // cancel
+                delete this._chime;
+                delete this._sample;
+                delete this._detune;
+            }
+            else if (this._type == Sampling) {
+                // cancel
+                delete this._chime;
+                delete this._speech;
+                delete this._language;
+                delete this._speechRate;
+                delete this._pitch;
+            }
+        }
+        else {
+            console.warn("Unsupported type", t, "ignored.");
+        }
+        return this;
+    }
+    speech(t) {
+        if (this._type == Unset) {
+            this._type = Speech;
+        }
+        if (this._type != Speech) {
+            console.warn("Only supported for speech-type cnotifications.");
+        }
+        else if (typeof t == 'string') {
+            this._speech = t;
+        }
+        return this;
+    }
+    loudness(n) {
+        if (this._type == Unset) {
+            this._type = Speech;
+        }
+        if (typeof n == 'number' && n > 0) {
+            this._loudness = n;
+        }
+        return this;
+    }
+    pitch(n) {
+        if (this._type == Unset) {
+            this._type = Speech;
+        }
+        if (this._type != Speech) {
+            console.warn("Only supported for speech-type cnotifications.");
+        }
+        else if (typeof n == 'number' && n > 0) {
+            this._pitch = n;
+        }
+        return this;
+    }
+    detune(n) {
+        if (this._type != Sampling) {
+            console.warn("Only supported for sampling-type cnotifications.");
+        }
+        else if (typeof n == 'number' && n > 0) {
+            this._detune = n;
+        }
+        return this;
+    }
+    language(s) {
+        if (this._type == Unset) {
+            this._type = Speech;
+        }
+        if (this._type != Speech) {
+            console.warn("Only supported for speech-type cnotifications.");
+        }
+        else if (typeof s == 'string' && bcp47language.includes(s)) {
+            this._language = s;
+        }
+        return this;
+    }
+    chime(s) {
+        if (this._type != Chime) {
+            console.warn("Only supported for chime-type cnotifications.");
+        }
+        else if (isChimeName(s)) {
+            this._chime = s;
+        }
+        return this;
+    }
+    sample(s) {
+        if (this._type != Sampling) {
+            console.warn("Only supported for sampling-type cnotifications.");
+        }
+        else if (typeof s == 'string') {
+            this._sample = s;
+        }
+        return this;
+    }
+    get() {
+        if (this._type == Unset)
+            return undefined;
+        else if (this._type == Speech) {
+            if (this._speech) {
+                return {
+                    speech: this._speech,
+                    loudness: this._loudness,
+                    pitch: this._pitch,
+                    language: this._language,
+                    speechRate: this._speechRate
+                };
+            }
+            else {
+                return true;
+            }
+        }
+        else if (this._type == Sampling) {
+            if (this._sample) {
+                return {
+                    chime: this._sample,
+                    loudness: this._loudness,
+                };
+            }
+            else {
+                console.error("Undefined sampling URL");
+            }
+        }
+        else if (this._type == Chime) {
+            if (this._chime) {
+                return {
+                    chime: this._chime,
+                    loudness: this._loudness,
+                };
+            }
+            else {
+                console.error("Undefined chime name");
+            }
+        }
+    }
+    clone() {
+        let _c = new Notify();
+        if (_c) {
+            _c._type = this._type;
+            _c._speech = this._speech;
+            _c._loudness = this._loudness;
+            _c._pitch = this._pitch;
+            _c._detune = this._detune;
+            _c._language = this._language;
+            _c._speechRate = this._speechRate;
+            _c._chime = this._chime;
+            _c._sample = this._sample;
+        }
+        return _c;
+    }
+}
+function isChimeName(s) {
+    return (typeof s == 'string') && (s in Chimes);
+}
+function intNotify() {
+    return {
+        incoming: new Notify(),
+        beforePlayback: new Notify(),
+        afterPlayback: new Notify(),
+        beforePlay: new Notify(),
+        afterPlay: new Notify(),
+        next: new Notify()
+    };
+}
+
+class Playback {
+    constructor() {
+        this._init_by = 'manual';
+        this._unit = 'instance';
+        this._limit = 3;
+        this._speed = 1.5;
+    }
+    init_by(i) {
+        if (PlaybackTypes.includes(i)) {
+            this._init_by = i;
+        }
+        else {
+            console.error("Unsupported playback initiation type.");
+        }
+        return this;
+    }
+    unit(i) {
+        if (PlaybackUnits.includes(i)) {
+            this._unit = i;
+            if (this._unit != 'condition') {
+                this._condition = undefined;
+            }
+        }
+        else {
+            console.error("Unsupported playback unit type.");
+        }
+        return this;
+    }
+    condition(i) {
+        if (typeof i === 'string') {
+            this._unit = i;
+        }
+        else {
+            console.error("A playback condition must be a string.");
+        }
+        return this;
+    }
+    limit(i) {
+        if (typeof i === 'number') {
+            this._limit = i;
+        }
+        else {
+            console.error("Playback limit must be a number.");
+        }
+        return this;
+    }
+    speed(i) {
+        if (typeof i === 'number') {
+            this._speed = i;
+        }
+        else {
+            console.error("Playback speed must be a number.");
+        }
+        return this;
+    }
+    instrument(i) {
+        if (typeof i === 'string') {
+            this._instrument = i;
+        }
+        else {
+            console.error("Playback instrument must be a string.");
+        }
+        return this;
+    }
+    get() {
+        return {
+            init_by: this._init_by,
+            unit: this._unit,
+            condition: this._condition,
+            limit: this._limit,
+            speed: this._speed,
+            instrument: this._instrument
+        };
+    }
+    clone() {
+        let c = new Playback();
+        if (this._init_by !== undefined)
+            c.init_by(this._init_by);
+        if (this._unit !== undefined)
+            c.unit(this._unit);
+        if (this._condition !== undefined)
+            c.condition(this._condition);
+        if (this._limit !== undefined)
+            c.limit(this._limit);
+        if (this._speed !== undefined)
+            c.speed(this._speed);
+        if (this._instrument !== undefined)
+            c.instrument(this._instrument);
+        return c;
+    }
+}
+
 class Stream {
     constructor() {
         this.data = new Data();
         this.datasets = new Datasets();
         this.transform = new Transform();
         this.synth = new Synth();
-        this.sampling = new Sampling();
+        this.sampling = new Sampling$1();
         this.wave = new Wave();
         this.tone = new Tone();
         this.tick = new TickList();
@@ -2525,6 +4092,8 @@ class Stream {
             [HARMONICITY_chn]: new HarmonicityChannel()
         };
         this.config = new Config();
+        this.notify = intNotify();
+        this.playback = new Playback();
     }
     name(n) {
         this._name = n;
@@ -2563,7 +4132,7 @@ class Stream {
         return g;
     }
     clone() {
-        var _a, _b, _d, _e, _f, _g;
+        var _a, _b, _d, _e, _f, _g, _h, _j;
         let _c = new Stream();
         _c._name = this._name;
         _c._title = this._title;
@@ -2575,19 +4144,34 @@ class Stream {
         _c.sampling = (_e = this.sampling) === null || _e === void 0 ? void 0 : _e.clone();
         _c.wave = (_f = this.wave) === null || _f === void 0 ? void 0 : _f.clone();
         _c.tone = this.tone.clone();
+        _c.playback = (_g = this.playback) === null || _g === void 0 ? void 0 : _g.clone();
+        _c.notify = Object.keys((_h = this.notify) !== null && _h !== void 0 ? _h : {}).reduce((acc, curr) => {
+            var _a, _b;
+            if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                acc[curr] = (_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr];
+            return acc;
+        }, {});
         _c.encoding = {};
         Object.keys(this.encoding).forEach((chn) => {
             if (this.encoding[chn].defined) {
                 _c.encoding[chn] = this.encoding[chn].clone();
             }
         });
-        _c.config = (_g = this.config) === null || _g === void 0 ? void 0 : _g.clone();
+        _c.config = (_j = this.config) === null || _j === void 0 ? void 0 : _j.clone();
         return _c;
     }
 }
 
 class Overlay {
     constructor(...a) {
+        this.datasets = new Datasets();
+        this.transform = new Transform();
+        this.data = new Data();
+        this.sampling = new Sampling$1();
+        this.synth = new Synth();
+        this.wave = new Wave();
+        this.tick = new TickList();
+        this.config = new Config();
         let args = [...a];
         if (isInstanceOf(args[0], String)) {
             this._name = args[0];
@@ -2600,14 +4184,6 @@ class Overlay {
         else if (isArrayOf(args, Stream)) {
             this.addStreams(args);
         }
-        this.datasets = new Datasets();
-        this.transform = new Transform();
-        this.data = new Data();
-        this.sampling = new Sampling();
-        this.synth = new Synth();
-        this.wave = new Wave();
-        this.tick = new TickList();
-        this.config = new Config();
     }
     name(n) {
         this._name = n;
@@ -2725,6 +4301,14 @@ class Sequence {
             this._name = args[0];
             args.splice(0, 1);
         }
+        this.datasets = new Datasets();
+        this.transform = new Transform();
+        this.data = new Data();
+        this.sampling = new Sampling$1();
+        this.synth = new Synth();
+        this.wave = new Wave();
+        this.tick = new TickList();
+        this.config = new Config();
         this.sequence = [];
         if (isArrayOf(args[0], [Stream, Overlay])) {
             this.addStreams(args[0]);
@@ -2732,14 +4316,6 @@ class Sequence {
         else if (isArrayOf(args, [Stream, Overlay])) {
             this.addStreams(args);
         }
-        this.datasets = new Datasets();
-        this.transform = new Transform();
-        this.data = new Data();
-        this.sampling = new Sampling();
-        this.synth = new Synth();
-        this.wave = new Wave();
-        this.tick = new TickList();
-        this.config = new Config();
     }
     name(n) {
         this._name = n;
@@ -3169,1120 +4745,6 @@ class Fold {
             _c._as = deepcopy(this._as);
         return _c;
     }
-}
-
-class UnitStream {
-    constructor(id, instrument_type, stream, scales, opt) {
-        this.id = id;
-        this.instrument_type = instrument_type;
-        this.stream = stream;
-        this.option = opt || {};
-        this.scales = scales;
-        this.config = {};
-        this.name;
-        this.ramp = {};
-    }
-    setTitle(t) {
-        this.title = t;
-    }
-    setDescription(d) {
-        this.description = d;
-    }
-    setName(name) {
-        this.name = name;
-    }
-    setConfig(key, value) {
-        this.config[key] = value;
-    }
-    setFilters(audioFilters) {
-        this.audioFilters = audioFilters;
-    }
-    setRamp(ramp) {
-        this.ramp = deepcopy(ramp);
-    }
-    make_tone_text(i) {
-        var _a, _b;
-        let text = [];
-        let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`);
-        if (this.name)
-            text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: (_a = this.config) === null || _a === void 0 ? void 0 : _a.speechRate });
-        else
-            text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: (_b = this.config) === null || _b === void 0 ? void 0 : _b.speechRate });
-        text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
-        return text;
-    }
-    make_scale_text(channel) {
-        let scales = this.scales;
-        let text = Object.keys(scales)
-            .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
-            .map((c) => {
-            var _a, _b;
-            return {
-                id: (_a = scales[c]) === null || _a === void 0 ? void 0 : _a.scaleId,
-                channel: c,
-                description: (_b = scales[c]) === null || _b === void 0 ? void 0 : _b.description
-            };
-        });
-        return text.flat();
-    }
-    prerender() {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            return {
-                instrument_type: this.instrument_type,
-                sounds: this.stream,
-                continued: (_a = this.option) === null || _a === void 0 ? void 0 : _a.is_continued,
-                relative: (_b = this.option) === null || _b === void 0 ? void 0 : _b.relative,
-                filters: this.audioFilters,
-                ramp: this.ramp,
-                duration: this.duration
-            };
-        });
-    }
-}
-function isUnitStreamObject(o) {
-    var _a;
-    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === UnitStream.name;
-}
-
-// event-related
-function sendToneStartEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnPlayTone", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendToneFinishEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnFinishTone", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendSpeechStartEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendSpeechFinishEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendQueueStartEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendQueueFinishEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendStreamingSignal(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
-        document.body.dispatchEvent(playEvent);
-    }
-}
-
-function roundToNote(freq, scales) {
-    let min_diff = 5000, min_diff_note;
-    for (const noteName of noteScaleOrder) {
-        let diff = Math.abs(scales[noteName] - freq);
-        if (diff < min_diff) {
-            min_diff = diff;
-            min_diff_note = noteName;
-        }
-    }
-    return {
-        note_name: min_diff_note,
-        prev_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) - 1],
-        next_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) + 1],
-        note_freq: scales[min_diff_note],
-        detune: detuneAmmount[min_diff_note]
-    };
-}
-function roundToNoteScale(freq) {
-    var _a;
-    let octave;
-    for (const range of noteFreqRange) {
-        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
-            octave = range;
-        }
-        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
-            octave = range;
-        }
-        else if (range.gf <= freq && freq < range.fs) {
-            octave = range;
-        }
-    }
-    if (octave !== undefined) {
-        return (_a = roundToNote(freq, octave)) === null || _a === void 0 ? void 0 : _a.note_freq;
-    }
-    else {
-        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
-        return null;
-    }
-}
-function determineNoteRange(freq, config) {
-    var _a, _b;
-    let octave;
-    for (const range of noteFreqRange) {
-        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
-            octave = range;
-        }
-        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
-            octave = range;
-        }
-        else if (range.gf <= freq && freq < range.fs) {
-            octave = range;
-        }
-    }
-    if (octave !== undefined) {
-        let rounded_note = roundToNote(freq, octave);
-        if (config === null || config === void 0 ? void 0 : config.round) {
-            return {
-                octave: octave.octave,
-                original_freq: freq,
-                freq: rounded_note.note_freq,
-                note: rounded_note.note_name,
-                detune: rounded_note.detune
-            };
-        }
-        else {
-            let detune_base = rounded_note.detune;
-            let note_diff = rounded_note.note_freq - freq;
-            let detune = 0;
-            if (note_diff < 0) {
-                let note_left = octave[rounded_note.prev_note];
-                if (!rounded_note.prev_note) {
-                    note_left = (_a = noteFreqRange[octave.octave - 1]) === null || _a === void 0 ? void 0 : _a.f;
-                }
-                detune =
-                    Math.round(-100 * Math.abs(note_diff / (note_left - rounded_note.note_freq))) +
-                        detune_base;
-                if (!note_left) {
-                    detune = detune_base;
-                }
-            }
-            else if (note_diff > 0) {
-                let note_right = octave[rounded_note.next_note];
-                if (!rounded_note.next_note) {
-                    note_right = (_b = noteFreqRange[octave.octave + 1]) === null || _b === void 0 ? void 0 : _b.g;
-                }
-                detune =
-                    Math.round(100 * Math.abs(note_diff / (note_right - rounded_note.note_freq))) +
-                        detune_base;
-                if (!note_right) {
-                    detune = detune_base;
-                }
-            }
-            else {
-                detune = detune_base;
-            }
-            return { octave: octave.octave, freq, detune };
-        }
-    }
-    else {
-        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
-        return null;
-    }
-}
-function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        let samples;
-        if (MultiNoteInstruments.includes(instrument_name)) {
-            samples = { multiNote: true };
-            for (const octave of noteFreqRange) {
-                let sampleRes = yield fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
-                let sampleBuffer = yield sampleRes.arrayBuffer();
-                let source = yield ctx.decodeAudioData(sampleBuffer);
-                samples[`C${octave.octave}`] = source;
-            }
-        }
-        else if (SingleNoteInstruments.includes(instrument_name)) {
-            samples = yield makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
-        }
-        else if (smaplingDef[instrument_name]) {
-            if ((_a = smaplingDef[instrument_name].sample) === null || _a === void 0 ? void 0 : _a.mono) {
-                // single
-                try {
-                    samples = yield makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono, `${baseUrl || ''}`);
-                }
-                catch (e) {
-                    console.error(e);
-                }
-            }
-            else {
-                // multi
-                try {
-                    samples = yield makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample, `${baseUrl || ''}`);
-                    samples.multiNote = true;
-                }
-                catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-        else {
-            console.warn(`The instrument "${instrument_name}" is not supported or sampled.`);
-        }
-        return samples;
-    });
-}
-function makeMultiScaleSamplingNode(ctx, def, base) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let samples = { multiNote: true }, keys = Object.keys(def);
-        if (!keys.every(scaleKeyCheck)) {
-            console.error("A sampling note must be 'C' in octave 0 to 7");
-        }
-        for (const key of keys) {
-            if (def[key]) {
-                let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def[key]);
-                let sampleBuffer = yield sampleRes.arrayBuffer();
-                let source = yield ctx.decodeAudioData(sampleBuffer);
-                samples[key] = source;
-            }
-        }
-        return samples;
-    });
-}
-function makeSingleScaleSamplingNode(ctx, def, base) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def);
-        let sampleBuffer = yield sampleRes.arrayBuffer();
-        let source = yield ctx.decodeAudioData(sampleBuffer);
-        return {
-            mono: source,
-            multiNote: false
-        };
-    });
-}
-function scaleKeyCheck(key) {
-    return key.match(/^[C][0-7]$/);
-}
-
-function makeSynth(ctx, definition) {
-    let synth = new ErieSynth(ctx, definition.type || FM);
-    synth.generate(definition);
-    return synth;
-}
-class ErieSynth {
-    constructor(ctx, type) {
-        this.ctx = ctx;
-        this.frequency = new ErieSynthFrequency(this);
-        this.onended;
-        this.type = type;
-    }
-    generate(definition) {
-        if (this.type === FM) {
-            this.generateFM(definition);
-        }
-        else if (this.type === AM) {
-            this.generateAM(definition);
-        }
-    }
-    generateFM(definition) {
-        this.initDef = definition;
-        // carrier
-        this.carrier = this.ctx.createOscillator();
-        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
-        this.carrier.frequency.value = this.carrierPitch;
-        this.carrier.type = definition.carrierType || 'sine';
-        this.carrierType = definition.carrierType || 'sine';
-        if (definition.carrierDetune) {
-            this.carrierDetune = definition.carrierDetune;
-            this.carrier.detune.value = definition.carrierDetune;
-        }
-        // modulator
-        this.modulator = this.ctx.createOscillator();
-        this.modulator.type = definition.modulatorType || 'sine';
-        this.modulatorType = definition.modulatorType || 'sine';
-        // modulator gain
-        this.modulatorGain = this.ctx.createGain();
-        this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainFM;
-        this.modulatorGain.gain.value = this.modulatorVolume;
-        // modulator pitch > modulation index > harmonicity > carrier's pitch > default pitch
-        if (definition.modulatorPitch !== undefined) {
-            this.modulatorPitch = definition.modulatorPitch;
-        }
-        else if (definition.modulation !== undefined) {
-            this.modulation = definition.modulation;
-            this.modulatorPitch = this.modulatorVolume / this.modulation;
-        }
-        else if (definition.harmonicity !== undefined) {
-            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
-        }
-        else if (this.carrierPitch !== undefined) {
-            this.modulatorPitch = this.carrierPitch;
-        }
-        else {
-            this.modulatorPitch = DefModPitch;
-        }
-        this.modulator.frequency.value = this.modulatorPitch;
-        // envelope
-        this.envelope = this.ctx.createGain();
-        this.attackTime = definition.attackTime || 0.1;
-        this.releaseTime = definition.releaseTime || 0.1;
-        this.sustain = definition.sustain || 0.8;
-        this.decayTime = definition.decayTime || 0.2;
-        // Connect the nodes
-        this.modulator.connect(this.modulatorGain);
-        this.modulatorGain.connect(this.carrier.frequency);
-        this.carrier.connect(this.envelope);
-    }
-    generateAM(definition) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-        this.initDef = definition;
-        // carrier
-        this.carrier = this.ctx.createOscillator();
-        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
-        this.carrier.frequency.value = this.carrierPitch;
-        this.carrier.type = (_a = definition.carrierType) !== null && _a !== void 0 ? _a : 'sine';
-        this.carrierType = (_b = definition.carrierType) !== null && _b !== void 0 ? _b : 'sine';
-        if (definition.carrierDetune) {
-            this.carrierDetune = definition.carrierDetune;
-            this.carrier.detune.value = definition.carrierDetune;
-        }
-        this.carrierVolume = (_c = definition.carrierVolume) !== null && _c !== void 0 ? _c : 1;
-        // modulator
-        this.modulator = this.ctx.createOscillator();
-        this.modulator.type = (_d = definition.modulatorType) !== null && _d !== void 0 ? _d : 'sine';
-        this.modulatorType = (_e = definition.modulatorType) !== null && _e !== void 0 ? _e : 'sine';
-        // modulator gain
-        this.modulatorGain = this.ctx.createGain();
-        if (definition.modulation !== undefined) {
-            this.modulation = definition.modulation;
-            this.modulatorVolume = ((_f = this.carrierVolume) !== null && _f !== void 0 ? _f : 1) * this.modulation;
-        }
-        else {
-            this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainAM;
-        }
-        this.modulatorGain.gain.value = this.modulatorVolume;
-        // modulator pitch 
-        if (definition.modulatorPitch !== undefined) {
-            this.modulatorPitch = definition.modulatorPitch;
-        }
-        else if (definition.harmonicity !== undefined) {
-            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
-        }
-        else if (this.carrierPitch !== undefined) {
-            this.modulatorPitch = this.carrierPitch;
-        }
-        else {
-            this.modulatorPitch = DefModPitch;
-        }
-        this.modulator.frequency.value = this.modulatorPitch;
-        // envelope
-        this.envelope = this.ctx.createGain();
-        this.attackTime = (_g = definition.attackTime) !== null && _g !== void 0 ? _g : 0.1;
-        this.releaseTime = (_h = definition.releaseTime) !== null && _h !== void 0 ? _h : 0.05;
-        this.sustain = (_j = definition.sustain) !== null && _j !== void 0 ? _j : 0.8;
-        this.decayTime = (_k = definition.decayTime) !== null && _k !== void 0 ? _k : 0.1;
-        // Connect the nodes
-        this.modulator.connect(this.modulatorGain.gain);
-        this.carrier.connect(this.modulatorGain);
-        this.modulatorGain.connect(this.envelope);
-    }
-    connect(node) {
-        this.envelope.connect(node);
-    }
-    start(time) {
-        this.carrier.start(time);
-        this.modulator.start(time);
-    }
-    stop(time) {
-        this.carrier.onended = this.onended;
-        this.carrier.stop(time + this.attackTime + this.releaseTime);
-        this.modulator.stop(time + this.attackTime + this.releaseTime);
-    }
-    get adTime() {
-        var _a, _b;
-        return ((_a = this.attackTime) !== null && _a !== void 0 ? _a : 0) + ((_b = this.decayTime) !== null && _b !== void 0 ? _b : 0);
-    }
-}
-class ErieSynthFrequency {
-    constructor(synther) {
-        this.value = DefModPitch;
-        this.automationRate = 'a-rate';
-        this.maxValue = 22050;
-        this.minValue = -22055;
-        this.synther = synther;
-    }
-    setValueAtTime(value, time) {
-        this.synther.carrier.frequency.setValueAtTime(value, time);
-    }
-    setTargetAtTime(value, time, timeConstant) {
-        this.synther.carrier.frequency.setTargetAtTime(value, time, timeConstant);
-    }
-    linearRampToValueAtTime(value, endTime) {
-        this.synther.carrier.frequency.linearRampToValueAtTime(value, endTime);
-    }
-    exponentialRampToValueAtTime(value, endTime) {
-        this.synther.carrier.frequency.exponentialRampToValueAtTime(value, endTime);
-    }
-    setValueCurveAtTime(values, startTime, duration) {
-        this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
-    }
-}
-// inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
-const AMMppaer = (amount) => (amount + 1) / 2;
-
-const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
-const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
-// inspired by : https://noisehack.com/generate-noise-web-audio-api/ (but it's not using audioscriptprocess, which is deprecated)
-// and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
-function makeNoiseNode(ctx, type, duration // seconds
-) {
-    // here, duration is the noise node's duration, for continuous tone it's the entire length;
-    const bufferSize = ctx.sampleRate * duration;
-    // Create an empty buffer
-    const noiseBuffer = new AudioBuffer({
-        length: bufferSize,
-        sampleRate: ctx.sampleRate,
-        numberOfChannels: 2
-    });
-    // Fill the buffer with noise
-    const data0 = noiseBuffer.getChannelData(0);
-    const data1 = noiseBuffer.getChannelData(0);
-    // for pink
-    let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
-    for (let i = 0; i < bufferSize; i++) {
-        if (type === PinkNoise) {
-            PinkNoiseFunction(coeffs);
-            data0[i] = coeffs.o;
-        }
-        else if (type === BrownNoise) {
-            BrownNoiseFunction(coeffs);
-            data0[i] = coeffs.o;
-        }
-        else {
-            data0[i] = WhiteNoiseFunction();
-        }
-        data1[i] = data0[i];
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-    return noise;
-}
-function WhiteNoiseFunction() {
-    return Math.random() * 2 - 1;
-}
-function PinkNoiseFunction(c) {
-    let w = WhiteNoiseFunction();
-    c.p0 = 0.99886 * c.p0 + w * 0.0555179;
-    c.p1 = 0.99332 * c.p1 + w * 0.0750759;
-    c.p2 = 0.96900 * c.p2 + w * 0.1538520;
-    c.p3 = 0.86650 * c.p3 + w * 0.3104856;
-    c.p4 = 0.55000 * c.p4 + w * 0.5329522;
-    c.p5 = -0.7616 * c.p5 - w * 0.0168980;
-    c.o = c.p0 + c.p1 + c.p2 + c.p3 + c.p4 + c.p5 + c.p6 + w * 0.5362;
-    c.o *= 0.11;
-    c.p6 = w * 0.115926; // gain compensation
-}
-function BrownNoiseFunction(c) {
-    let w = WhiteNoiseFunction();
-    c.o = (c.p0 + (0.02 * w)) / 1.02;
-    c.p0 = c.o;
-    c.o *= 3.5; // gain compensation
-}
-
-function makeContext() {
-    return new AudioContext();
-}
-function makeOfflineContext(length) {
-    return new OfflineAudioContext(BufferChannels$1, SampleRate$1 * length, SampleRate$1);
-}
-function makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound, contEndTime) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    if (iType === "default") {
-        return ctx.createOscillator();
-    }
-    else if (isOscType(iType)) {
-        let osc = ctx.createOscillator();
-        osc.type = iType;
-        return osc;
-    }
-    else if (typeof iType === 'string' && NoiseTypes.includes(iType)) {
-        let dur = (_a = contEndTime !== null && contEndTime !== void 0 ? contEndTime : sound === null || sound === void 0 ? void 0 : sound.duration) !== null && _a !== void 0 ? _a : 0;
-        if (sound && 'detune' in sound && (sound === null || sound === void 0 ? void 0 : sound.detune) !== undefined && (sound === null || sound === void 0 ? void 0 : sound.detune) > 0)
-            dur += dur * ((sound === null || sound === void 0 ? void 0 : sound.detune) / 600);
-        return makeNoiseNode(ctx, iType, dur * 1.1);
-    }
-    else if (typeof iType === 'string' && MultiNoteInstruments.includes(iType)) {
-        let note = determineNoteRange((_b = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, {});
-        let sample = (_c = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _c === void 0 ? void 0 : _c[('C' + note.octave)];
-        let source = ctx.createBufferSource();
-        source.buffer = sample;
-        source.detune.value = note.detune;
-        return source;
-    }
-    else if (typeof iType === 'string' && SingleNoteInstruments.includes(iType) && instSamples) {
-        let sample = instSamples[iType].mono;
-        let source = ctx.createBufferSource();
-        source.buffer = sample;
-        return source;
-    }
-    else if (typeof iType === 'string' && ((_d = Object.keys(waveDefs || {})) === null || _d === void 0 ? void 0 : _d.includes(iType)) && waveDefs) {
-        let real_parsed = new Float32Array(waveDefs[iType].real);
-        let imag_parsed = new Float32Array(waveDefs[iType].imag);
-        const wave = ctx.createPeriodicWave(real_parsed, imag_parsed, { disableNormalization: waveDefs[iType].disableNormalization || false });
-        let osc = ctx.createOscillator();
-        osc.setPeriodicWave(wave);
-        return osc;
-    }
-    else if (typeof iType === 'string' && ((_e = Object.keys(instSamples || {})) === null || _e === void 0 ? void 0 : _e.includes(iType)) && instSamples) {
-        let sample;
-        let note = determineNoteRange((_f = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _f !== void 0 ? _f : DefaultFrequency, {});
-        if (instSamples[iType].multiNote) {
-            sample = (_g = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _g === void 0 ? void 0 : _g[('C' + note.octave)];
-        }
-        else {
-            sample = instSamples[iType].mono;
-        }
-        let source = ctx.createBufferSource();
-        source.buffer = sample;
-        if (instSamples[iType].multiNote) {
-            source.detune.value = note.detune;
-        }
-        return source;
-    }
-    else if (typeof iType === 'string' && ((_h = Object.keys(synthDefs || {})) === null || _h === void 0 ? void 0 : _h.includes(iType)) && synthDefs) {
-        let synth = makeSynth(ctx, synthDefs[iType]);
-        return synth;
-    }
-    else {
-        return ctx.createOscillator();
-    }
-}
-
-function setCurrentTime(ctx) {
-    return ctx.currentTime;
-}
-// export let ErieGlobalControl: GlobalControl, ErieGlobalState: GlobalState;
-function setErieGlobalControl(ctrl) {
-    if (isBrowserWindowPossible()) {
-        if (!('ErieGlobalControl' in window))
-            window.ErieGlobalControl = undefined;
-        window.ErieGlobalControl = ctrl;
-    }
-    else {
-        Globals.ErieGlobalControl = ctrl;
-    }
-}
-function isErieGlobalControlType(t) {
-    var _a, _b;
-    if (isBrowserWindowPossible()) {
-        return ((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.type) === t;
-    }
-    else {
-        return ((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.type) === t;
-    }
-}
-function isErieGlobalControlAudioContext() {
-    var _a, _b, _c, _d;
-    if (isBrowserWindowPossible()) {
-        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof AudioContext) || (((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof OfflineAudioContext);
-    }
-    else {
-        return (((_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player) instanceof AudioContext) || (((_d = Globals.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) instanceof OfflineAudioContext);
-    }
-}
-function isErieGlobalControlSpeechSynthesis() {
-    var _a, _b;
-    if (isBrowserWindowPossible()) {
-        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof SpeechSynthesis);
-    }
-    else {
-        return (((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof SpeechSynthesis);
-    }
-}
-function closeErieGlobalControl() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
-    if (isBrowserWindowPossible()) {
-        if (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) && 'cancel' in ((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player)) {
-            (_c = window.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player.cancel();
-        }
-        else if (((_d = window.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) && 'close' in ((_e = window.ErieGlobalControl) === null || _e === void 0 ? void 0 : _e.player)) {
-            (_f = window.ErieGlobalControl) === null || _f === void 0 ? void 0 : _f.player.close();
-        }
-    }
-    else {
-        if (((_g = Globals.ErieGlobalControl) === null || _g === void 0 ? void 0 : _g.player) && 'cancel' in ((_h = Globals.ErieGlobalControl) === null || _h === void 0 ? void 0 : _h.player)) {
-            (_j = Globals.ErieGlobalControl) === null || _j === void 0 ? void 0 : _j.player.cancel();
-        }
-        else if (((_k = Globals.ErieGlobalControl) === null || _k === void 0 ? void 0 : _k.player) && 'close' in ((_l = Globals.ErieGlobalControl) === null || _l === void 0 ? void 0 : _l.player)) {
-            (_m = Globals.ErieGlobalControl) === null || _m === void 0 ? void 0 : _m.player.close();
-        }
-    }
-}
-function setErieGlobalState(state) {
-    if (isBrowserWindowPossible()) {
-        if (!('ErieGlobalState' in window))
-            window.ErieGlobalState = undefined;
-        window.ErieGlobalState = state;
-    }
-    else {
-        Globals.ErieGlobalState = state;
-    }
-}
-function isErieGlobalState(state) {
-    if (isBrowserWindowPossible()) {
-        return window.ErieGlobalState === state;
-    }
-    else {
-        return Globals.ErieGlobalState === state;
-    }
-}
-function setPlayerEvents(queue, config) {
-    if (typeof window !== 'undefined') {
-        const stop = function (event) {
-            if ('key' in event && event.key == 'x') {
-                setErieGlobalState(Stopped);
-                queue.state = Stopped;
-                closeErieGlobalControl();
-                notifyStop(config);
-            }
-        };
-        if (isBrowserWindowPossible()) {
-            window.addEventListener('keypress', stop);
-            if (!window.ErieGlobalPlayerEvents)
-                window.ErieGlobalPlayerEvents = new Map();
-            window.ErieGlobalPlayerEvents.set('stop-event', stop);
-        }
-        else {
-            Globals.ErieGlobalPlayerEvents.set('stop-event', stop);
-        }
-    }
-}
-function clearPlayerEvents() {
-    if (typeof window !== 'undefined') {
-        if (isBrowserWindowPossible()) {
-            if (!window.ErieGlobalPlayerEvents)
-                window.ErieGlobalPlayerEvents = new Map();
-            let stop = window.ErieGlobalPlayerEvents.get('stop-event');
-            if (stop)
-                window.removeEventListener('keypress', stop);
-            window.ErieGlobalPlayerEvents.delete('stop-event');
-        }
-        else {
-            Globals.ErieGlobalPlayerEvents.delete('stop-event');
-        }
-    }
-}
-function setErieGlobalStreamingControl(key, value) {
-    if (isBrowserWindowPossible()) {
-        // @ts-ignore
-        if (!('ErieGlobalStreamingControl' in window))
-            window.ErieGlobalStreamingControl = {};
-        window.ErieGlobalStreamingControl[key] = value;
-    }
-    else {
-        Globals.ErieGlobalStreamingControl[key] = value;
-    }
-}
-
-function rampBy(ramperType, // default -> linear
-param, // any audio parameter that has ramping methods
-value, // the value to set
-time_at, // when to set the value
-speed) {
-    switch (ramperType) {
-        case 'exponentialRampToValueAtTime':
-            // exponential ramping does not allow value 0
-            param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
-            break;
-        case 'linearRampToValueAtTime':
-            param.linearRampToValueAtTime(value, time_at);
-            break;
-        case 'setValueAtTime':
-            param.setValueAtTime(value, time_at);
-            break;
-        case 'setTargetAtTime':
-            if (speed !== undefined)
-                param.setTargetAtTime(value, time_at, speed !== null && speed !== void 0 ? speed : 0.6);
-            else
-                console.error("Speed paramemter must be defined for setTargetAtTime method.");
-            break;
-        default:
-            param.linearRampToValueAtTime(value, time_at);
-            break;
-    }
-}
-// note: how rampers are processed
-/*
-Precondition: A ramping method can only defined for a continuous tone.
-1. A ramping method is first defined in a spec under a channel.
-2. It is collected and passed along to a unit stream (only a unit stream) to aovid any potential collision.
-3. When a unit stream is played, it is passed as configuration information and the proper ramping function is selected using the rampBy function.
-*/
-
-// extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
-class BiquadFilter extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        this.ctx = ctx;
-        this.filter = ctx.createBiquadFilter();
-        this.destination = this.filter;
-        this.useGain = false;
-    }
-    initialize(time) {
-        this.filter.gain.setValueAtTime(1, time);
-    }
-    connect(node) {
-        this.filter.connect(node);
-    }
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-class LowpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'lowpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class HighpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'highpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class BandpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'bandpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class LowshelfBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'lowshelf';
-        this.destination = this.filter;
-        this.useGain = true;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class HighshelfBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'highshelf';
-        this.destination = this.filter;
-        this.useGain = true;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class PeakingBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'peaking';
-        this.destination = this.filter;
-        this.useGain = true;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class NotchBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'notch';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class AllpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'allpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-const BiquadEncoder = function (filter, sound, startTime, rampers) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    if (filter.useGain) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadGain, filter.filter.gain, ((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime);
-    }
-    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadPitch, filter.filter.frequency, ((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime);
-    }
-    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadQ, filter.filter.Q, ((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime);
-    }
-    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadDetune, filter.filter.detune, ((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime);
-    }
-};
-const BiquadFinisher = function (filter, sound, startTime, duration, rampers) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    if (filter.useGain) {
-        filter.filter.gain.setValueAtTime(((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime + duration);
-    }
-    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
-        filter.filter.frequency.setValueAtTime(((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime + duration);
-    }
-    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
-        filter.filter.Q.setValueAtTime(((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime + duration);
-    }
-    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
-        filter.filter.detune.setValueAtTime(((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime + duration);
-    }
-};
-
-class DefaultDynamicCompressor extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        this.ctx = ctx;
-        this.filter = ctx.createDynamicsCompressor();
-        this.destination = this.filter;
-    }
-    initialize() {
-        this.filter.attack.value = 20;
-        this.filter.knee.value = 40;
-        this.filter.ratio.value = 18;
-        this.filter.release.value = 0.25;
-        this.filter.threshold.value = -50;
-    }
-    connect(node) {
-        this.filter.connect(node);
-    }
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-const CompressorEncoder = function (filter, sound, startTime, rampers) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.dcAttack) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcAttack, filter.filter.attack, (_b = sound.others.dcAttack) !== null && _b !== void 0 ? _b : 1, startTime);
-    if (((_c = sound.others) === null || _c === void 0 ? void 0 : _c.dcKnee) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcKnee, filter.filter.knee, (_d = sound.others.dcKnee) !== null && _d !== void 0 ? _d : 1, startTime);
-    if (((_e = sound.others) === null || _e === void 0 ? void 0 : _e.dcRatio) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcRatio, filter.filter.ratio, (_f = sound.others.dcRatio) !== null && _f !== void 0 ? _f : 1, startTime);
-    if (((_g = sound.others) === null || _g === void 0 ? void 0 : _g.dcReduction) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcReduction, filter.filter.release, (_h = sound.others.dcReduction) !== null && _h !== void 0 ? _h : 1, startTime);
-    if (((_j = sound.others) === null || _j === void 0 ? void 0 : _j.dcThreshold) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcThreshold, filter.filter.threshold, (_k = sound.others.dcThreshold) !== null && _k !== void 0 ? _k : 1, startTime);
-};
-const CompressorFinisher = function (filter, sound, startTime, duration, rampers) {
-};
-
-class DistortionFilter extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        this.ctx = ctx;
-        this.filter = ctx.createWaveShaper();
-        this.destination = this.filter;
-    }
-    initialize(s, e) {
-        // s: starting time is not important but for formatting
-        this.filter.curve = makeDistortionCurve(e);
-    }
-    connect(node) {
-        this.filter.connect(node);
-    }
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-// https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
-function makeDistortionCurve(amount) {
-    const k = amount !== null && amount !== void 0 ? amount : 50;
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n_samples; i++) {
-        const x = (i * 2) / n_samples - 1;
-        curve[i] = ((3 + k) * x * 10 * deg) / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-}
-const DistortionEncoder = function (filter, sound, startTime, rampers) {
-    var _a;
-    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.distortion) !== undefined) {
-        filter.filter.curve = makeDistortionCurve(sound.others.distortion);
-    }
-    else {
-        filter.filter.curve = makeDistortionCurve(100);
-    }
-};
-const DistortionFinisher = function (filter, sound, startTime, duration, rampers) {
-    filter.filter.curve = makeDistortionCurve(50);
-};
-
-// This is a basic sample for how to define a custom filter
-class GainerFilter extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        // always needs an (offline) audio context
-        this.ctx = ctx;
-        // static parameters
-        this.attackTime = 0.1;
-        this.releaseTime = 0.1;
-        // always needs a `filter` property for dynamic parameters to be used by the encoder and finisher
-        // the name can change but... just stick to this
-        this.filter = ctx.createGain();
-        // always needs a desitnation that is connectable; sometimes it can be something other than the filter object.
-        // the name can never be changed because this is the property that other interfaces gonna access to this node.
-        this.destination = this.filter;
-    }
-    // [required] this is ran when the filter is applied for the first time
-    initialize(time) {
-        this.filter.gain.cancelScheduledValues(time);
-        this.filter.gain.setValueAtTime(0, time);
-    }
-    // the follwoing methods are required to satisfiy the basic audio node structure
-    // [required] this defines how this filter connects itself to another node
-    connect(node) {
-        this.filter.connect(node);
-    }
-    // [required] this defines how this filter *dis*connects itself to another node
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-// an encoder changes values at a time
-// must use `rampBy` function as a standard interface for ramping functions
-const GainerEncoder = function (filter, sound, startTime, rampers) {
-    var _a, _b;
-    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, // ramper methods (if provided, otherwise, 'linear')
-    filter.filter.gain, // actual node to set the value
-    (_b = (_a = sound.others) === null || _a === void 0 ? void 0 : _a.gain2) !== null && _b !== void 0 ? _b : 1, // the gain value
-    startTime + filter.attackTime // when the gain value kicks in
-    );
-};
-// a finisher sets the final values when the sound is done.
-// must use `rampBy` function as a standard interface for ramping functions
-const GainerFinisher = function (filter, sound, startTime, duration, rampers) {
-    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, filter.filter.gain, 0, (startTime || 0) + (duration || 1) - filter.releaseTime);
-};
-
-const PresetFilters = {
-    'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
-    'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'bandpass': { filter: BandpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'lowshelf': { filter: LowshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'highshelf': { filter: HighshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'peaking': { filter: PeakingBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'notch': { filter: NotchBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'allpass': { filter: AllpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'defaultCompressor': { filter: DefaultDynamicCompressor, encoder: CompressorEncoder, finisher: CompressorFinisher },
-    'distortion': { filter: DistortionFilter, encoder: DistortionEncoder, finisher: DistortionFinisher }
-};
-const FilterExtraChannelTypes = {
-    gain2: { type: LOUDNESS_chn },
-    biquadDetune: { type: DETUNE_chn },
-    biquadPitch: { type: PITCH_chn }
-};
-
-function emitNotePlayEvent(type, note) {
-    if (isBrowserEventPossible()) {
-        document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
-            detail: {
-                type,
-                note
-            }
-        }));
-    }
-}
-function emitNoteStopEvent(type, note) {
-    if (isBrowserEventPossible()) {
-        document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
-            detail: {
-                type,
-                note
-            }
-        }));
-    }
-}
-
-function createPanner(ctx, cartesianInputs) {
-    if (cartesianInputs <= 1) {
-        const stereoPanner = ctx.createStereoPanner();
-        return stereoPanner;
-    }
-    else {
-        // default values: https://webaudio.github.io/web-audio-api/#PannerNode
-        // TODO: max Distance? Scales within 1? -> comment each value
-        const panner3D = ctx.createPanner();
-        panner3D.panningModel = 'equalpower';
-        panner3D.distanceModel = 'inverse';
-        panner3D.refDistance = 1;
-        panner3D.maxDistance = 10000;
-        panner3D.rolloffFactor = 1;
-        panner3D.coneInnerAngle = 360;
-        panner3D.coneOuterAngle = 360;
-        panner3D.coneOuterGain = 0;
-        return panner3D;
-    }
-}
-
-function playPause(ms, config) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
 }
 
 // The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
@@ -5123,36 +5585,6 @@ function playAbsoluteContinuousTones(_ctx, queue, config, instSamples, synthDefs
                 inst.stop(ct + endTime);
             });
         }
-    });
-}
-
-let ErieGlobalSynth;
-function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
-        if (!ErieGlobalSynth)
-            ErieGlobalSynth = window.speechSynthesis;
-        var utterance = new SpeechSynthesisUtterance(sound.speech);
-        if ((config === null || config === void 0 ? void 0 : config.speechRate) !== undefined)
-            utterance.rate = config === null || config === void 0 ? void 0 : config.speechRate;
-        else if ((sound === null || sound === void 0 ? void 0 : sound.speechRate) !== undefined)
-            utterance.rate = sound === null || sound === void 0 ? void 0 : sound.speechRate;
-        if ((sound === null || sound === void 0 ? void 0 : sound.pitch) !== undefined)
-            utterance.pitch = sound.pitch;
-        if ((sound === null || sound === void 0 ? void 0 : sound.loudness) !== undefined)
-            utterance.volume = sound.loudness;
-        if (sound === null || sound === void 0 ? void 0 : sound.language)
-            utterance.lang = (bcp47language.includes(sound.language) ? sound.language : (_a = (typeof document !== undefined ? document : {}).documentElement) === null || _a === void 0 ? void 0 : _a.lang);
-        else
-            utterance.lang = ((_b = (typeof document !== undefined ? document : {}).documentElement) === null || _b === void 0 ? void 0 : _b.lang);
-        onstart();
-        ErieGlobalSynth.speak(utterance);
-        setErieGlobalControl({ type: SpeechType, player: ErieGlobalSynth });
-        utterance.onend = () => {
-            onend();
-            if (resolve)
-                resolve();
-        };
     });
 }
 
@@ -6132,7 +6564,7 @@ function normalizeSingleSpec(spec, parent) {
     const polarChannels = [PAN_RADIUS_chn, PAN_POLAR_chn, PAN_AZIMUTH_chn];
     const cartesianSaturation = cartesianChannels.filter(channel => spec.encoding[channel] !== undefined).length;
     const polarSaturation = polarChannels.filter(channel => spec.encoding[channel] !== undefined).length;
-    if (cartesianSaturation > polarSaturation) {
+    if (cartesianSaturation >= polarSaturation) {
         polarChannels.forEach(channel => {
             if (spec.encoding[channel]) {
                 console.warn(`Dropping Polar channel ${channel} in favor of Cartesian channels due to higher saturation.`);
@@ -6164,6 +6596,7 @@ function normalizeSingleSpec(spec, parent) {
         }
     }
     let has_repeated_overlay = false;
+    let reject_time2_for_binning = false;
     for (const channel of Object.keys(spec.encoding)) {
         let o_enc = spec.encoding[channel];
         let _field = (_c = o_enc.field) !== null && _c !== void 0 ? _c : undefined;
@@ -6219,6 +6652,9 @@ function normalizeSingleSpec(spec, parent) {
         if (o_enc.bin) {
             if (!o_enc.field) {
                 console.error("Bin without a field name is not possible.");
+            }
+            if (channel == TIME_chn && spec.encoding[TIME2_chn] !== undefined) {
+                reject_time2_for_binning = true;
             }
             if (o_enc.bin instanceof Object) {
                 further_transforms.push({
@@ -6353,8 +6789,13 @@ function normalizeSingleSpec(spec, parent) {
             sustain: 'sustain' in o_enc && o_enc.sustain ? o_enc.sustain : false
         };
     }
+    // if time is binned and time2 is set, reject time2
+    if (reject_time2_for_binning) {
+        console.warn("Reject time2 because time is binned");
+        delete encoding[TIME2_chn];
+    }
     // if time2 channel is defined, set the scale for it
-    if (encoding[TIME2_chn]) {
+    else if (encoding[TIME2_chn]) {
         encoding[TIME2_chn].scale = { id: (_m = (_l = encoding[TIME_chn]) === null || _l === void 0 ? void 0 : _l.scale) === null || _m === void 0 ? void 0 : _m.id };
         scaleDefinitions.forEach((d) => {
             var _a, _b;
@@ -6399,19 +6840,6 @@ function normalizeSingleSpec(spec, parent) {
             transform = [];
         transform.push({ aggregate: encoding_aggregates, groupby: GroupbyAuto });
     }
-    // [todo]  <- future support
-    /** if (transform !== undefined && (transform?.length ?? 0) > 0) {
-          transform.forEach((t) => {
-            if ((t.boxplot || t.quantile) && !t.groupby) t.groupby = Auto;
-          });
-        } */
-    // config (removing bc config only exists at the top level)
-    // let config: ConfigInterface | undefined = undefined;
-    // if (spec.config) {
-    //   config = {};
-    //   Object.assign(config, spec.config);
-    //   config = config;
-    // }
     let normalized = {
         title,
         name,
@@ -8265,19 +8693,18 @@ function repeatPallete(pallete, len) {
     }
 }
 
+//  [max, min]
 function getChannelThresholds(channel, extraChannelType) {
-    var _a, _b, _c, _d;
-    let min = ((_a = ChannelThresholds[channel]) === null || _a === void 0 ? void 0 : _a.max)
-        || ((_b = ChannelThresholds[extraChannelType]) === null || _b === void 0 ? void 0 : _b.max), max = ((_c = ChannelThresholds[channel]) === null || _c === void 0 ? void 0 : _c.min)
-        || ((_d = ChannelThresholds[extraChannelType]) === null || _d === void 0 ? void 0 : _d.min);
-    return [min, max];
+    var _a, _b, _c, _d, _e, _f;
+    let max = (_b = (_a = ChannelThresholds[channel]) === null || _a === void 0 ? void 0 : _a.max) !== null && _b !== void 0 ? _b : (_c = ChannelThresholds[extraChannelType]) === null || _c === void 0 ? void 0 : _c.max;
+    let min = (_e = (_d = ChannelThresholds[channel]) === null || _d === void 0 ? void 0 : _d.min) !== null && _e !== void 0 ? _e : (_f = ChannelThresholds[extraChannelType]) === null || _f === void 0 ? void 0 : _f.min;
+    return [max, min];
 }
 function getChannelCaps(channel, extraChannelType) {
-    var _a, _b, _c, _d;
-    let min = ((_a = ChannelCaps[channel]) === null || _a === void 0 ? void 0 : _a.max)
-        || ((_b = ChannelCaps[extraChannelType]) === null || _b === void 0 ? void 0 : _b.max), max = ((_c = ChannelCaps[channel]) === null || _c === void 0 ? void 0 : _c.min)
-        || ((_d = ChannelCaps[extraChannelType]) === null || _d === void 0 ? void 0 : _d.min);
-    return [min, max];
+    var _a, _b, _c, _d, _e, _f;
+    let max = (_b = (_a = ChannelCaps[channel]) === null || _a === void 0 ? void 0 : _a.max) !== null && _b !== void 0 ? _b : (_c = ChannelCaps[extraChannelType]) === null || _c === void 0 ? void 0 : _c.max;
+    let min = (_e = (_d = ChannelCaps[channel]) === null || _d === void 0 ? void 0 : _d.min) !== null && _e !== void 0 ? _e : (_f = ChannelCaps[extraChannelType]) === null || _f === void 0 ? void 0 : _f.min;
+    return [max, min];
 }
 
 function makeNominalScaleFunction(channel, encoding, values, info, is_streamed) {
@@ -10050,96 +10477,6 @@ function scaleInfoUpdater(channel, scaleInfo, data) {
     }
 }
 
-const ChimeBeat = 0.33;
-function getChimeBeat(n) {
-    return ChimeBeat * n;
-}
-const ChimeBeforePlay = [{
-        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-    }]; // C -> G
-const ChimeNext = [{
-        start: getChimeBeat(0.15), duration: getChimeBeat(1.5), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1.65), duration: getChimeBeat(1), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(2.65), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-    }]; // C -> C
-const ChimeAfterPlay = [{
-        start: getChimeBeat(0.15), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1.15), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-    }]; // G -> C
-const ChimeIncoming = [{
-        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1.5), duration: getChimeBeat(1), pitch: noteFreqRange[5].e, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(2), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(3), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-    }]; // C -> G -> E -> C
-const ChimeBeforePlayback = [{
-        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-    }]; // D -> G (low octave)
-const ChimeAfterPlayback = [{
-        start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
-    }, {
-        start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-    }]; // G -> D
-const chimeSynth = {
-    name: 'chimeSynth',
-    type: 'FM',
-    carrierType: 'sine',
-    carrierPitch: 220,
-    carrierDetune: 0,
-    carrierVolume: 1,
-    modulatorType: 'sine',
-    modulatorPitch: 440,
-    modulatorVolume: 1,
-    modulation: 1,
-    harmonicity: 1,
-    attackTime: 0.05,
-    releaseTime: 0.05,
-    sustain: 0.2,
-    decayTime: 0
-};
-const Chimes = {
-    'beforePlay': ChimeBeforePlay,
-    'afterPlay': ChimeAfterPlay,
-    'beforePlayback': ChimeBeforePlayback,
-    'afterPlayback': ChimeAfterPlayback,
-    'incoming': ChimeIncoming,
-    'next': ChimeNext
-};
-
-// chime instrument -> FM Synth
-function playChime(ctx, _chime, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (ctx === undefined) {
-            ctx = new AudioContext();
-        }
-        let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
-        let chime_queue = chime;
-        chime_queue.hasSpeech = false;
-        yield playAbsoluteDiscreteTones(ctx, chime_queue, {}, {}, // sampled
-        { chimeSynth }, // synth defs
-        {}, // wave defs
-        [], bufferPrimitve);
-    });
-}
-
 class SequenceStream {
     constructor() {
         this.streams = [];
@@ -10733,7 +11070,7 @@ function playIndefininteContinuousTones(_ctx, base, config, instSamples, synthDe
     };
 }
 
-const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 2, DefaultNoitfyOptions = {
+const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 1.5, DefaultNoitfyOptions = {
     beforePlayback: { speech: 'Old data', language: 'en-US', speechRate: 1 },
     afterPlayback: { speech: 'End of old data', language: 'en-US', speechRate: 1 },
     incoming: { speech: 'Incoming', language: 'en-US', speechRate: 1 },
@@ -11976,6 +12313,163 @@ function compileAudioGraph(audio_spec, options) {
     });
 }
 
+class Boxplot {
+    constructor(c, extent, invalid) {
+        this._boxplot = c;
+        this._extent = extent;
+        this._invalid = invalid;
+    }
+    boxplot(c) {
+        this._boxplot = c;
+        return this;
+    }
+    extent(t) {
+        this._extent = t;
+        return this;
+    }
+    invalid(t) {
+        this._invalid = t;
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        if (args.length == 1 &&
+            args[0].constructor.name === 'Array' &&
+            args[0].every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args[0]];
+        }
+        else if (args.length >= 1 &&
+            args.every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args];
+        }
+        return this;
+    }
+    get() {
+        return {
+            boxplot: this._boxplot,
+            extent: this._extent,
+            invalid: this._invalid,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
+        _c._groupby = this._groupby;
+        return _c;
+    }
+}
+
+class Diffing {
+    constructor(c, a, carryOver, keepFirstAsZero) {
+        this._diffing = c;
+        if (a)
+            this._as = a;
+        this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
+        this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
+    }
+    diffing(c) {
+        this._diffing = c;
+        return this;
+    }
+    as(c) {
+        this._as = c;
+        return this;
+    }
+    carryOver(t) {
+        this._carryOver = t;
+        return this;
+    }
+    keepFirstAsZero(t) {
+        this._keepFirstAsZero = t;
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        if (args.length == 1 &&
+            args[0].constructor.name === 'Array' &&
+            args[0].every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args[0]];
+        }
+        else if (args.length >= 1 &&
+            args.every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args];
+        }
+        return this;
+    }
+    get() {
+        return {
+            diffing: deepcopy(this._diffing),
+            as: deepcopy(this._as),
+            carryOver: this._carryOver,
+            keepFirstAsZero: this._keepFirstAsZero,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Diffing(this._diffing, this._as, this._carryOver, this._keepFirstAsZero);
+        _c._groupby = this._groupby;
+        return _c;
+    }
+}
+
+class Quantile {
+    constructor(c, n, step, as) {
+        this._quantile = c;
+        this._n = n;
+        this._step = step;
+        if (as)
+            this._as = as;
+    }
+    quantile(c) {
+        this._quantile = c;
+        return this;
+    }
+    as(c) {
+        if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
+            this._as = c;
+        }
+        else {
+            console.error("Wrong length/type for qunatile 'as'.");
+        }
+        return this;
+    }
+    n(t) {
+        this._n = t;
+        return this;
+    }
+    step(t) {
+        this._step = t;
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        if (args.length == 1 &&
+            args[0].constructor.name === 'Array' &&
+            args[0].every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args[0]];
+        }
+        else if (args.length >= 1 &&
+            args.every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args];
+        }
+        return this;
+    }
+    get() {
+        return {
+            quantile: this._quantile,
+            as: deepcopy(this._as),
+            n: this._n,
+            step: this._step,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+        _c._groupby = this._groupby;
+        return _c;
+    }
+}
+
 function make3DScaleFunction(encoding) {
     const { domain, range, default: defaultValue = { x: 0, y: 0, z: 0 } } = encoding;
     const scale = d3Scale.scaleLinear().domain(domain).range(range);
@@ -12025,6 +12519,7 @@ exports.Bin = Bin;
 exports.BiquadEncoder = BiquadEncoder;
 exports.BiquadFilter = BiquadFilter;
 exports.BiquadFinisher = BiquadFinisher;
+exports.Boxplot = Boxplot;
 exports.BrownNoise = BrownNoise;
 exports.BufferChannels = BufferChannels$1;
 exports.CORR = CORR;
@@ -12098,6 +12593,7 @@ exports.DescKeySound = DescKeySound;
 exports.DescKeyTimeUnit = DescKeyTimeUnit;
 exports.DescKeyTitle = DescKeyTitle;
 exports.DetuneChannel = DetuneChannel;
+exports.Diffing = Diffing;
 exports.DistortionEncoder = DistortionEncoder;
 exports.DistortionFilter = DistortionFilter;
 exports.DistortionFinisher = DistortionFinisher;
@@ -12211,6 +12707,7 @@ exports.NoiseTypes = NoiseTypes;
 exports.NomPalletes = NomPalletes;
 exports.NonTimeChannels = NonTimeChannels;
 exports.NotchBiquadFilter = NotchBiquadFilter;
+exports.Notify = Notify;
 exports.NotifyAfterPlay = NotifyAfterPlay;
 exports.NotifyAfterPlayback = NotifyAfterPlayback;
 exports.NotifyBeforePlay = NotifyBeforePlay;
@@ -12251,6 +12748,7 @@ exports.PeakingBiquadFilter = PeakingBiquadFilter;
 exports.PinkNoise = PinkNoise;
 exports.PitchChannel = PitchChannel;
 exports.PlayAt = PlayAt;
+exports.Playback = Playback;
 exports.PlaybackAuto = PlaybackAuto;
 exports.PlaybackConditional = PlaybackConditional;
 exports.PlaybackManual = PlaybackManual;
@@ -12265,6 +12763,7 @@ exports.PresetFilters = PresetFilters;
 exports.QUANT = QUANT;
 exports.QUANTILE = QUANTILE;
 exports.QuantPreferredRange = QuantPreferredRange;
+exports.Quantile = Quantile;
 exports.QueueItemTypes = QueueItemTypes;
 exports.REL = REL;
 exports.REPEAT_chn = REPEAT_chn;
@@ -12304,7 +12803,7 @@ exports.SUM = SUM;
 exports.SYMLOG = SYMLOG;
 exports.SampleRate = SampleRate$1;
 exports.SampledTone = SampledTone;
-exports.Sampling = Sampling;
+exports.Sampling = Sampling$1;
 exports.ScaleDescriptionOrder = ScaleDescriptionOrder;
 exports.Sequence = Sequence;
 exports.SequenceStream = SequenceStream;
@@ -12318,6 +12817,7 @@ exports.SpeechStream = SpeechStream;
 exports.SpeechType = SpeechType;
 exports.Stopped = Stopped;
 exports.Stream = Stream;
+exports.Streaming = Streaming;
 exports.StreamingStream = StreamingStream;
 exports.SupportedInstruments = SupportedInstruments;
 exports.SupportedPolarity = SupportedPolarity;
@@ -12362,7 +12862,7 @@ exports.ToneSpeechSeries = ToneSpeechSeries;
 exports.ToneType = ToneType;
 exports.Transform = Transform;
 exports.UnitStream = UnitStream;
-exports.Unset = Unset;
+exports.Unset = Unset$1;
 exports.Url = Url;
 exports.VALID = VALID;
 exports.VARIANCE = VARIANCE;
@@ -12429,6 +12929,7 @@ exports.getStartTime1 = getStartTime1;
 exports.getTransformers = getTransformers;
 exports.glyphSorterByEnd = glyphSorterByEnd;
 exports.glyphSorterByStart = glyphSorterByStart;
+exports.intNotify = intNotify;
 exports.isArrayOf = isArrayOf;
 exports.isAudioGraphQueue = isAudioGraphQueue;
 exports.isBrowserEventPossible = isBrowserEventPossible;

@@ -18,6 +18,7 @@ import {
   DataObject,
   DatasetObject
 } from "../types/api/data";
+import { intNotify, Notify } from "./erie-notify";
 
 export class Overlay {
   _name?: string;
@@ -34,6 +35,15 @@ export class Overlay {
   config?: Config;
 
   constructor(...a: any) {
+    this.datasets = new Datasets();
+    this.transform = new Transform();
+    this.data = new Data();
+    this.sampling = new Sampling();
+    this.synth = new Synth();
+    this.wave = new Wave();
+    this.tick = new TickList();
+    this.config = new Config();
+
     let args = [...a];
     if (isInstanceOf(args[0], String)) {
       this._name = args[0];
@@ -45,14 +55,6 @@ export class Overlay {
     } else if (isArrayOf(args, Stream)) {
       this.addStreams(args)
     }
-    this.datasets = new Datasets();
-    this.transform = new Transform();
-    this.data = new Data();
-    this.sampling = new Sampling();
-    this.synth = new Synth();
-    this.wave = new Wave();
-    this.tick = new TickList();
-    this.config = new Config();
   }
 
   name(n: string) {

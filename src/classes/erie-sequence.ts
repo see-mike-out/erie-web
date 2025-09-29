@@ -19,6 +19,7 @@ import {
   DataObject,
   DatasetObject
 } from "../types/api/data";
+import { intNotify, Notify } from "./erie-notify";
 
 
 export class Sequence {
@@ -41,12 +42,6 @@ export class Sequence {
       this._name = args[0];
       args.splice(0, 1);
     }
-    this.sequence = [];
-    if (isArrayOf(args[0], [Stream, Overlay])) {
-      this.addStreams(args[0])
-    } else if (isArrayOf(args, [Stream, Overlay])) {
-      this.addStreams(args)
-    }
     this.datasets = new Datasets();
     this.transform = new Transform();
     this.data = new Data();
@@ -55,6 +50,13 @@ export class Sequence {
     this.wave = new Wave();
     this.tick = new TickList();
     this.config = new Config();
+
+    this.sequence = [];
+    if (isArrayOf(args[0], [Stream, Overlay])) {
+      this.addStreams(args[0])
+    } else if (isArrayOf(args, [Stream, Overlay])) {
+      this.addStreams(args)
+    }
   }
 
   name(n: string) {

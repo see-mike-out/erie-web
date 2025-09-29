@@ -60,7 +60,7 @@ import { UnitStream } from './audio-graph-unit-stream';
 export const DefaultHistoryLimit = 100,
   DefaultHistoryQuery = PlaybackUnitInstance,
   DefaultPlaybackLimit = 3,
-  DefaultPlaybackSpeed = 2,
+  DefaultPlaybackSpeed = 1.5,
   DefaultNoitfyOptions: NotifySpec = {
     beforePlayback: { speech: 'Old data', language: 'en-US', speechRate: 1 },
     afterPlayback: { speech: 'End of old data', language: 'en-US', speechRate: 1 },

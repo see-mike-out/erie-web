@@ -259,7 +259,7 @@
         HARMONICITY_chn
     ];
     /*----- DEFAULT RANGES -----*/
-    const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 10, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
+    const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 1, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
     const ChannelThresholds = {
         [TIME_chn]: { max: null, min: 0 },
         [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
@@ -2021,58 +2021,116 @@
             return true;
     }
 
-    const Values = 'values', Url = 'url', Name = 'name', Unset = 'unset';
-    const AllowedDataTypes = [Values, Url, Name];
+    const Values = 'values', Url = 'url', Name = 'name', Unset$1 = 'unset', Streaming = 'streaming';
+    const AllowedDataTypes = [Values, Url, Name, Streaming];
     class Data {
         constructor() {
             this.type = 'unset';
-            this.values = null;
-            this.url = null;
-            this.name = null;
+            this._values = null;
+            this._url = null;
+            this._name = null;
+            this._streaming = false;
+            this._test = null;
         }
         set(type, e) {
             if (isInstanceOf(type, Dataset)) {
                 this.type = Name;
-                this.name = type._name;
-            }
-            else if (!AllowedDataTypes.includes(type)) {
-                throw new TypeError(`Unspported data type ${type}}. It must be either one of ${AllowedDataTypes.join(", ")}.`);
+                this._name = type._name;
+                // cancel others
+                this._values = null;
+                this._url = null;
+                this._name = null;
+                this._streaming = false;
+                this._test = null;
             }
             else {
-                if (type === Values) {
-                    this.type = Values;
-                    this.values = e;
-                }
-                else if (type === Url) {
-                    this.type = Url;
-                    this.url = e;
-                }
-                else if (type === Name) {
-                    this.type = Name;
-                    this.name = e;
-                }
+                console.warn("data.set method is only for a dataset object.");
             }
+            return this;
+        }
+        values(v) {
+            if (isArrayOf(v, Object)) {
+                this.type = Values;
+                this._values = deepcopy(v);
+                // cancel others
+                this._name = null;
+                this._url = null;
+                this._name = null;
+                this._streaming = false;
+                this._test = null;
+            }
+            else {
+                console.warn("only tidy data can be provided.");
+            }
+            return this;
+        }
+        url(v) {
+            if (typeof v === 'string') {
+                this.type = Values;
+                this._url = v;
+                // cancel others
+                this._values = null;
+                this._name = null;
+                this._name = null;
+                this._streaming = false;
+                this._test = null;
+            }
+            else {
+                console.warn("only string-based url can be provided.");
+            }
+            return this;
+        }
+        streaming(test) {
+            this.type = Streaming;
+            this._name = null;
+            this._name = null;
+            this._streaming = true;
+            if (typeof test === 'string') {
+                this._test = { url: test };
+            }
+            else if (isArrayOf(test, Object)) {
+                this._test = { values: deepcopy(test) };
+            }
+            else if (this._url) {
+                // get from those already set
+                this._test = { url: this._url };
+            }
+            else if (this._values) {
+                // get from those already set
+                this._test = { values: deepcopy(this._values) };
+            }
+            else {
+                console.warn("only string-based url or tidy data can be provided for the test data for streaming spec.");
+            }
+            this._url = null;
+            this._values = null;
             return this;
         }
         get() {
             return {
                 type: this.type,
-                values: deepcopy(this.values),
-                url: this.url,
-                name: this.name
+                values: deepcopy(this._values),
+                url: this._url,
+                name: this._name,
+                streaming: this._streaming,
+                test: this._test
             };
         }
         clone() {
             let _c = new Data();
             _c.type = this.type;
             if (this.type === Values) {
-                _c.values = deepcopy(this.values);
+                _c._values = deepcopy(this._values);
             }
             else if (this.type === Url) {
-                _c.url = this.url;
+                _c._url = this._url;
             }
             else if (this.type === Name) {
-                _c.name = this.name;
+                _c._name = this._name;
+            }
+            else if (this.type === Streaming) {
+                _c._streaming = this._streaming;
+                _c._test = deepcopy(this._test);
             }
             return _c;
         }
@@ -2337,7 +2395,7 @@
             return _c;
         }
     }
-    class Sampling {
+    let Sampling$1 = class Sampling {
         constructor() {
             this.sampling = [];
         }
@@ -2353,7 +2411,7 @@
             _c.sampling = this.sampling.map((d) => d.clone());
             return _c;
         }
-    }
+    };
 
     class Tone {
         constructor(type, c) {
@@ -2495,810 +2553,417 @@
         }
     }
 
-    class Stream {
-        constructor() {
-            this.data = new Data();
-            this.datasets = new Datasets();
-            this.transform = new Transform();
-            this.synth = new Synth();
-            this.sampling = new Sampling();
-            this.wave = new Wave();
-            this.tone = new Tone();
-            this.tick = new TickList();
-            this.encoding = {
-                [TIME_chn]: new TimeChannel(),
-                [TIME2_chn]: new Time2Channel(),
-                [DUR_chn]: new DurationChannel(),
-                [TAPCNT_chn]: new TapCountChannel(),
-                [TAPSPD_chn]: new TapSpeedChannel(),
-                [POST_REVERB_chn]: new PostReverbChannel(),
-                [PITCH_chn]: new PitchChannel(),
-                [DETUNE_chn]: new DetuneChannel(),
-                [LOUDNESS_chn]: new LoudnessChannel(),
-                [PAN_chn]: new PanChannel(),
-                [SPEECH_BEFORE_chn]: new SpeechBeforeChannel(),
-                [SPEECH_AFTER_chn]: new SpeechAfterChannel(),
-                [TIMBRE_chn]: new TimbreChannel(),
-                [REPEAT_chn]: new RepeatChannel(),
-                [MODULATION_chn]: new ModulationChannel(),
-                [HARMONICITY_chn]: new HarmonicityChannel()
-            };
-            this.config = new Config();
-        }
-        name(n) {
-            this._name = n;
-            return this;
-        }
-        title(n) {
-            this._title = n;
-            return this;
-        }
-        description(n) {
-            this._description = n;
-            return this;
-        }
-        get() {
-            var _a, _b, _d, _e, _f, _g, _h, _j, _k;
-            let g = {
-                name: this._name,
-                title: this._title,
-                description: this._description,
-                data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
-                datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
-                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
-                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
-                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
-                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
-                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
-                tone: (_j = this.tone) === null || _j === void 0 ? void 0 : _j.get(),
-                encoding: {},
-                config: (_k = this.config) === null || _k === void 0 ? void 0 : _k.get()
-            };
-            Object.keys(this.encoding).forEach((chn) => {
-                if (this.encoding[chn].defined) {
-                    g.encoding[chn] = this.encoding[chn].get();
-                }
-            });
-            return g;
-        }
-        clone() {
-            var _a, _b, _d, _e, _f, _g;
-            let _c = new Stream();
-            _c._name = this._name;
-            _c._title = this._title;
-            _c._description = this._description;
-            _c.data = this.data.clone();
-            _c.datasets = (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.clone();
-            _c.transform = (_b = this.transform) === null || _b === void 0 ? void 0 : _b.clone();
-            _c.synth = (_d = this.synth) === null || _d === void 0 ? void 0 : _d.clone();
-            _c.sampling = (_e = this.sampling) === null || _e === void 0 ? void 0 : _e.clone();
-            _c.wave = (_f = this.wave) === null || _f === void 0 ? void 0 : _f.clone();
-            _c.tone = this.tone.clone();
-            _c.encoding = {};
-            Object.keys(this.encoding).forEach((chn) => {
-                if (this.encoding[chn].defined) {
-                    _c.encoding[chn] = this.encoding[chn].clone();
-                }
-            });
-            _c.config = (_g = this.config) === null || _g === void 0 ? void 0 : _g.clone();
-            return _c;
-        }
+    const ChimeBeat = 0.33;
+    function getChimeBeat(n) {
+        return ChimeBeat * n;
     }
+    const ChimeBeforePlay = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // C -> G
+    const ChimeNext = [{
+            start: getChimeBeat(0.15), duration: getChimeBeat(1.5), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1.65), duration: getChimeBeat(1), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2.65), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // C -> C
+    const ChimeAfterPlay = [{
+            start: getChimeBeat(0.15), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1.15), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }]; // G -> C
+    const ChimeIncoming = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1.5), duration: getChimeBeat(1), pitch: noteFreqRange[5].e, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(3), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // C -> G -> E -> C
+    const ChimeBeforePlayback = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // D -> G (low octave)
+    const ChimeAfterPlayback = [{
+            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
+        }, {
+            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
+        }]; // G -> D
+    const chimeSynth = {
+        name: 'chimeSynth',
+        type: 'FM',
+        carrierType: 'sine',
+        carrierPitch: 220,
+        carrierDetune: 0,
+        carrierVolume: 1,
+        modulatorType: 'sine',
+        modulatorPitch: 440,
+        modulatorVolume: 1,
+        modulation: 1,
+        harmonicity: 1,
+        attackTime: 0.05,
+        releaseTime: 0.05,
+        sustain: 0.2,
+        decayTime: 0
+    };
+    const Chimes = {
+        'beforePlay': ChimeBeforePlay,
+        'afterPlay': ChimeAfterPlay,
+        'beforePlayback': ChimeBeforePlayback,
+        'afterPlayback': ChimeAfterPlayback,
+        'incoming': ChimeIncoming,
+        'next': ChimeNext
+    };
 
-    class Overlay {
-        constructor(...a) {
-            let args = [...a];
-            if (isInstanceOf(args[0], String)) {
-                this._name = args[0];
-                args.splice(0, 1);
-            }
-            this.overlay = [];
-            if (isArrayOf(args[0], Stream)) {
-                this.addStreams(args[0]);
-            }
-            else if (isArrayOf(args, Stream)) {
-                this.addStreams(args);
-            }
-            this.datasets = new Datasets();
-            this.transform = new Transform();
-            this.data = new Data();
-            this.sampling = new Sampling();
-            this.synth = new Synth();
-            this.wave = new Wave();
-            this.tick = new TickList();
-            this.config = new Config();
-        }
-        name(n) {
-            this._name = n;
-            return this;
-        }
-        title(n) {
-            this._title = n;
-            return this;
-        }
-        description(n) {
-            this._description = n;
-            return this;
-        }
-        stream(i) {
-            return this.overlay[i];
-        }
-        remove(i) {
-            this.overlay.splice(i, 1);
-            return this;
-        }
-        add(s) {
-            var _a, _b, _d, _e, _f;
-            if (isInstanceOf(s, Stream)) {
-                let clone = s.clone();
-                // datasets
-                let cloned_datasets = clone.datasets;
-                if (cloned_datasets && cloned_datasets.datasets.length > 0) {
-                    for (const ds of cloned_datasets.datasets) {
-                        (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.add(ds);
-                    }
-                }
-                delete clone.datasets;
-                // tick
-                let cloned_ticks = clone.tick;
-                if (cloned_ticks && cloned_ticks.tick.length > 0) {
-                    for (const ds of cloned_ticks.tick) {
-                        (_b = this.tick) === null || _b === void 0 ? void 0 : _b.add(ds);
-                    }
-                }
-                delete clone.tick;
-                // sampling
-                let cloned_samples = clone.sampling;
-                if (cloned_samples && cloned_samples.sampling.length > 0) {
-                    for (const ds of cloned_samples.sampling) {
-                        (_d = this.sampling) === null || _d === void 0 ? void 0 : _d.add(ds);
-                    }
-                }
-                delete clone.sampling;
-                // synth
-                let cloned_synths = clone.synth;
-                if (cloned_synths && cloned_synths.synth.length > 0) {
-                    for (const ds of cloned_synths.synth) {
-                        (_e = this.synth) === null || _e === void 0 ? void 0 : _e.add(ds);
-                    }
-                }
-                delete clone.synth;
-                // wave
-                let cloned_waves = clone.wave;
-                if (cloned_waves && cloned_waves.wave.length > 0) {
-                    for (const ds of cloned_waves.wave) {
-                        (_f = this.wave) === null || _f === void 0 ? void 0 : _f.add(ds);
-                    }
-                }
-                delete clone.wave;
-                this.overlay.push(clone);
-            }
-            return this;
-        }
-        addStreams(ss) {
-            for (const s of ss) {
-                this.add(s);
-            }
-            return this;
-        }
-        get() {
-            var _a, _b, _d, _e, _f, _g, _h, _j;
-            let g = {
-                name: this._name,
-                title: this._title,
-                description: this._description,
-                data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
-                datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
-                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
-                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
-                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
-                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
-                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
-                overlay: this.overlay.map((d) => d.get()),
-                config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get()
-            };
-            return g;
-        }
-        clone() {
-            var _a, _b, _d, _e, _f, _g, _h;
-            let _c = new Overlay();
-            _c._name = this._name;
-            _c._title = this._title;
-            _c._description = this._description;
-            _c.data = (_a = this.data) === null || _a === void 0 ? void 0 : _a.clone();
-            _c.datasets = (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.clone();
-            _c.transform = (_d = this.transform) === null || _d === void 0 ? void 0 : _d.clone();
-            _c.synth = (_e = this.synth) === null || _e === void 0 ? void 0 : _e.clone();
-            _c.sampling = (_f = this.sampling) === null || _f === void 0 ? void 0 : _f.clone();
-            _c.wave = (_g = this.wave) === null || _g === void 0 ? void 0 : _g.clone();
-            _c.overlay = this.overlay.map((d) => d.clone());
-            _c.config = (_h = this.config) === null || _h === void 0 ? void 0 : _h.clone();
-            return _c;
+    function rampBy(ramperType, // default -> linear
+    param, // any audio parameter that has ramping methods
+    value, // the value to set
+    time_at, // when to set the value
+    speed) {
+        switch (ramperType) {
+            case 'exponentialRampToValueAtTime':
+                // exponential ramping does not allow value 0
+                param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
+                break;
+            case 'linearRampToValueAtTime':
+                param.linearRampToValueAtTime(value, time_at);
+                break;
+            case 'setValueAtTime':
+                param.setValueAtTime(value, time_at);
+                break;
+            case 'setTargetAtTime':
+                if (speed !== undefined)
+                    param.setTargetAtTime(value, time_at, speed !== null && speed !== void 0 ? speed : 0.6);
+                else
+                    console.error("Speed paramemter must be defined for setTargetAtTime method.");
+                break;
+            default:
+                param.linearRampToValueAtTime(value, time_at);
+                break;
         }
     }
+    // note: how rampers are processed
+    /*
+    Precondition: A ramping method can only defined for a continuous tone.
+    1. A ramping method is first defined in a spec under a channel.
+    2. It is collected and passed along to a unit stream (only a unit stream) to aovid any potential collision.
+    3. When a unit stream is played, it is passed as configuration information and the proper ramping function is selected using the rampBy function.
+    */
 
-    class Sequence {
-        constructor(...a) {
-            let args = [...a];
-            if (isInstanceOf(args[0], String)) {
-                this._name = args[0];
-                args.splice(0, 1);
-            }
-            this.sequence = [];
-            if (isArrayOf(args[0], [Stream, Overlay])) {
-                this.addStreams(args[0]);
-            }
-            else if (isArrayOf(args, [Stream, Overlay])) {
-                this.addStreams(args);
-            }
-            this.datasets = new Datasets();
-            this.transform = new Transform();
-            this.data = new Data();
-            this.sampling = new Sampling();
-            this.synth = new Synth();
-            this.wave = new Wave();
-            this.tick = new TickList();
-            this.config = new Config();
+    // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
+    class BiquadFilter extends AudioFilterPrototype {
+        constructor(ctx) {
+            super(ctx);
+            this.ctx = ctx;
+            this.filter = ctx.createBiquadFilter();
+            this.destination = this.filter;
+            this.useGain = false;
         }
-        name(n) {
-            this._name = n;
-            return this;
+        initialize(time) {
+            this.filter.gain.setValueAtTime(1, time);
         }
-        title(n) {
-            this._title = n;
-            return this;
+        connect(node) {
+            this.filter.connect(node);
         }
-        description(n) {
-            this._description = n;
-            return this;
-        }
-        stream(i) {
-            return this.sequence[i];
-        }
-        remove(i) {
-            this.sequence.splice(i, 1);
-            return this;
-        }
-        add(s) {
-            var _a, _b, _d, _e, _f;
-            if (isInstanceOf(s, Stream) || isInstanceOf(s, Overlay)) {
-                let clone = s.clone();
-                // datasets
-                let cloned_datasets = clone.datasets;
-                if (cloned_datasets && cloned_datasets.datasets.length > 0) {
-                    for (const ds of cloned_datasets.datasets) {
-                        (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.add(ds);
-                    }
-                }
-                delete clone.datasets;
-                // tick
-                let cloned_ticks = clone.tick;
-                if (cloned_ticks && cloned_ticks.tick.length > 0) {
-                    for (const ds of cloned_ticks.tick) {
-                        (_b = this.tick) === null || _b === void 0 ? void 0 : _b.add(ds);
-                    }
-                }
-                delete clone.tick;
-                // sampling
-                let cloned_samples = clone.sampling;
-                if (cloned_samples && cloned_samples.sampling.length > 0) {
-                    for (const ds of cloned_samples.sampling) {
-                        (_d = this.sampling) === null || _d === void 0 ? void 0 : _d.add(ds);
-                    }
-                }
-                delete clone.sampling;
-                // synth
-                let cloned_synths = clone.synth;
-                if (cloned_synths && cloned_synths.synth.length > 0) {
-                    for (const ds of cloned_synths.synth) {
-                        (_e = this.synth) === null || _e === void 0 ? void 0 : _e.add(ds);
-                    }
-                }
-                delete clone.synth;
-                // wave
-                let cloned_waves = clone.wave;
-                if (cloned_waves && cloned_waves.wave.length > 0) {
-                    for (const ds of cloned_waves.wave) {
-                        (_f = this.wave) === null || _f === void 0 ? void 0 : _f.add(ds);
-                    }
-                }
-                delete clone.wave;
-                this.sequence.push(clone);
-            }
-            return this;
-        }
-        addStreams(ss) {
-            for (const s of ss) {
-                this.add(s);
-            }
-            return this;
-        }
-        get() {
-            var _a, _b, _d, _e, _f, _g, _h, _j;
-            let g = {
-                name: this._name,
-                title: this._title,
-                description: this._description,
-                data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
-                datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
-                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
-                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
-                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
-                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
-                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
-                sequence: this.sequence.map((d) => d.get()),
-                config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get()
-            };
-            return g;
-        }
-        clone() {
-            var _a, _b, _d, _e, _f, _g, _h;
-            let _c = new Sequence();
-            _c._name = this._name;
-            _c._title = this._title;
-            _c._description = this._description;
-            _c.data = (_a = this.data) === null || _a === void 0 ? void 0 : _a.clone();
-            _c.datasets = (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.clone();
-            _c.transform = (_d = this.transform) === null || _d === void 0 ? void 0 : _d.clone();
-            _c.synth = (_e = this.synth) === null || _e === void 0 ? void 0 : _e.clone();
-            _c.sampling = (_f = this.sampling) === null || _f === void 0 ? void 0 : _f.clone();
-            _c.wave = (_g = this.wave) === null || _g === void 0 ? void 0 : _g.clone();
-            _c.sequence = this.sequence.map((d) => d.clone());
-            _c.config = (_h = this.config) === null || _h === void 0 ? void 0 : _h.clone();
+        disconnect(node) {
+            this.filter.disconnect(node);
         }
     }
+    class LowpassBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'lowpass';
+            this.destination = this.filter;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class HighpassBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'highpass';
+            this.destination = this.filter;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class BandpassBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'bandpass';
+            this.destination = this.filter;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class LowshelfBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'lowshelf';
+            this.destination = this.filter;
+            this.useGain = true;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class HighshelfBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'highshelf';
+            this.destination = this.filter;
+            this.useGain = true;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class PeakingBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'peaking';
+            this.destination = this.filter;
+            this.useGain = true;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class NotchBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'notch';
+            this.destination = this.filter;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    class AllpassBiquadFilter extends BiquadFilter {
+        constructor(ctx) {
+            super(ctx);
+            this.filter.type = 'allpass';
+            this.destination = this.filter;
+        }
+        connect(node) {
+            this.destination.connect(node);
+        }
+        disconnect(node) {
+            this.destination.disconnect(node);
+        }
+    }
+    const BiquadEncoder = function (filter, sound, startTime, rampers) {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        if (filter.useGain) {
+            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadGain, filter.filter.gain, ((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime);
+        }
+        if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
+            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadPitch, filter.filter.frequency, ((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime);
+        }
+        if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
+            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadQ, filter.filter.Q, ((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime);
+        }
+        if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
+            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadDetune, filter.filter.detune, ((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime);
+        }
+    };
+    const BiquadFinisher = function (filter, sound, startTime, duration, rampers) {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        if (filter.useGain) {
+            filter.filter.gain.setValueAtTime(((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime + duration);
+        }
+        if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
+            filter.filter.frequency.setValueAtTime(((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime + duration);
+        }
+        if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
+            filter.filter.Q.setValueAtTime(((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime + duration);
+        }
+        if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
+            filter.filter.detune.setValueAtTime(((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime + duration);
+        }
+    };
 
-    class Aggregate {
-        constructor() {
-            this.aggregate = [];
-            this._groupby = [];
+    class DefaultDynamicCompressor extends AudioFilterPrototype {
+        constructor(ctx) {
+            super(ctx);
+            this.ctx = ctx;
+            this.filter = ctx.createDynamicsCompressor();
+            this.destination = this.filter;
         }
-        add(op, field, as, p) {
-            if (ZeroOPs.includes(op)) {
-                if ((field === null || field === void 0 ? void 0 : field.constructor.name) !== 'String') {
-                    throw new Error('"as" is not provided.');
-                }
-                this.aggregate.push({
-                    op, as: field
-                });
-            }
-            else if (SingleOps.includes(op)) {
-                if (field === undefined || (field === null || field === void 0 ? void 0 : field.constructor.name) !== 'String') {
-                    throw new Error('"field" is not properly provided.');
-                }
-                if (as === undefined || (as === null || as === void 0 ? void 0 : as.constructor.name) !== 'String') {
-                    throw new Error('"as" is not properly provided.');
-                }
-                if (op === QUANTILE) {
-                    if (p === undefined) {
-                        console.warn('p is not provided, so is set as 0.5.');
-                        p = 0.5;
-                    }
-                    this.aggregate.push({
-                        op, field, as, p
-                    });
-                }
-                else {
-                    this.aggregate.push({
-                        op, field, as
-                    });
-                }
-            }
-            else if (DoubleOps.includes(op)) {
-                if (field === undefined ||
-                    (field === null || field === void 0 ? void 0 : field.constructor.name) !== 'Array' ||
-                    (field === null || field === void 0 ? void 0 : field.length) != 2 ||
-                    !field.every(f => (f === null || f === void 0 ? void 0 : f.constructor.name) !== 'String')) {
-                    throw new Error('"field" is not properly provided.');
-                }
-                if (as === undefined || (as === null || as === void 0 ? void 0 : as.constructor.name) !== 'String') {
-                    throw new Error('"as" is not properly provided.');
-                }
-                this.aggregate.push({
-                    op, field: [...field], as
-                });
-            }
-            else {
-                throw new Error(`Unsupported operation type: ${op}`);
-            }
-            return this;
+        initialize() {
+            this.filter.attack.value = 20;
+            this.filter.knee.value = 40;
+            this.filter.ratio.value = 18;
+            this.filter.release.value = 0.25;
+            this.filter.threshold.value = -50;
         }
-        groupby(...args) {
-            // this function resets groupby
-            if (args.length == 1 &&
-                args[0].constructor.name === 'Array' &&
-                args[0].every((a) => a.constructor.name === 'String')) {
-                this._groupby = [...args[0]];
-            }
-            else if (args.length >= 1 &&
-                args.every((a) => a.constructor.name === 'String')) {
-                this._groupby = [...args];
-            }
-            return this;
+        connect(node) {
+            this.filter.connect(node);
         }
-        get() {
-            return {
-                aggregate: deepcopy(this.aggregate),
-                groupby: deepcopy(this._groupby)
-            };
-        }
-        clone() {
-            let _c = new Aggregate();
-            _c.aggregate = deepcopy(this.aggregate);
-            _c._groupby = deepcopy(this._groupby);
-            return _c;
+        disconnect(node) {
+            this.filter.disconnect(node);
         }
     }
+    const CompressorEncoder = function (filter, sound, startTime, rampers) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.dcAttack) !== undefined)
+            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcAttack, filter.filter.attack, (_b = sound.others.dcAttack) !== null && _b !== void 0 ? _b : 1, startTime);
+        if (((_c = sound.others) === null || _c === void 0 ? void 0 : _c.dcKnee) !== undefined)
+            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcKnee, filter.filter.knee, (_d = sound.others.dcKnee) !== null && _d !== void 0 ? _d : 1, startTime);
+        if (((_e = sound.others) === null || _e === void 0 ? void 0 : _e.dcRatio) !== undefined)
+            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcRatio, filter.filter.ratio, (_f = sound.others.dcRatio) !== null && _f !== void 0 ? _f : 1, startTime);
+        if (((_g = sound.others) === null || _g === void 0 ? void 0 : _g.dcReduction) !== undefined)
+            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcReduction, filter.filter.release, (_h = sound.others.dcReduction) !== null && _h !== void 0 ? _h : 1, startTime);
+        if (((_j = sound.others) === null || _j === void 0 ? void 0 : _j.dcThreshold) !== undefined)
+            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcThreshold, filter.filter.threshold, (_k = sound.others.dcThreshold) !== null && _k !== void 0 ? _k : 1, startTime);
+    };
+    const CompressorFinisher = function (filter, sound, startTime, duration, rampers) {
+    };
 
-    class Bin {
-        constructor(bin) {
-            this._bin = bin;
-            this._as = bin + "__bin";
-            this._end = bin + "__bin_end";
-            this._nice = true;
-            this._maxbins = 10;
-            this._step;
-            this._exact;
+    class DistortionFilter extends AudioFilterPrototype {
+        constructor(ctx) {
+            super(ctx);
+            this.ctx = ctx;
+            this.filter = ctx.createWaveShaper();
+            this.destination = this.filter;
         }
-        as(start, end) {
-            this._as = start;
-            this._end = end;
-            return this;
+        initialize(s, e) {
+            // s: starting time is not important but for formatting
+            this.filter.curve = makeDistortionCurve(e);
         }
-        nice(v) {
-            this._nice = v;
-            return this;
+        connect(node) {
+            this.filter.connect(node);
         }
-        maxbins(v) {
-            if (Math.round(v) == v) {
-                this._maxbins = v;
-            }
-            else {
-                throw new TypeError("Bin 'maxbins' should be an integer.");
-            }
-            return this;
-        }
-        step(v) {
-            this._step = v;
-            return this;
-        }
-        exact(v) {
-            this._exact = v;
-            return this;
-        }
-        get() {
-            return {
-                bin: this._bin,
-                as: this._as,
-                end: this._end,
-                nice: this._nice,
-                maxbins: this._maxbins,
-                step: this._step,
-                exact: deepcopy(this._exact)
-            };
-        }
-        clone() {
-            let _c = new Bin(this._bin);
-            _c._as = this._as;
-            _c._end = this._end;
-            _c._nice = this._nice;
-            _c._maxbins = this._maxbins;
-            _c._step = this._step;
-            _c._exact = this._exact ? [...this._exact] : undefined;
-            return _c;
+        disconnect(node) {
+            this.filter.disconnect(node);
         }
     }
-
-    class Calculate {
-        constructor(c, a) {
-            this._calculate = c;
-            this._as = a;
+    // https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
+    function makeDistortionCurve(amount) {
+        const k = amount !== null && amount !== void 0 ? amount : 50;
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; i++) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = ((3 + k) * x * 10 * deg) / (Math.PI + k * Math.abs(x));
         }
-        calculate(c) {
-            this._calculate = c;
-            return this;
-        }
-        as(c) {
-            this._as = c;
-            return this;
-        }
-        get() {
-            return {
-                calculate: this._calculate,
-                as: this._as
-            };
-        }
-        clone() {
-            let _c = new Calculate(this._calculate, this._as);
-            return _c;
-        }
+        return curve;
     }
-
-    class Density {
-        constructor(field) {
-            this._density = field;
-            this._cumulative = false;
-            this._counts = false;
-            this._bandwidth;
-            this._extent;
-            this._minsteps = 25;
-            this._maxsteps = 200;
-            this._steps;
-            this._as = ['value', 'density'];
-        }
-        field(f) {
-            this._density = f;
-            return this;
-        }
-        extent(a) {
-            if (a.length == 2) {
-                this._extent = [...a];
-            }
-            else {
-                throw new TypeError("Density 'extent' should be an Array of two Numbers.");
-            }
-            return this;
-        }
-        groupby(g) {
-            this._groupby = [...g];
-            return this;
-        }
-        cumulative(v) {
-            this._cumulative = v;
-            return this;
-        }
-        counts(v) {
-            this._counts = v;
-            return this;
-        }
-        bandwidth(v) {
-            this._bandwidth = v;
-            return this;
-        }
-        minsteps(v) {
-            this._minsteps = v;
-            return this;
-        }
-        maxsteps(v) {
-            this._maxsteps = v;
-            return this;
-        }
-        steps(v) {
-            this._steps = v;
-            return this;
-        }
-        as(a) {
-            if (a.length == 2) {
-                this._as = [a[0], a[1]];
-            }
-            else {
-                throw new TypeError("Density 'as' should be an Array of two Strings.");
-            }
-            return this;
-        }
-        get() {
-            return {
-                density: this._density,
-                extent: this._extent ? [...this._extent] : undefined,
-                groupby: this._groupby ? [...this._groupby] : undefined,
-                cumulative: this._cumulative,
-                counts: this._counts,
-                bandwidth: this._bandwidth,
-                minsteps: this._minsteps,
-                maxsteps: this._maxsteps,
-                steps: this._steps,
-                as: [...this._as]
-            };
-        }
-        clone() {
-            let _c = new Density(this._density);
-            _c._density = this._density;
-            _c._extent = this._extent ? [...this._extent] : undefined;
-            _c._groupby = this._groupby ? [...this._groupby] : undefined;
-            _c._cumulative = this._cumulative;
-            _c._counts = this._counts;
-            _c._bandwidth = this._bandwidth;
-            _c._minsteps = this._minsteps;
-            _c._maxsteps = this._maxsteps;
-            _c._steps = this._steps;
-            _c._as = [...this._as];
-            return _c;
-        }
-    }
-
-    class Filter {
-        constructor(filter) {
-            this._filter = filter;
-        }
-        filter(f) {
-            this._filter = f;
-            return this;
-        }
-        get() {
-            return {
-                filter: this._filter
-            };
-        }
-        clone() {
-            let _c = new Filter(this._filter);
-            return _c;
-        }
-    }
-
-    class Fold {
-        constructor(f, b) {
-            this._fold = f;
-            this._by = b;
-            this._exclude = false;
-            this._as = ['key', 'value'];
-        }
-        fold(f) {
-            this._fold = [...f];
-            return this;
-        }
-        by(b) {
-            this._by = b;
-            return this;
-        }
-        exclude(e) {
-            this._exclude = e;
-            return this;
-        }
-        as(a) {
-            if (a.length == 2) {
-                this._as = [a[0], a[1]];
-            }
-            else {
-                throw new TypeError("Fold 'fold' should be an Array of two Strings.");
-            }
-            return this;
-        }
-        get() {
-            return {
-                fold: this._fold,
-                by: this._by,
-                exclude: this._exclude,
-                as: this._as
-            };
-        }
-        clone() {
-            let _c = new Fold(this._fold, this._by);
-            _c._exclude = this._exclude;
-            if (this._as)
-                _c._as = deepcopy(this._as);
-            return _c;
-        }
-    }
-
-    class UnitStream {
-        constructor(id, instrument_type, stream, scales, opt) {
-            this.id = id;
-            this.instrument_type = instrument_type;
-            this.stream = stream;
-            this.option = opt || {};
-            this.scales = scales;
-            this.config = {};
-            this.name;
-            this.ramp = {};
-        }
-        setTitle(t) {
-            this.title = t;
-        }
-        setDescription(d) {
-            this.description = d;
-        }
-        setName(name) {
-            this.name = name;
-        }
-        setConfig(key, value) {
-            this.config[key] = value;
-        }
-        setFilters(audioFilters) {
-            this.audioFilters = audioFilters;
-        }
-        setRamp(ramp) {
-            this.ramp = deepcopy(ramp);
-        }
-        make_tone_text(i) {
-            var _a, _b;
-            let text = [];
-            let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`);
-            if (this.name)
-                text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: (_a = this.config) === null || _a === void 0 ? void 0 : _a.speechRate });
-            else
-                text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: (_b = this.config) === null || _b === void 0 ? void 0 : _b.speechRate });
-            text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
-            return text;
-        }
-        make_scale_text(channel) {
-            let scales = this.scales;
-            let text = Object.keys(scales)
-                .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
-                .map((c) => {
-                var _a, _b;
-                return {
-                    id: (_a = scales[c]) === null || _a === void 0 ? void 0 : _a.scaleId,
-                    channel: c,
-                    description: (_b = scales[c]) === null || _b === void 0 ? void 0 : _b.description
-                };
-            });
-            return text.flat();
-        }
-        prerender() {
-            return __awaiter(this, void 0, void 0, function* () {
-                var _a, _b;
-                return {
-                    instrument_type: this.instrument_type,
-                    sounds: this.stream,
-                    continued: (_a = this.option) === null || _a === void 0 ? void 0 : _a.is_continued,
-                    relative: (_b = this.option) === null || _b === void 0 ? void 0 : _b.relative,
-                    filters: this.audioFilters,
-                    ramp: this.ramp,
-                    duration: this.duration
-                };
-            });
-        }
-    }
-    function isUnitStreamObject(o) {
+    const DistortionEncoder = function (filter, sound, startTime, rampers) {
         var _a;
-        return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === UnitStream.name;
-    }
+        if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.distortion) !== undefined) {
+            filter.filter.curve = makeDistortionCurve(sound.others.distortion);
+        }
+        else {
+            filter.filter.curve = makeDistortionCurve(100);
+        }
+    };
+    const DistortionFinisher = function (filter, sound, startTime, duration, rampers) {
+        filter.filter.curve = makeDistortionCurve(50);
+    };
 
-    // event-related
-    function sendToneStartEvent(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnPlayTone", { detail });
-            document.body.dispatchEvent(playEvent);
-            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
-            document.body.dispatchEvent(chnageEvent);
+    // This is a basic sample for how to define a custom filter
+    class GainerFilter extends AudioFilterPrototype {
+        constructor(ctx) {
+            super(ctx);
+            // always needs an (offline) audio context
+            this.ctx = ctx;
+            // static parameters
+            this.attackTime = 0.1;
+            this.releaseTime = 0.1;
+            // always needs a `filter` property for dynamic parameters to be used by the encoder and finisher
+            // the name can change but... just stick to this
+            this.filter = ctx.createGain();
+            // always needs a desitnation that is connectable; sometimes it can be something other than the filter object.
+            // the name can never be changed because this is the property that other interfaces gonna access to this node.
+            this.destination = this.filter;
+        }
+        // [required] this is ran when the filter is applied for the first time
+        initialize(time) {
+            this.filter.gain.cancelScheduledValues(time);
+            this.filter.gain.setValueAtTime(0, time);
+        }
+        // the follwoing methods are required to satisfiy the basic audio node structure
+        // [required] this defines how this filter connects itself to another node
+        connect(node) {
+            this.filter.connect(node);
+        }
+        // [required] this defines how this filter *dis*connects itself to another node
+        disconnect(node) {
+            this.filter.disconnect(node);
         }
     }
-    function sendToneFinishEvent(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnFinishTone", { detail });
-            document.body.dispatchEvent(playEvent);
-            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
-            document.body.dispatchEvent(chnageEvent);
-        }
-    }
-    function sendSpeechStartEvent(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
-            document.body.dispatchEvent(playEvent);
-            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
-            document.body.dispatchEvent(chnageEvent);
-        }
-    }
-    function sendSpeechFinishEvent(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
-            document.body.dispatchEvent(playEvent);
-            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
-            document.body.dispatchEvent(chnageEvent);
-        }
-    }
-    function sendQueueStartEvent(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
-            document.body.dispatchEvent(playEvent);
-            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
-            document.body.dispatchEvent(chnageEvent);
-        }
-    }
-    function sendQueueFinishEvent(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
-            document.body.dispatchEvent(playEvent);
-            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
-            document.body.dispatchEvent(chnageEvent);
-        }
-    }
-    function sendStreamingSignal(detail) {
-        if (isBrowserEventPossible()) {
-            let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
-            document.body.dispatchEvent(playEvent);
-        }
-    }
+    // an encoder changes values at a time
+    // must use `rampBy` function as a standard interface for ramping functions
+    const GainerEncoder = function (filter, sound, startTime, rampers) {
+        var _a, _b;
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, // ramper methods (if provided, otherwise, 'linear')
+        filter.filter.gain, // actual node to set the value
+        (_b = (_a = sound.others) === null || _a === void 0 ? void 0 : _a.gain2) !== null && _b !== void 0 ? _b : 1, // the gain value
+        startTime + filter.attackTime // when the gain value kicks in
+        );
+    };
+    // a finisher sets the final values when the sound is done.
+    // must use `rampBy` function as a standard interface for ramping functions
+    const GainerFinisher = function (filter, sound, startTime, duration, rampers) {
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, filter.filter.gain, 0, (startTime || 0) + (duration || 1) - filter.releaseTime);
+    };
+
+    const PresetFilters = {
+        'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
+        'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'bandpass': { filter: BandpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'lowshelf': { filter: LowshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'highshelf': { filter: HighshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'peaking': { filter: PeakingBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'notch': { filter: NotchBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'allpass': { filter: AllpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+        'defaultCompressor': { filter: DefaultDynamicCompressor, encoder: CompressorEncoder, finisher: CompressorFinisher },
+        'distortion': { filter: DistortionFilter, encoder: DistortionEncoder, finisher: DistortionFinisher }
+    };
+    const FilterExtraChannelTypes = {
+        gain2: { type: LOUDNESS_chn },
+        biquadDetune: { type: DETUNE_chn },
+        biquadPitch: { type: PITCH_chn }
+    };
 
     function roundToNote(freq, scales) {
         let min_diff = 5000, min_diff_note;
@@ -3772,6 +3437,83 @@
         }
     }
 
+    function emitNotePlayEvent(type, note) {
+        if (isBrowserEventPossible()) {
+            document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
+                detail: {
+                    type,
+                    note
+                }
+            }));
+        }
+    }
+    function emitNoteStopEvent(type, note) {
+        if (isBrowserEventPossible()) {
+            document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
+                detail: {
+                    type,
+                    note
+                }
+            }));
+        }
+    }
+
+    // event-related
+    function sendToneStartEvent(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnPlayTone", { detail });
+            document.body.dispatchEvent(playEvent);
+            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
+            document.body.dispatchEvent(chnageEvent);
+        }
+    }
+    function sendToneFinishEvent(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnFinishTone", { detail });
+            document.body.dispatchEvent(playEvent);
+            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
+            document.body.dispatchEvent(chnageEvent);
+        }
+    }
+    function sendSpeechStartEvent(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
+            document.body.dispatchEvent(playEvent);
+            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
+            document.body.dispatchEvent(chnageEvent);
+        }
+    }
+    function sendSpeechFinishEvent(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
+            document.body.dispatchEvent(playEvent);
+            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
+            document.body.dispatchEvent(chnageEvent);
+        }
+    }
+    function sendQueueStartEvent(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
+            document.body.dispatchEvent(playEvent);
+            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
+            document.body.dispatchEvent(chnageEvent);
+        }
+    }
+    function sendQueueFinishEvent(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
+            document.body.dispatchEvent(playEvent);
+            let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
+            document.body.dispatchEvent(chnageEvent);
+        }
+    }
+    function sendStreamingSignal(detail) {
+        if (isBrowserEventPossible()) {
+            let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
+            document.body.dispatchEvent(playEvent);
+        }
+    }
+
     function setCurrentTime(ctx) {
         return ctx.currentTime;
     }
@@ -3895,365 +3637,6 @@
         }
         else {
             Globals.ErieGlobalStreamingControl[key] = value;
-        }
-    }
-
-    function rampBy(ramperType, // default -> linear
-    param, // any audio parameter that has ramping methods
-    value, // the value to set
-    time_at, // when to set the value
-    speed) {
-        switch (ramperType) {
-            case 'exponentialRampToValueAtTime':
-                // exponential ramping does not allow value 0
-                param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
-                break;
-            case 'linearRampToValueAtTime':
-                param.linearRampToValueAtTime(value, time_at);
-                break;
-            case 'setValueAtTime':
-                param.setValueAtTime(value, time_at);
-                break;
-            case 'setTargetAtTime':
-                if (speed !== undefined)
-                    param.setTargetAtTime(value, time_at, speed !== null && speed !== void 0 ? speed : 0.6);
-                else
-                    console.error("Speed paramemter must be defined for setTargetAtTime method.");
-                break;
-            default:
-                param.linearRampToValueAtTime(value, time_at);
-                break;
-        }
-    }
-    // note: how rampers are processed
-    /*
-    Precondition: A ramping method can only defined for a continuous tone.
-    1. A ramping method is first defined in a spec under a channel.
-    2. It is collected and passed along to a unit stream (only a unit stream) to aovid any potential collision.
-    3. When a unit stream is played, it is passed as configuration information and the proper ramping function is selected using the rampBy function.
-    */
-
-    // extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
-    class BiquadFilter extends AudioFilterPrototype {
-        constructor(ctx) {
-            super(ctx);
-            this.ctx = ctx;
-            this.filter = ctx.createBiquadFilter();
-            this.destination = this.filter;
-            this.useGain = false;
-        }
-        initialize(time) {
-            this.filter.gain.setValueAtTime(1, time);
-        }
-        connect(node) {
-            this.filter.connect(node);
-        }
-        disconnect(node) {
-            this.filter.disconnect(node);
-        }
-    }
-    class LowpassBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'lowpass';
-            this.destination = this.filter;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class HighpassBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'highpass';
-            this.destination = this.filter;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class BandpassBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'bandpass';
-            this.destination = this.filter;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class LowshelfBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'lowshelf';
-            this.destination = this.filter;
-            this.useGain = true;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class HighshelfBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'highshelf';
-            this.destination = this.filter;
-            this.useGain = true;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class PeakingBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'peaking';
-            this.destination = this.filter;
-            this.useGain = true;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class NotchBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'notch';
-            this.destination = this.filter;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    class AllpassBiquadFilter extends BiquadFilter {
-        constructor(ctx) {
-            super(ctx);
-            this.filter.type = 'allpass';
-            this.destination = this.filter;
-        }
-        connect(node) {
-            this.destination.connect(node);
-        }
-        disconnect(node) {
-            this.destination.disconnect(node);
-        }
-    }
-    const BiquadEncoder = function (filter, sound, startTime, rampers) {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
-        if (filter.useGain) {
-            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadGain, filter.filter.gain, ((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime);
-        }
-        if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
-            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadPitch, filter.filter.frequency, ((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime);
-        }
-        if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
-            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadQ, filter.filter.Q, ((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime);
-        }
-        if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
-            rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadDetune, filter.filter.detune, ((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime);
-        }
-    };
-    const BiquadFinisher = function (filter, sound, startTime, duration, rampers) {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
-        if (filter.useGain) {
-            filter.filter.gain.setValueAtTime(((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime + duration);
-        }
-        if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
-            filter.filter.frequency.setValueAtTime(((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime + duration);
-        }
-        if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
-            filter.filter.Q.setValueAtTime(((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime + duration);
-        }
-        if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
-            filter.filter.detune.setValueAtTime(((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime + duration);
-        }
-    };
-
-    class DefaultDynamicCompressor extends AudioFilterPrototype {
-        constructor(ctx) {
-            super(ctx);
-            this.ctx = ctx;
-            this.filter = ctx.createDynamicsCompressor();
-            this.destination = this.filter;
-        }
-        initialize() {
-            this.filter.attack.value = 20;
-            this.filter.knee.value = 40;
-            this.filter.ratio.value = 18;
-            this.filter.release.value = 0.25;
-            this.filter.threshold.value = -50;
-        }
-        connect(node) {
-            this.filter.connect(node);
-        }
-        disconnect(node) {
-            this.filter.disconnect(node);
-        }
-    }
-    const CompressorEncoder = function (filter, sound, startTime, rampers) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-        if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.dcAttack) !== undefined)
-            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcAttack, filter.filter.attack, (_b = sound.others.dcAttack) !== null && _b !== void 0 ? _b : 1, startTime);
-        if (((_c = sound.others) === null || _c === void 0 ? void 0 : _c.dcKnee) !== undefined)
-            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcKnee, filter.filter.knee, (_d = sound.others.dcKnee) !== null && _d !== void 0 ? _d : 1, startTime);
-        if (((_e = sound.others) === null || _e === void 0 ? void 0 : _e.dcRatio) !== undefined)
-            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcRatio, filter.filter.ratio, (_f = sound.others.dcRatio) !== null && _f !== void 0 ? _f : 1, startTime);
-        if (((_g = sound.others) === null || _g === void 0 ? void 0 : _g.dcReduction) !== undefined)
-            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcReduction, filter.filter.release, (_h = sound.others.dcReduction) !== null && _h !== void 0 ? _h : 1, startTime);
-        if (((_j = sound.others) === null || _j === void 0 ? void 0 : _j.dcThreshold) !== undefined)
-            rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcThreshold, filter.filter.threshold, (_k = sound.others.dcThreshold) !== null && _k !== void 0 ? _k : 1, startTime);
-    };
-    const CompressorFinisher = function (filter, sound, startTime, duration, rampers) {
-    };
-
-    class DistortionFilter extends AudioFilterPrototype {
-        constructor(ctx) {
-            super(ctx);
-            this.ctx = ctx;
-            this.filter = ctx.createWaveShaper();
-            this.destination = this.filter;
-        }
-        initialize(s, e) {
-            // s: starting time is not important but for formatting
-            this.filter.curve = makeDistortionCurve(e);
-        }
-        connect(node) {
-            this.filter.connect(node);
-        }
-        disconnect(node) {
-            this.filter.disconnect(node);
-        }
-    }
-    // https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
-    function makeDistortionCurve(amount) {
-        const k = amount !== null && amount !== void 0 ? amount : 50;
-        const n_samples = 44100;
-        const curve = new Float32Array(n_samples);
-        const deg = Math.PI / 180;
-        for (let i = 0; i < n_samples; i++) {
-            const x = (i * 2) / n_samples - 1;
-            curve[i] = ((3 + k) * x * 10 * deg) / (Math.PI + k * Math.abs(x));
-        }
-        return curve;
-    }
-    const DistortionEncoder = function (filter, sound, startTime, rampers) {
-        var _a;
-        if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.distortion) !== undefined) {
-            filter.filter.curve = makeDistortionCurve(sound.others.distortion);
-        }
-        else {
-            filter.filter.curve = makeDistortionCurve(100);
-        }
-    };
-    const DistortionFinisher = function (filter, sound, startTime, duration, rampers) {
-        filter.filter.curve = makeDistortionCurve(50);
-    };
-
-    // This is a basic sample for how to define a custom filter
-    class GainerFilter extends AudioFilterPrototype {
-        constructor(ctx) {
-            super(ctx);
-            // always needs an (offline) audio context
-            this.ctx = ctx;
-            // static parameters
-            this.attackTime = 0.1;
-            this.releaseTime = 0.1;
-            // always needs a `filter` property for dynamic parameters to be used by the encoder and finisher
-            // the name can change but... just stick to this
-            this.filter = ctx.createGain();
-            // always needs a desitnation that is connectable; sometimes it can be something other than the filter object.
-            // the name can never be changed because this is the property that other interfaces gonna access to this node.
-            this.destination = this.filter;
-        }
-        // [required] this is ran when the filter is applied for the first time
-        initialize(time) {
-            this.filter.gain.cancelScheduledValues(time);
-            this.filter.gain.setValueAtTime(0, time);
-        }
-        // the follwoing methods are required to satisfiy the basic audio node structure
-        // [required] this defines how this filter connects itself to another node
-        connect(node) {
-            this.filter.connect(node);
-        }
-        // [required] this defines how this filter *dis*connects itself to another node
-        disconnect(node) {
-            this.filter.disconnect(node);
-        }
-    }
-    // an encoder changes values at a time
-    // must use `rampBy` function as a standard interface for ramping functions
-    const GainerEncoder = function (filter, sound, startTime, rampers) {
-        var _a, _b;
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, // ramper methods (if provided, otherwise, 'linear')
-        filter.filter.gain, // actual node to set the value
-        (_b = (_a = sound.others) === null || _a === void 0 ? void 0 : _a.gain2) !== null && _b !== void 0 ? _b : 1, // the gain value
-        startTime + filter.attackTime // when the gain value kicks in
-        );
-    };
-    // a finisher sets the final values when the sound is done.
-    // must use `rampBy` function as a standard interface for ramping functions
-    const GainerFinisher = function (filter, sound, startTime, duration, rampers) {
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, filter.filter.gain, 0, (startTime || 0) + (duration || 1) - filter.releaseTime);
-    };
-
-    const PresetFilters = {
-        'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
-        'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'bandpass': { filter: BandpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'lowshelf': { filter: LowshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'highshelf': { filter: HighshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'peaking': { filter: PeakingBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'notch': { filter: NotchBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'allpass': { filter: AllpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-        'defaultCompressor': { filter: DefaultDynamicCompressor, encoder: CompressorEncoder, finisher: CompressorFinisher },
-        'distortion': { filter: DistortionFilter, encoder: DistortionEncoder, finisher: DistortionFinisher }
-    };
-    const FilterExtraChannelTypes = {
-        gain2: { type: LOUDNESS_chn },
-        biquadDetune: { type: DETUNE_chn },
-        biquadPitch: { type: PITCH_chn }
-    };
-
-    function emitNotePlayEvent(type, note) {
-        if (isBrowserEventPossible()) {
-            document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
-                detail: {
-                    type,
-                    note
-                }
-            }));
-        }
-    }
-    function emitNoteStopEvent(type, note) {
-        if (isBrowserEventPossible()) {
-            document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
-                detail: {
-                    type,
-                    note
-                }
-            }));
         }
     }
 
@@ -5832,6 +5215,1055 @@
         return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioGraphQueue.name;
     }
 
+    // chime instrument -> FM Synth
+    function playChime(ctx, _chime, bufferPrimitve) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (ctx === undefined) {
+                ctx = new AudioContext();
+            }
+            let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
+            let chime_queue = chime;
+            chime_queue.hasSpeech = false;
+            yield playAbsoluteDiscreteTones(ctx, chime_queue, {}, {}, // sampled
+            { chimeSynth }, // synth defs
+            {}, // wave defs
+            [], bufferPrimitve);
+        });
+    }
+
+    const Unset = 'unset', Chime = 'chime', Speech = 'speech', Sampling = 'sampling';
+    class Notify {
+        constructor(t) {
+            this._type = Unset;
+            if (t)
+                this.type(t);
+            this._loudness = 1;
+            this._detune = 0;
+        }
+        type(t) {
+            if ([Chime, Speech, Sampling].includes(t)) {
+                this._type = t;
+                if (this._type == Chime) {
+                    // cancel
+                    delete this._speech;
+                    delete this._language;
+                    delete this._speechRate;
+                    delete this._pitch;
+                    delete this._sample;
+                    delete this._detune;
+                }
+                else if (this._type == Speech) {
+                    // cancel
+                    delete this._chime;
+                    delete this._sample;
+                    delete this._detune;
+                }
+                else if (this._type == Sampling) {
+                    // cancel
+                    delete this._chime;
+                    delete this._speech;
+                    delete this._language;
+                    delete this._speechRate;
+                    delete this._pitch;
+                }
+            }
+            else {
+                console.warn("Unsupported type", t, "ignored.");
+            }
+            return this;
+        }
+        speech(t) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (this._type != Speech) {
+                console.warn("Only supported for speech-type cnotifications.");
+            }
+            else if (typeof t == 'string') {
+                this._speech = t;
+            }
+            return this;
+        }
+        loudness(n) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (typeof n == 'number' && n > 0) {
+                this._loudness = n;
+            }
+            return this;
+        }
+        pitch(n) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (this._type != Speech) {
+                console.warn("Only supported for speech-type cnotifications.");
+            }
+            else if (typeof n == 'number' && n > 0) {
+                this._pitch = n;
+            }
+            return this;
+        }
+        detune(n) {
+            if (this._type != Sampling) {
+                console.warn("Only supported for sampling-type cnotifications.");
+            }
+            else if (typeof n == 'number' && n > 0) {
+                this._detune = n;
+            }
+            return this;
+        }
+        language(s) {
+            if (this._type == Unset) {
+                this._type = Speech;
+            }
+            if (this._type != Speech) {
+                console.warn("Only supported for speech-type cnotifications.");
+            }
+            else if (typeof s == 'string' && bcp47language.includes(s)) {
+                this._language = s;
+            }
+            return this;
+        }
+        chime(s) {
+            if (this._type != Chime) {
+                console.warn("Only supported for chime-type cnotifications.");
+            }
+            else if (isChimeName(s)) {
+                this._chime = s;
+            }
+            return this;
+        }
+        sample(s) {
+            if (this._type != Sampling) {
+                console.warn("Only supported for sampling-type cnotifications.");
+            }
+            else if (typeof s == 'string') {
+                this._sample = s;
+            }
+            return this;
+        }
+        get() {
+            if (this._type == Unset)
+                return undefined;
+            else if (this._type == Speech) {
+                if (this._speech) {
+                    return {
+                        speech: this._speech,
+                        loudness: this._loudness,
+                        pitch: this._pitch,
+                        language: this._language,
+                        speechRate: this._speechRate
+                    };
+                }
+                else {
+                    return true;
+                }
+            }
+            else if (this._type == Sampling) {
+                if (this._sample) {
+                    return {
+                        chime: this._sample,
+                        loudness: this._loudness,
+                    };
+                }
+                else {
+                    console.error("Undefined sampling URL");
+                }
+            }
+            else if (this._type == Chime) {
+                if (this._chime) {
+                    return {
+                        chime: this._chime,
+                        loudness: this._loudness,
+                    };
+                }
+                else {
+                    console.error("Undefined chime name");
+                }
+            }
+        }
+        clone() {
+            let _c = new Notify();
+            if (_c) {
+                _c._type = this._type;
+                _c._speech = this._speech;
+                _c._loudness = this._loudness;
+                _c._pitch = this._pitch;
+                _c._detune = this._detune;
+                _c._language = this._language;
+                _c._speechRate = this._speechRate;
+                _c._chime = this._chime;
+                _c._sample = this._sample;
+            }
+            return _c;
+        }
+    }
+    function isChimeName(s) {
+        return (typeof s == 'string') && (s in Chimes);
+    }
+    function intNotify() {
+        return {
+            incoming: new Notify(),
+            beforePlayback: new Notify(),
+            afterPlayback: new Notify(),
+            beforePlay: new Notify(),
+            afterPlay: new Notify(),
+            next: new Notify()
+        };
+    }
+
+    class Playback {
+        constructor() {
+            this._init_by = 'manual';
+            this._unit = 'instance';
+            this._limit = 3;
+            this._speed = 1.5;
+        }
+        init_by(i) {
+            if (PlaybackTypes.includes(i)) {
+                this._init_by = i;
+            }
+            else {
+                console.error("Unsupported playback initiation type.");
+            }
+            return this;
+        }
+        unit(i) {
+            if (PlaybackUnits.includes(i)) {
+                this._unit = i;
+                if (this._unit != 'condition') {
+                    this._condition = undefined;
+                }
+            }
+            else {
+                console.error("Unsupported playback unit type.");
+            }
+            return this;
+        }
+        condition(i) {
+            if (typeof i === 'string') {
+                this._unit = i;
+            }
+            else {
+                console.error("A playback condition must be a string.");
+            }
+            return this;
+        }
+        limit(i) {
+            if (typeof i === 'number') {
+                this._limit = i;
+            }
+            else {
+                console.error("Playback limit must be a number.");
+            }
+            return this;
+        }
+        speed(i) {
+            if (typeof i === 'number') {
+                this._speed = i;
+            }
+            else {
+                console.error("Playback speed must be a number.");
+            }
+            return this;
+        }
+        instrument(i) {
+            if (typeof i === 'string') {
+                this._instrument = i;
+            }
+            else {
+                console.error("Playback instrument must be a string.");
+            }
+            return this;
+        }
+        get() {
+            return {
+                init_by: this._init_by,
+                unit: this._unit,
+                condition: this._condition,
+                limit: this._limit,
+                speed: this._speed,
+                instrument: this._instrument
+            };
+        }
+        clone() {
+            let c = new Playback();
+            if (this._init_by !== undefined)
+                c.init_by(this._init_by);
+            if (this._unit !== undefined)
+                c.unit(this._unit);
+            if (this._condition !== undefined)
+                c.condition(this._condition);
+            if (this._limit !== undefined)
+                c.limit(this._limit);
+            if (this._speed !== undefined)
+                c.speed(this._speed);
+            if (this._instrument !== undefined)
+                c.instrument(this._instrument);
+            return c;
+        }
+    }
+
+    class Stream {
+        constructor() {
+            this.data = new Data();
+            this.datasets = new Datasets();
+            this.transform = new Transform();
+            this.synth = new Synth();
+            this.sampling = new Sampling$1();
+            this.wave = new Wave();
+            this.tone = new Tone();
+            this.tick = new TickList();
+            this.encoding = {
+                [TIME_chn]: new TimeChannel(),
+                [TIME2_chn]: new Time2Channel(),
+                [DUR_chn]: new DurationChannel(),
+                [TAPCNT_chn]: new TapCountChannel(),
+                [TAPSPD_chn]: new TapSpeedChannel(),
+                [POST_REVERB_chn]: new PostReverbChannel(),
+                [PITCH_chn]: new PitchChannel(),
+                [DETUNE_chn]: new DetuneChannel(),
+                [LOUDNESS_chn]: new LoudnessChannel(),
+                [PAN_chn]: new PanChannel(),
+                [SPEECH_BEFORE_chn]: new SpeechBeforeChannel(),
+                [SPEECH_AFTER_chn]: new SpeechAfterChannel(),
+                [TIMBRE_chn]: new TimbreChannel(),
+                [REPEAT_chn]: new RepeatChannel(),
+                [MODULATION_chn]: new ModulationChannel(),
+                [HARMONICITY_chn]: new HarmonicityChannel()
+            };
+            this.config = new Config();
+            this.notify = intNotify();
+            this.playback = new Playback();
+        }
+        name(n) {
+            this._name = n;
+            return this;
+        }
+        title(n) {
+            this._title = n;
+            return this;
+        }
+        description(n) {
+            this._description = n;
+            return this;
+        }
+        get() {
+            var _a, _b, _d, _e, _f, _g, _h, _j, _k;
+            let g = {
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
+                datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
+                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
+                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
+                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
+                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
+                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
+                tone: (_j = this.tone) === null || _j === void 0 ? void 0 : _j.get(),
+                encoding: {},
+                config: (_k = this.config) === null || _k === void 0 ? void 0 : _k.get()
+            };
+            Object.keys(this.encoding).forEach((chn) => {
+                if (this.encoding[chn].defined) {
+                    g.encoding[chn] = this.encoding[chn].get();
+                }
+            });
+            return g;
+        }
+        clone() {
+            var _a, _b, _d, _e, _f, _g, _h, _j;
+            let _c = new Stream();
+            _c._name = this._name;
+            _c._title = this._title;
+            _c._description = this._description;
+            _c.data = this.data.clone();
+            _c.datasets = (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.clone();
+            _c.transform = (_b = this.transform) === null || _b === void 0 ? void 0 : _b.clone();
+            _c.synth = (_d = this.synth) === null || _d === void 0 ? void 0 : _d.clone();
+            _c.sampling = (_e = this.sampling) === null || _e === void 0 ? void 0 : _e.clone();
+            _c.wave = (_f = this.wave) === null || _f === void 0 ? void 0 : _f.clone();
+            _c.tone = this.tone.clone();
+            _c.playback = (_g = this.playback) === null || _g === void 0 ? void 0 : _g.clone();
+            _c.notify = Object.keys((_h = this.notify) !== null && _h !== void 0 ? _h : {}).reduce((acc, curr) => {
+                var _a, _b;
+                if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                    acc[curr] = (_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr];
+                return acc;
+            }, {});
+            _c.encoding = {};
+            Object.keys(this.encoding).forEach((chn) => {
+                if (this.encoding[chn].defined) {
+                    _c.encoding[chn] = this.encoding[chn].clone();
+                }
+            });
+            _c.config = (_j = this.config) === null || _j === void 0 ? void 0 : _j.clone();
+            return _c;
+        }
+    }
+
+    class Overlay {
+        constructor(...a) {
+            this.datasets = new Datasets();
+            this.transform = new Transform();
+            this.data = new Data();
+            this.sampling = new Sampling$1();
+            this.synth = new Synth();
+            this.wave = new Wave();
+            this.tick = new TickList();
+            this.config = new Config();
+            let args = [...a];
+            if (isInstanceOf(args[0], String)) {
+                this._name = args[0];
+                args.splice(0, 1);
+            }
+            this.overlay = [];
+            if (isArrayOf(args[0], Stream)) {
+                this.addStreams(args[0]);
+            }
+            else if (isArrayOf(args, Stream)) {
+                this.addStreams(args);
+            }
+        }
+        name(n) {
+            this._name = n;
+            return this;
+        }
+        title(n) {
+            this._title = n;
+            return this;
+        }
+        description(n) {
+            this._description = n;
+            return this;
+        }
+        stream(i) {
+            return this.overlay[i];
+        }
+        remove(i) {
+            this.overlay.splice(i, 1);
+            return this;
+        }
+        add(s) {
+            var _a, _b, _d, _e, _f;
+            if (isInstanceOf(s, Stream)) {
+                let clone = s.clone();
+                // datasets
+                let cloned_datasets = clone.datasets;
+                if (cloned_datasets && cloned_datasets.datasets.length > 0) {
+                    for (const ds of cloned_datasets.datasets) {
+                        (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.add(ds);
+                    }
+                }
+                delete clone.datasets;
+                // tick
+                let cloned_ticks = clone.tick;
+                if (cloned_ticks && cloned_ticks.tick.length > 0) {
+                    for (const ds of cloned_ticks.tick) {
+                        (_b = this.tick) === null || _b === void 0 ? void 0 : _b.add(ds);
+                    }
+                }
+                delete clone.tick;
+                // sampling
+                let cloned_samples = clone.sampling;
+                if (cloned_samples && cloned_samples.sampling.length > 0) {
+                    for (const ds of cloned_samples.sampling) {
+                        (_d = this.sampling) === null || _d === void 0 ? void 0 : _d.add(ds);
+                    }
+                }
+                delete clone.sampling;
+                // synth
+                let cloned_synths = clone.synth;
+                if (cloned_synths && cloned_synths.synth.length > 0) {
+                    for (const ds of cloned_synths.synth) {
+                        (_e = this.synth) === null || _e === void 0 ? void 0 : _e.add(ds);
+                    }
+                }
+                delete clone.synth;
+                // wave
+                let cloned_waves = clone.wave;
+                if (cloned_waves && cloned_waves.wave.length > 0) {
+                    for (const ds of cloned_waves.wave) {
+                        (_f = this.wave) === null || _f === void 0 ? void 0 : _f.add(ds);
+                    }
+                }
+                delete clone.wave;
+                this.overlay.push(clone);
+            }
+            return this;
+        }
+        addStreams(ss) {
+            for (const s of ss) {
+                this.add(s);
+            }
+            return this;
+        }
+        get() {
+            var _a, _b, _d, _e, _f, _g, _h, _j;
+            let g = {
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
+                datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
+                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
+                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
+                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
+                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
+                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
+                overlay: this.overlay.map((d) => d.get()),
+                config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get()
+            };
+            return g;
+        }
+        clone() {
+            var _a, _b, _d, _e, _f, _g, _h;
+            let _c = new Overlay();
+            _c._name = this._name;
+            _c._title = this._title;
+            _c._description = this._description;
+            _c.data = (_a = this.data) === null || _a === void 0 ? void 0 : _a.clone();
+            _c.datasets = (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.clone();
+            _c.transform = (_d = this.transform) === null || _d === void 0 ? void 0 : _d.clone();
+            _c.synth = (_e = this.synth) === null || _e === void 0 ? void 0 : _e.clone();
+            _c.sampling = (_f = this.sampling) === null || _f === void 0 ? void 0 : _f.clone();
+            _c.wave = (_g = this.wave) === null || _g === void 0 ? void 0 : _g.clone();
+            _c.overlay = this.overlay.map((d) => d.clone());
+            _c.config = (_h = this.config) === null || _h === void 0 ? void 0 : _h.clone();
+            return _c;
+        }
+    }
+
+    class Sequence {
+        constructor(...a) {
+            let args = [...a];
+            if (isInstanceOf(args[0], String)) {
+                this._name = args[0];
+                args.splice(0, 1);
+            }
+            this.datasets = new Datasets();
+            this.transform = new Transform();
+            this.data = new Data();
+            this.sampling = new Sampling$1();
+            this.synth = new Synth();
+            this.wave = new Wave();
+            this.tick = new TickList();
+            this.config = new Config();
+            this.sequence = [];
+            if (isArrayOf(args[0], [Stream, Overlay])) {
+                this.addStreams(args[0]);
+            }
+            else if (isArrayOf(args, [Stream, Overlay])) {
+                this.addStreams(args);
+            }
+        }
+        name(n) {
+            this._name = n;
+            return this;
+        }
+        title(n) {
+            this._title = n;
+            return this;
+        }
+        description(n) {
+            this._description = n;
+            return this;
+        }
+        stream(i) {
+            return this.sequence[i];
+        }
+        remove(i) {
+            this.sequence.splice(i, 1);
+            return this;
+        }
+        add(s) {
+            var _a, _b, _d, _e, _f;
+            if (isInstanceOf(s, Stream) || isInstanceOf(s, Overlay)) {
+                let clone = s.clone();
+                // datasets
+                let cloned_datasets = clone.datasets;
+                if (cloned_datasets && cloned_datasets.datasets.length > 0) {
+                    for (const ds of cloned_datasets.datasets) {
+                        (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.add(ds);
+                    }
+                }
+                delete clone.datasets;
+                // tick
+                let cloned_ticks = clone.tick;
+                if (cloned_ticks && cloned_ticks.tick.length > 0) {
+                    for (const ds of cloned_ticks.tick) {
+                        (_b = this.tick) === null || _b === void 0 ? void 0 : _b.add(ds);
+                    }
+                }
+                delete clone.tick;
+                // sampling
+                let cloned_samples = clone.sampling;
+                if (cloned_samples && cloned_samples.sampling.length > 0) {
+                    for (const ds of cloned_samples.sampling) {
+                        (_d = this.sampling) === null || _d === void 0 ? void 0 : _d.add(ds);
+                    }
+                }
+                delete clone.sampling;
+                // synth
+                let cloned_synths = clone.synth;
+                if (cloned_synths && cloned_synths.synth.length > 0) {
+                    for (const ds of cloned_synths.synth) {
+                        (_e = this.synth) === null || _e === void 0 ? void 0 : _e.add(ds);
+                    }
+                }
+                delete clone.synth;
+                // wave
+                let cloned_waves = clone.wave;
+                if (cloned_waves && cloned_waves.wave.length > 0) {
+                    for (const ds of cloned_waves.wave) {
+                        (_f = this.wave) === null || _f === void 0 ? void 0 : _f.add(ds);
+                    }
+                }
+                delete clone.wave;
+                this.sequence.push(clone);
+            }
+            return this;
+        }
+        addStreams(ss) {
+            for (const s of ss) {
+                this.add(s);
+            }
+            return this;
+        }
+        get() {
+            var _a, _b, _d, _e, _f, _g, _h, _j;
+            let g = {
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
+                datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
+                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
+                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
+                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
+                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
+                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
+                sequence: this.sequence.map((d) => d.get()),
+                config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get()
+            };
+            return g;
+        }
+        clone() {
+            var _a, _b, _d, _e, _f, _g, _h;
+            let _c = new Sequence();
+            _c._name = this._name;
+            _c._title = this._title;
+            _c._description = this._description;
+            _c.data = (_a = this.data) === null || _a === void 0 ? void 0 : _a.clone();
+            _c.datasets = (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.clone();
+            _c.transform = (_d = this.transform) === null || _d === void 0 ? void 0 : _d.clone();
+            _c.synth = (_e = this.synth) === null || _e === void 0 ? void 0 : _e.clone();
+            _c.sampling = (_f = this.sampling) === null || _f === void 0 ? void 0 : _f.clone();
+            _c.wave = (_g = this.wave) === null || _g === void 0 ? void 0 : _g.clone();
+            _c.sequence = this.sequence.map((d) => d.clone());
+            _c.config = (_h = this.config) === null || _h === void 0 ? void 0 : _h.clone();
+        }
+    }
+
+    class Aggregate {
+        constructor() {
+            this.aggregate = [];
+            this._groupby = [];
+        }
+        add(op, field, as, p) {
+            if (ZeroOPs.includes(op)) {
+                if ((field === null || field === void 0 ? void 0 : field.constructor.name) !== 'String') {
+                    throw new Error('"as" is not provided.');
+                }
+                this.aggregate.push({
+                    op, as: field
+                });
+            }
+            else if (SingleOps.includes(op)) {
+                if (field === undefined || (field === null || field === void 0 ? void 0 : field.constructor.name) !== 'String') {
+                    throw new Error('"field" is not properly provided.');
+                }
+                if (as === undefined || (as === null || as === void 0 ? void 0 : as.constructor.name) !== 'String') {
+                    throw new Error('"as" is not properly provided.');
+                }
+                if (op === QUANTILE) {
+                    if (p === undefined) {
+                        console.warn('p is not provided, so is set as 0.5.');
+                        p = 0.5;
+                    }
+                    this.aggregate.push({
+                        op, field, as, p
+                    });
+                }
+                else {
+                    this.aggregate.push({
+                        op, field, as
+                    });
+                }
+            }
+            else if (DoubleOps.includes(op)) {
+                if (field === undefined ||
+                    (field === null || field === void 0 ? void 0 : field.constructor.name) !== 'Array' ||
+                    (field === null || field === void 0 ? void 0 : field.length) != 2 ||
+                    !field.every(f => (f === null || f === void 0 ? void 0 : f.constructor.name) !== 'String')) {
+                    throw new Error('"field" is not properly provided.');
+                }
+                if (as === undefined || (as === null || as === void 0 ? void 0 : as.constructor.name) !== 'String') {
+                    throw new Error('"as" is not properly provided.');
+                }
+                this.aggregate.push({
+                    op, field: [...field], as
+                });
+            }
+            else {
+                throw new Error(`Unsupported operation type: ${op}`);
+            }
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                aggregate: deepcopy(this.aggregate),
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Aggregate();
+            _c.aggregate = deepcopy(this.aggregate);
+            _c._groupby = deepcopy(this._groupby);
+            return _c;
+        }
+    }
+
+    class Bin {
+        constructor(bin) {
+            this._bin = bin;
+            this._as = bin + "__bin";
+            this._end = bin + "__bin_end";
+            this._nice = true;
+            this._maxbins = 10;
+            this._step;
+            this._exact;
+        }
+        as(start, end) {
+            this._as = start;
+            this._end = end;
+            return this;
+        }
+        nice(v) {
+            this._nice = v;
+            return this;
+        }
+        maxbins(v) {
+            if (Math.round(v) == v) {
+                this._maxbins = v;
+            }
+            else {
+                throw new TypeError("Bin 'maxbins' should be an integer.");
+            }
+            return this;
+        }
+        step(v) {
+            this._step = v;
+            return this;
+        }
+        exact(v) {
+            this._exact = v;
+            return this;
+        }
+        get() {
+            return {
+                bin: this._bin,
+                as: this._as,
+                end: this._end,
+                nice: this._nice,
+                maxbins: this._maxbins,
+                step: this._step,
+                exact: deepcopy(this._exact)
+            };
+        }
+        clone() {
+            let _c = new Bin(this._bin);
+            _c._as = this._as;
+            _c._end = this._end;
+            _c._nice = this._nice;
+            _c._maxbins = this._maxbins;
+            _c._step = this._step;
+            _c._exact = this._exact ? [...this._exact] : undefined;
+            return _c;
+        }
+    }
+
+    class Calculate {
+        constructor(c, a) {
+            this._calculate = c;
+            this._as = a;
+        }
+        calculate(c) {
+            this._calculate = c;
+            return this;
+        }
+        as(c) {
+            this._as = c;
+            return this;
+        }
+        get() {
+            return {
+                calculate: this._calculate,
+                as: this._as
+            };
+        }
+        clone() {
+            let _c = new Calculate(this._calculate, this._as);
+            return _c;
+        }
+    }
+
+    class Density {
+        constructor(field) {
+            this._density = field;
+            this._cumulative = false;
+            this._counts = false;
+            this._bandwidth;
+            this._extent;
+            this._minsteps = 25;
+            this._maxsteps = 200;
+            this._steps;
+            this._as = ['value', 'density'];
+        }
+        field(f) {
+            this._density = f;
+            return this;
+        }
+        extent(a) {
+            if (a.length == 2) {
+                this._extent = [...a];
+            }
+            else {
+                throw new TypeError("Density 'extent' should be an Array of two Numbers.");
+            }
+            return this;
+        }
+        groupby(g) {
+            this._groupby = [...g];
+            return this;
+        }
+        cumulative(v) {
+            this._cumulative = v;
+            return this;
+        }
+        counts(v) {
+            this._counts = v;
+            return this;
+        }
+        bandwidth(v) {
+            this._bandwidth = v;
+            return this;
+        }
+        minsteps(v) {
+            this._minsteps = v;
+            return this;
+        }
+        maxsteps(v) {
+            this._maxsteps = v;
+            return this;
+        }
+        steps(v) {
+            this._steps = v;
+            return this;
+        }
+        as(a) {
+            if (a.length == 2) {
+                this._as = [a[0], a[1]];
+            }
+            else {
+                throw new TypeError("Density 'as' should be an Array of two Strings.");
+            }
+            return this;
+        }
+        get() {
+            return {
+                density: this._density,
+                extent: this._extent ? [...this._extent] : undefined,
+                groupby: this._groupby ? [...this._groupby] : undefined,
+                cumulative: this._cumulative,
+                counts: this._counts,
+                bandwidth: this._bandwidth,
+                minsteps: this._minsteps,
+                maxsteps: this._maxsteps,
+                steps: this._steps,
+                as: [...this._as]
+            };
+        }
+        clone() {
+            let _c = new Density(this._density);
+            _c._density = this._density;
+            _c._extent = this._extent ? [...this._extent] : undefined;
+            _c._groupby = this._groupby ? [...this._groupby] : undefined;
+            _c._cumulative = this._cumulative;
+            _c._counts = this._counts;
+            _c._bandwidth = this._bandwidth;
+            _c._minsteps = this._minsteps;
+            _c._maxsteps = this._maxsteps;
+            _c._steps = this._steps;
+            _c._as = [...this._as];
+            return _c;
+        }
+    }
+
+    class Filter {
+        constructor(filter) {
+            this._filter = filter;
+        }
+        filter(f) {
+            this._filter = f;
+            return this;
+        }
+        get() {
+            return {
+                filter: this._filter
+            };
+        }
+        clone() {
+            let _c = new Filter(this._filter);
+            return _c;
+        }
+    }
+
+    class Fold {
+        constructor(f, b) {
+            this._fold = f;
+            this._by = b;
+            this._exclude = false;
+            this._as = ['key', 'value'];
+        }
+        fold(f) {
+            this._fold = [...f];
+            return this;
+        }
+        by(b) {
+            this._by = b;
+            return this;
+        }
+        exclude(e) {
+            this._exclude = e;
+            return this;
+        }
+        as(a) {
+            if (a.length == 2) {
+                this._as = [a[0], a[1]];
+            }
+            else {
+                throw new TypeError("Fold 'fold' should be an Array of two Strings.");
+            }
+            return this;
+        }
+        get() {
+            return {
+                fold: this._fold,
+                by: this._by,
+                exclude: this._exclude,
+                as: this._as
+            };
+        }
+        clone() {
+            let _c = new Fold(this._fold, this._by);
+            _c._exclude = this._exclude;
+            if (this._as)
+                _c._as = deepcopy(this._as);
+            return _c;
+        }
+    }
+
+    class UnitStream {
+        constructor(id, instrument_type, stream, scales, opt) {
+            this.id = id;
+            this.instrument_type = instrument_type;
+            this.stream = stream;
+            this.option = opt || {};
+            this.scales = scales;
+            this.config = {};
+            this.name;
+            this.ramp = {};
+        }
+        setTitle(t) {
+            this.title = t;
+        }
+        setDescription(d) {
+            this.description = d;
+        }
+        setName(name) {
+            this.name = name;
+        }
+        setConfig(key, value) {
+            this.config[key] = value;
+        }
+        setFilters(audioFilters) {
+            this.audioFilters = audioFilters;
+        }
+        setRamp(ramp) {
+            this.ramp = deepcopy(ramp);
+        }
+        make_tone_text(i) {
+            var _a, _b;
+            let text = [];
+            let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`);
+            if (this.name)
+                text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: (_a = this.config) === null || _a === void 0 ? void 0 : _a.speechRate });
+            else
+                text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: (_b = this.config) === null || _b === void 0 ? void 0 : _b.speechRate });
+            text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
+            return text;
+        }
+        make_scale_text(channel) {
+            let scales = this.scales;
+            let text = Object.keys(scales)
+                .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
+                .map((c) => {
+                var _a, _b;
+                return {
+                    id: (_a = scales[c]) === null || _a === void 0 ? void 0 : _a.scaleId,
+                    channel: c,
+                    description: (_b = scales[c]) === null || _b === void 0 ? void 0 : _b.description
+                };
+            });
+            return text.flat();
+        }
+        prerender() {
+            return __awaiter(this, void 0, void 0, function* () {
+                var _a, _b;
+                return {
+                    instrument_type: this.instrument_type,
+                    sounds: this.stream,
+                    continued: (_a = this.option) === null || _a === void 0 ? void 0 : _a.is_continued,
+                    relative: (_b = this.option) === null || _b === void 0 ? void 0 : _b.relative,
+                    filters: this.audioFilters,
+                    ramp: this.ramp,
+                    duration: this.duration
+                };
+            });
+        }
+    }
+    function isUnitStreamObject(o) {
+        var _a;
+        return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === UnitStream.name;
+    }
+
     class OverlayStream {
         constructor(id) {
             this.id = id;
@@ -6131,7 +6563,7 @@
         const polarChannels = [PAN_RADIUS_chn, PAN_POLAR_chn, PAN_AZIMUTH_chn];
         const cartesianSaturation = cartesianChannels.filter(channel => spec.encoding[channel] !== undefined).length;
         const polarSaturation = polarChannels.filter(channel => spec.encoding[channel] !== undefined).length;
-        if (cartesianSaturation > polarSaturation) {
+        if (cartesianSaturation >= polarSaturation) {
             polarChannels.forEach(channel => {
                 if (spec.encoding[channel]) {
                     console.warn(`Dropping Polar channel ${channel} in favor of Cartesian channels due to higher saturation.`);
@@ -6163,6 +6595,7 @@
             }
         }
         let has_repeated_overlay = false;
+        let reject_time2_for_binning = false;
         for (const channel of Object.keys(spec.encoding)) {
             let o_enc = spec.encoding[channel];
             let _field = (_c = o_enc.field) !== null && _c !== void 0 ? _c : undefined;
@@ -6218,6 +6651,9 @@
             if (o_enc.bin) {
                 if (!o_enc.field) {
                     console.error("Bin without a field name is not possible.");
+                }
+                if (channel == TIME_chn && spec.encoding[TIME2_chn] !== undefined) {
+                    reject_time2_for_binning = true;
                 }
                 if (o_enc.bin instanceof Object) {
                     further_transforms.push({
@@ -6352,8 +6788,13 @@
                 sustain: 'sustain' in o_enc && o_enc.sustain ? o_enc.sustain : false
             };
         }
+        // if time is binned and time2 is set, reject time2
+        if (reject_time2_for_binning) {
+            console.warn("Reject time2 because time is binned");
+            delete encoding[TIME2_chn];
+        }
         // if time2 channel is defined, set the scale for it
-        if (encoding[TIME2_chn]) {
+        else if (encoding[TIME2_chn]) {
             encoding[TIME2_chn].scale = { id: (_m = (_l = encoding[TIME_chn]) === null || _l === void 0 ? void 0 : _l.scale) === null || _m === void 0 ? void 0 : _m.id };
             scaleDefinitions.forEach((d) => {
                 var _a, _b;
@@ -6398,19 +6839,6 @@
                 transform = [];
             transform.push({ aggregate: encoding_aggregates, groupby: GroupbyAuto });
         }
-        // [todo]  <- future support
-        /** if (transform !== undefined && (transform?.length ?? 0) > 0) {
-              transform.forEach((t) => {
-                if ((t.boxplot || t.quantile) && !t.groupby) t.groupby = Auto;
-              });
-            } */
-        // config (removing bc config only exists at the top level)
-        // let config: ConfigInterface | undefined = undefined;
-        // if (spec.config) {
-        //   config = {};
-        //   Object.assign(config, spec.config);
-        //   config = config;
-        // }
         let normalized = {
             title,
             name,
@@ -8264,19 +8692,18 @@
         }
     }
 
+    //  [max, min]
     function getChannelThresholds(channel, extraChannelType) {
-        var _a, _b, _c, _d;
-        let min = ((_a = ChannelThresholds[channel]) === null || _a === void 0 ? void 0 : _a.max)
-            || ((_b = ChannelThresholds[extraChannelType]) === null || _b === void 0 ? void 0 : _b.max), max = ((_c = ChannelThresholds[channel]) === null || _c === void 0 ? void 0 : _c.min)
-            || ((_d = ChannelThresholds[extraChannelType]) === null || _d === void 0 ? void 0 : _d.min);
-        return [min, max];
+        var _a, _b, _c, _d, _e, _f;
+        let max = (_b = (_a = ChannelThresholds[channel]) === null || _a === void 0 ? void 0 : _a.max) !== null && _b !== void 0 ? _b : (_c = ChannelThresholds[extraChannelType]) === null || _c === void 0 ? void 0 : _c.max;
+        let min = (_e = (_d = ChannelThresholds[channel]) === null || _d === void 0 ? void 0 : _d.min) !== null && _e !== void 0 ? _e : (_f = ChannelThresholds[extraChannelType]) === null || _f === void 0 ? void 0 : _f.min;
+        return [max, min];
     }
     function getChannelCaps(channel, extraChannelType) {
-        var _a, _b, _c, _d;
-        let min = ((_a = ChannelCaps[channel]) === null || _a === void 0 ? void 0 : _a.max)
-            || ((_b = ChannelCaps[extraChannelType]) === null || _b === void 0 ? void 0 : _b.max), max = ((_c = ChannelCaps[channel]) === null || _c === void 0 ? void 0 : _c.min)
-            || ((_d = ChannelCaps[extraChannelType]) === null || _d === void 0 ? void 0 : _d.min);
-        return [min, max];
+        var _a, _b, _c, _d, _e, _f;
+        let max = (_b = (_a = ChannelCaps[channel]) === null || _a === void 0 ? void 0 : _a.max) !== null && _b !== void 0 ? _b : (_c = ChannelCaps[extraChannelType]) === null || _c === void 0 ? void 0 : _c.max;
+        let min = (_e = (_d = ChannelCaps[channel]) === null || _d === void 0 ? void 0 : _d.min) !== null && _e !== void 0 ? _e : (_f = ChannelCaps[extraChannelType]) === null || _f === void 0 ? void 0 : _f.min;
+        return [max, min];
     }
 
     function makeNominalScaleFunction(channel, encoding, values, info, is_streamed) {
@@ -10049,96 +10476,6 @@
         }
     }
 
-    const ChimeBeat = 0.33;
-    function getChimeBeat(n) {
-        return ChimeBeat * n;
-    }
-    const ChimeBeforePlay = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // C -> G
-    const ChimeNext = [{
-            start: getChimeBeat(0.15), duration: getChimeBeat(1.5), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1.65), duration: getChimeBeat(1), pitch: noteFreqRange[6].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2.65), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // C -> C
-    const ChimeAfterPlay = [{
-            start: getChimeBeat(0.15), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1.15), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }]; // G -> C
-    const ChimeIncoming = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[6].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1.5), duration: getChimeBeat(1), pitch: noteFreqRange[5].e, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(1), pitch: noteFreqRange[5].c, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(3), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // C -> G -> E -> C
-    const ChimeBeforePlayback = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // D -> G (low octave)
-    const ChimeAfterPlayback = [{
-            start: getChimeBeat(0), duration: getChimeBeat(1), pitch: noteFreqRange[4].g, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(1), duration: getChimeBeat(1), pitch: noteFreqRange[3].d, loudness: 1, timbre: 'chimeSynth'
-        }, {
-            start: getChimeBeat(2), duration: getChimeBeat(0.15), pitch: noteFreqRange[0].c, loudness: 0, timbre: 'chimeSynth'
-        }]; // G -> D
-    const chimeSynth = {
-        name: 'chimeSynth',
-        type: 'FM',
-        carrierType: 'sine',
-        carrierPitch: 220,
-        carrierDetune: 0,
-        carrierVolume: 1,
-        modulatorType: 'sine',
-        modulatorPitch: 440,
-        modulatorVolume: 1,
-        modulation: 1,
-        harmonicity: 1,
-        attackTime: 0.05,
-        releaseTime: 0.05,
-        sustain: 0.2,
-        decayTime: 0
-    };
-    const Chimes = {
-        'beforePlay': ChimeBeforePlay,
-        'afterPlay': ChimeAfterPlay,
-        'beforePlayback': ChimeBeforePlayback,
-        'afterPlayback': ChimeAfterPlayback,
-        'incoming': ChimeIncoming,
-        'next': ChimeNext
-    };
-
-    // chime instrument -> FM Synth
-    function playChime(ctx, _chime, bufferPrimitve) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (ctx === undefined) {
-                ctx = new AudioContext();
-            }
-            let chime = typeof _chime === 'string' ? Chimes[_chime] : _chime;
-            let chime_queue = chime;
-            chime_queue.hasSpeech = false;
-            yield playAbsoluteDiscreteTones(ctx, chime_queue, {}, {}, // sampled
-            { chimeSynth }, // synth defs
-            {}, // wave defs
-            [], bufferPrimitve);
-        });
-    }
-
     class SequenceStream {
         constructor() {
             this.streams = [];
@@ -10732,7 +11069,7 @@
         };
     }
 
-    const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 2, DefaultNoitfyOptions = {
+    const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 1.5, DefaultNoitfyOptions = {
         beforePlayback: { speech: 'Old data', language: 'en-US', speechRate: 1 },
         afterPlayback: { speech: 'End of old data', language: 'en-US', speechRate: 1 },
         incoming: { speech: 'Incoming', language: 'en-US', speechRate: 1 },
@@ -11975,6 +12312,163 @@
         });
     }
 
+    class Boxplot {
+        constructor(c, extent, invalid) {
+            this._boxplot = c;
+            this._extent = extent;
+            this._invalid = invalid;
+        }
+        boxplot(c) {
+            this._boxplot = c;
+            return this;
+        }
+        extent(t) {
+            this._extent = t;
+            return this;
+        }
+        invalid(t) {
+            this._invalid = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                boxplot: this._boxplot,
+                extent: this._extent,
+                invalid: this._invalid,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
+    class Diffing {
+        constructor(c, a, carryOver, keepFirstAsZero) {
+            this._diffing = c;
+            if (a)
+                this._as = a;
+            this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
+            this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
+        }
+        diffing(c) {
+            this._diffing = c;
+            return this;
+        }
+        as(c) {
+            this._as = c;
+            return this;
+        }
+        carryOver(t) {
+            this._carryOver = t;
+            return this;
+        }
+        keepFirstAsZero(t) {
+            this._keepFirstAsZero = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                diffing: deepcopy(this._diffing),
+                as: deepcopy(this._as),
+                carryOver: this._carryOver,
+                keepFirstAsZero: this._keepFirstAsZero,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Diffing(this._diffing, this._as, this._carryOver, this._keepFirstAsZero);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
+    class Quantile {
+        constructor(c, n, step, as) {
+            this._quantile = c;
+            this._n = n;
+            this._step = step;
+            if (as)
+                this._as = as;
+        }
+        quantile(c) {
+            this._quantile = c;
+            return this;
+        }
+        as(c) {
+            if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
+                this._as = c;
+            }
+            else {
+                console.error("Wrong length/type for qunatile 'as'.");
+            }
+            return this;
+        }
+        n(t) {
+            this._n = t;
+            return this;
+        }
+        step(t) {
+            this._step = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                quantile: this._quantile,
+                as: deepcopy(this._as),
+                n: this._n,
+                step: this._step,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
     function make3DScaleFunction(encoding) {
         const { domain, range, default: defaultValue = { x: 0, y: 0, z: 0 } } = encoding;
         const scale = d3Scale.scaleLinear().domain(domain).range(range);
@@ -12024,6 +12518,7 @@
     exports.BiquadEncoder = BiquadEncoder;
     exports.BiquadFilter = BiquadFilter;
     exports.BiquadFinisher = BiquadFinisher;
+    exports.Boxplot = Boxplot;
     exports.BrownNoise = BrownNoise;
     exports.BufferChannels = BufferChannels$1;
     exports.CORR = CORR;
@@ -12097,6 +12592,7 @@
     exports.DescKeyTimeUnit = DescKeyTimeUnit;
     exports.DescKeyTitle = DescKeyTitle;
     exports.DetuneChannel = DetuneChannel;
+    exports.Diffing = Diffing;
     exports.DistortionEncoder = DistortionEncoder;
     exports.DistortionFilter = DistortionFilter;
     exports.DistortionFinisher = DistortionFinisher;
@@ -12210,6 +12706,7 @@
     exports.NomPalletes = NomPalletes;
     exports.NonTimeChannels = NonTimeChannels;
     exports.NotchBiquadFilter = NotchBiquadFilter;
+    exports.Notify = Notify;
     exports.NotifyAfterPlay = NotifyAfterPlay;
     exports.NotifyAfterPlayback = NotifyAfterPlayback;
     exports.NotifyBeforePlay = NotifyBeforePlay;
@@ -12250,6 +12747,7 @@
     exports.PinkNoise = PinkNoise;
     exports.PitchChannel = PitchChannel;
     exports.PlayAt = PlayAt;
+    exports.Playback = Playback;
     exports.PlaybackAuto = PlaybackAuto;
     exports.PlaybackConditional = PlaybackConditional;
     exports.PlaybackManual = PlaybackManual;
@@ -12264,6 +12762,7 @@
     exports.QUANT = QUANT;
     exports.QUANTILE = QUANTILE;
     exports.QuantPreferredRange = QuantPreferredRange;
+    exports.Quantile = Quantile;
     exports.QueueItemTypes = QueueItemTypes;
     exports.REL = REL;
     exports.REPEAT_chn = REPEAT_chn;
@@ -12303,7 +12802,7 @@
     exports.SYMLOG = SYMLOG;
     exports.SampleRate = SampleRate$1;
     exports.SampledTone = SampledTone;
-    exports.Sampling = Sampling;
+    exports.Sampling = Sampling$1;
     exports.ScaleDescriptionOrder = ScaleDescriptionOrder;
     exports.Sequence = Sequence;
     exports.SequenceStream = SequenceStream;
@@ -12317,6 +12816,7 @@
     exports.SpeechType = SpeechType;
     exports.Stopped = Stopped;
     exports.Stream = Stream;
+    exports.Streaming = Streaming;
     exports.StreamingStream = StreamingStream;
     exports.SupportedInstruments = SupportedInstruments;
     exports.SupportedPolarity = SupportedPolarity;
@@ -12361,7 +12861,7 @@
     exports.ToneType = ToneType;
     exports.Transform = Transform;
     exports.UnitStream = UnitStream;
-    exports.Unset = Unset;
+    exports.Unset = Unset$1;
     exports.Url = Url;
     exports.VALID = VALID;
     exports.VARIANCE = VARIANCE;
@@ -12428,6 +12928,7 @@
     exports.getTransformers = getTransformers;
     exports.glyphSorterByEnd = glyphSorterByEnd;
     exports.glyphSorterByStart = glyphSorterByStart;
+    exports.intNotify = intNotify;
     exports.isArrayOf = isArrayOf;
     exports.isAudioGraphQueue = isAudioGraphQueue;
     exports.isBrowserEventPossible = isBrowserEventPossible;
