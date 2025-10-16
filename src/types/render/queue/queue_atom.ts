@@ -31,4 +31,5 @@ export type AudioGraphQueueItemTone = {
 export type AudioGraphQueueItemPause = {
   type: typeof Pause;
   duration: number;
+  config?: ConfigNormed;
 }

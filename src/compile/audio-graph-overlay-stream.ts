@@ -160,7 +160,8 @@ export class OverlayStream {
     }
 
     this.queue.add(ToneOverlaySeries, 0,
-      { overlays }
+      { overlays }, 
+      {...this.config}
     );
 
     this.prerendered = true;

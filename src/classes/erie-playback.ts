@@ -1,4 +1,4 @@
-import { PlaybackSpec, PlaybackTypes, PlaybackUnits } from "types";
+import { PlaybackSpec, PlaybackTypes, PlaybackUnits } from "../types";
 
 export class Playback {
   _init_by: typeof PlaybackTypes[number];

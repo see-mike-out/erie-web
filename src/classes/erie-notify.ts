@@ -1,5 +1,5 @@
-import { Chimes } from "chimes";
-import { bcp47language, NotifyItemSpec } from "types";
+import { Chimes } from "../chimes";
+import { bcp47language, NotifyItemSpec } from "../types";
 
 const Unset = 'unset',
   Chime = 'chime',

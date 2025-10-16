@@ -254,7 +254,7 @@ async function __playSingleTone(
     }
   }
 
-  rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
+  rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.05);
 
   if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
     panner.pan.setValueAtTime(sound.panX, ct);
@@ -268,7 +268,7 @@ async function __playSingleTone(
   // play & stop
   if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {
     inst.start(0);
-    inst.stop(getDuration1(sound))
+    inst.stop(getDuration1(sound));
     let rb = await ctx.startRendering();
     if (sound.start !== 'after_previous') bufferPrimitve.add(sound.start ?? 0, rb);
     else bufferPrimitve.add('next', rb);

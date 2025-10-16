@@ -119,6 +119,9 @@ export class SequenceStream {
 
     // initialize
     this.queue = new AudioGraphQueue();
+    this.queue.setSampling(this.samplings);
+    this.queue.setSynths(this.synths);
+    this.queue.setWaves(this.waves);
 
     let totalStreams: Array<UnitStream | OverlayStream | SpeechStream> = [this.introStream, ...this.streams].filter(d => d !== undefined);
 
@@ -196,8 +199,9 @@ export class SequenceStream {
                 }
               }
               if (stream instanceof UnitStream) {
-                let prerenderedUnitStream = await stream.prerender()
-                this.queue.add(ToneSeries, group_id, prerenderedUnitStream, this.config);
+                let prerenderedUnitStream = await stream.prerender();
+                console.log(stream, prerenderedUnitStream)
+                this.queue.add(ToneSeries, group_id, prerenderedUnitStream, { ...this.config, ...stream.config });
               }
               if (repeatOrderIteam.notify?.afterPlay || repeatOrderIteam.notify?.afterPlay === undefined) {
                 if (repeatOrderIteam.notify === undefined || repeatOrderIteam.notify?.afterPlay === undefined || repeatOrderIteam.notify.afterPlay === true) {
@@ -312,7 +316,6 @@ export class SequenceStream {
             }
           }
         } else if (orderItem.type === OrderingTypeSound) {
-          // todo
           if (orderItem.notify?.beforePlay || orderItem.notify?.beforePlay === undefined) {
             if (orderItem.notify === undefined || orderItem.notify?.beforePlay === undefined || orderItem.notify.beforePlay === true) {
               chiime_used = true;
@@ -344,7 +347,7 @@ export class SequenceStream {
           }
           if (stream instanceof UnitStream) {
             let prerenderedUnitStream = await stream.prerender()
-            this.queue.add(ToneSeries, group_id, prerenderedUnitStream, this.config);
+            this.queue.add(ToneSeries, group_id, prerenderedUnitStream, { ...this.config, ...stream.config });
           } else if (stream instanceof OverlayStream) {
             let prerenderedOverlayStream = await stream.prerender(true) // only overlays
             this.queue.addQueue(group_id, prerenderedOverlayStream);
@@ -392,9 +395,6 @@ export class SequenceStream {
     if (chiime_used) {
       this.synths.chimeSynth = chimeSynth;
     }
-    this.queue.setSampling(this.samplings);
-    this.queue.setSynths(this.synths);
-    this.queue.setWaves(this.waves);
 
     this.prerendered = true;
     this.queue.setConfig('options', this.config.options);

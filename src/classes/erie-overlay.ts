@@ -18,7 +18,6 @@ import {
   DataObject,
   DatasetObject
 } from "../types/api/data";
-import { intNotify, Notify } from "./erie-notify";
 
 export class Overlay {
   _name?: string;
