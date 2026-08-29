@@ -1,6 +1,6 @@
 # Erie: a declarative grammar for data sonification (for web)
 
-**Migration to Typescript is ongoing.**
+We migrated Erie to Typescript along with new functionalities. Check out our [docs](https://see-mike-out.github.io/erie-documentation).
 
 ## Introduction
 
