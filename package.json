@@ -30,14 +30,14 @@
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-multi-entry": "^6.0.1",
-    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/d3": "^7.4.3",
     "@types/node": "^20.0.0",
     "@types/vega": "^0.0.30",
+    "standardized-audio-context": "^25.3.64",
     "typescript": "^5.6.3",
-    "vitest": "^1.6.1",
-    "standardized-audio-context": "^25.3.64"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "arquero": "^5.2.0",
@@ -47,7 +47,7 @@
     "grpc-web": "^1.5.0",
     "moment": "^2.29.4",
     "tone": "^14.7.77",
-    "vega": "^5.27.0"
+    "vega": "^6.4.0"
   },
   "esm": {
     "cjs": true,
