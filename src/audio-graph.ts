@@ -1,0 +1,96 @@
+import {
+  compileSequnceStream,
+  compileStreamingStream
+} from './compile';
+import {
+  normalizeSpecification,
+  isStreamingStream,
+  normalizeOrderSpec,
+} from "./normalize";
+import {
+  toHashedObject
+} from "./util";
+import {
+  TopLevelSpec,
+  ConfigInterface,
+  StreamingSpec,
+  OrderSpecNormed
+} from './types';
+import { generateBaseOrderSpec } from './normalize/audio-graph-generate-base-ordering';
+
+// global event
+let isRecorded = false;
+export function readyRecording() {
+  document?.body?.addEventListener("erieOnRecorderReady", (e) => {
+    isRecorded = true;
+  });
+}
+
+export async function compileAudioGraph(audio_spec: TopLevelSpec, options: ConfigInterface) {
+  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec, options);
+  let is_streaming = isStreamingStream(audio_spec);
+  sequenceConfig.is_streaming = is_streaming;
+
+  // todo: handle ordering
+  let ordering = audio_spec?.ordering, ordering_normalized!: OrderSpecNormed;
+  if (ordering !== undefined) {
+    ordering_normalized = normalizeOrderSpec(ordering, normalized);
+  } else {
+    ordering_normalized = generateBaseOrderSpec(normalized, sequenceConfig);
+  }
+
+  let sequence = !is_streaming ? await compileSequnceStream(
+    audio_spec,
+    normalized,
+    datasets,
+    tick,
+    scaleDefinitions,
+    sequenceConfig,
+    synths,
+    samplings,
+    waves,
+    ordering_normalized // todo
+  ) : await compileStreamingStream(
+    audio_spec as StreamingSpec,
+    normalized,
+    tick,
+    scaleDefinitions,
+    sequenceConfig,
+    {
+      playback: (audio_spec as StreamingSpec).playback,
+      notify: (audio_spec as StreamingSpec).notify,
+      test_data: Object.keys(datasets).length == 0 ? undefined : datasets
+    }
+  )
+
+  // 6. Configs
+  if (audio_spec.config) {
+    Object.keys(audio_spec.config).forEach((key) => {
+      if (audio_spec.config?.[key]) {
+        sequence.setConfig(key, audio_spec.config[key]);
+      }
+    });
+  }
+  if (options) {
+    sequence.setConfig('options', options);
+  }
+  
+  if (audio_spec?.config?.recording) {
+    sequence.setConfig("recording", true);
+  }
+
+  // 5. Rregistrations
+  sequence.setSampling(toHashedObject(samplings, 'name'));
+  sequence.setSynths(toHashedObject(synths, 'name'));
+  sequence.setWaves(toHashedObject(waves, 'name'));
+
+
+  if (typeof window !== 'undefined'
+    && 'erieRecorderReady' in window
+    && window?.erieRecorderReady) {
+    isRecorded = true;
+  }
+  sequence.setConfig('isRecorded', isRecorded);
+  sequence.setConfig('options', options);
+  return sequence;
+}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!-- pre-requisites -->
+  <script src="https://cdn.jsdelivr.net/npm/arquero@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5/build-es5/vega.min.js"></script>
+
+  <!-- build file -->
+  <script src="../build/erie-web-umd.js"></script>
+
+  <script>
+    var audio;
+    Erie.compileAudioGraph({
+      "description": "A histogram of Miles_per_Gallon variable.",
+      "data": {
+        "url": "data/cars.json"
+      },
+      "tone": {
+        "continued": false
+      },
+      "encoding": {
+        "time": {
+          "field": "Miles_per_Gallon",
+          "type": "quantitative",
+          "bin": true,
+          "scale": {
+            "length": 4.5
+          },
+          "tick": {
+            "interval": 0.5,
+            "playAtTime0": true
+          }
+        },
+        "pitch": {
+          "aggregate": "count",
+          "type": "quantitative",
+          "scale": {
+            "polarity": "positive",
+            "maxDistinct": true
+          }
+        }
+      },
+      "config": {
+        "speechRate": 1.75
+      }
+    }, {
+      dataBaseUrl: "https://vega.github.io/vega-datasets/"
+    }).then((stream) => {
+      stream.prerender();
+      audio = stream;
+    })
+
+    function play() {
+      console.log(audio)
+      if (audio) {
+        audio.playQueue();
+      }
+    }
+
+    function stop() {
+      if (audio) {
+        audio.stopQueue();
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <h1>Erie UMD Testing</h1>
+  <main>
+    <h2>Spec</h2>
+    <pre>
+{
+  "description": "A histogram of Miles_per_Gallon variable.",
+  "data": {
+    "url": "data/cars.json"
+  },
+  "tone": {
+    "continued": false
+  },
+  "encoding": {
+    "time": {
+      "field": "Miles_per_Gallon",
+      "type": "quantitative",
+      "bin": true,
+      "scale": {
+        "length": 4.5
+      },
+      "tick": {
+        "interval": 0.5,
+        "playAtTime0": true
+      }
+    },
+    "pitch": {
+      "aggregate": "count",
+      "type": "quantitative",
+      "scale": {
+        "polarity": "positive",
+        "maxDistinct": true
+      }
+    }
+  },
+  "config": {
+    "speechRate": 1.75
+  }
+}</pre>
+    <h2>Play the audio</h2>
+    <p>
+      <button id="play">Play</button>
+
+      <button id="stop">Stop</button>
+    </p>
+  </main>
+  <script>
+    document.querySelector("#play").addEventListener("click", () => { play() });
+    document.querySelector("#stop").addEventListener("click", () => { stop() });
+  </script>
+</body>
+
+</html>
