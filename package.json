@@ -52,5 +52,8 @@
   "esm": {
     "cjs": true,
     "await": true
+  },
+  "overrides": {
+    "lodash": "4.18.0"
   }
 }
