@@ -1203,6 +1203,1120 @@ function getSampleBaseUrl(url) {
     }
 }
 
+class UnitStream {
+    constructor(id, instrument_type, stream, scales, opt) {
+        this.id = id;
+        this.instrument_type = instrument_type;
+        this.stream = stream;
+        this.option = opt || {};
+        this.scales = scales;
+        this.config = {};
+        this.name;
+        this.ramp = {};
+    }
+    setTitle(t) {
+        this.title = t;
+    }
+    setDescription(d) {
+        this.description = d;
+    }
+    setName(name) {
+        this.name = name;
+    }
+    setConfig(key, value) {
+        this.config[key] = value;
+    }
+    setFilters(audioFilters) {
+        this.audioFilters = audioFilters;
+    }
+    setRamp(ramp) {
+        this.ramp = deepcopy(ramp);
+    }
+    make_tone_text(i) {
+        var _a, _b;
+        let text = [];
+        let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`);
+        if (this.name)
+            text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: (_a = this.config) === null || _a === void 0 ? void 0 : _a.speechRate });
+        else
+            text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: (_b = this.config) === null || _b === void 0 ? void 0 : _b.speechRate });
+        text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
+        return text;
+    }
+    make_scale_text(channel) {
+        let scales = this.scales;
+        let text = Object.keys(scales)
+            .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
+            .map((c) => {
+            var _a, _b;
+            return {
+                id: (_a = scales[c]) === null || _a === void 0 ? void 0 : _a.scaleId,
+                channel: c,
+                description: (_b = scales[c]) === null || _b === void 0 ? void 0 : _b.description
+            };
+        });
+        return text.flat();
+    }
+    prerender() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            return {
+                instrument_type: this.instrument_type,
+                sounds: this.stream,
+                continued: (_a = this.option) === null || _a === void 0 ? void 0 : _a.is_continued,
+                relative: (_b = this.option) === null || _b === void 0 ? void 0 : _b.relative,
+                filters: this.audioFilters,
+                ramp: this.ramp,
+                duration: this.duration
+            };
+        });
+    }
+}
+function isUnitStreamObject(o) {
+    var _a;
+    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === UnitStream.name;
+}
+
+// event-related
+function sendToneStartEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnPlayTone", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendToneFinishEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnFinishTone", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendSpeechStartEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendSpeechFinishEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendQueueStartEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendQueueFinishEvent(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
+        document.body.dispatchEvent(playEvent);
+        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
+        document.body.dispatchEvent(chnageEvent);
+    }
+}
+function sendStreamingSignal(detail) {
+    if (isBrowserEventPossible()) {
+        let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
+        document.body.dispatchEvent(playEvent);
+    }
+}
+
+function roundToNote(freq, scales) {
+    let min_diff = 5000, min_diff_note;
+    for (const noteName of noteScaleOrder) {
+        let diff = Math.abs(scales[noteName] - freq);
+        if (diff < min_diff) {
+            min_diff = diff;
+            min_diff_note = noteName;
+        }
+    }
+    return {
+        note_name: min_diff_note,
+        prev_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) - 1],
+        next_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) + 1],
+        note_freq: scales[min_diff_note],
+        detune: detuneAmmount[min_diff_note]
+    };
+}
+function roundToNoteScale(freq) {
+    var _a;
+    let octave;
+    for (const range of noteFreqRange) {
+        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
+            octave = range;
+        }
+        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
+            octave = range;
+        }
+        else if (range.gf <= freq && freq < range.fs) {
+            octave = range;
+        }
+    }
+    if (octave !== undefined) {
+        return (_a = roundToNote(freq, octave)) === null || _a === void 0 ? void 0 : _a.note_freq;
+    }
+    else {
+        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
+        return null;
+    }
+}
+function determineNoteRange(freq, config) {
+    var _a, _b;
+    let octave;
+    for (const range of noteFreqRange) {
+        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
+            octave = range;
+        }
+        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
+            octave = range;
+        }
+        else if (range.gf <= freq && freq < range.fs) {
+            octave = range;
+        }
+    }
+    if (octave !== undefined) {
+        let rounded_note = roundToNote(freq, octave);
+        if (config === null || config === void 0 ? void 0 : config.round) {
+            return {
+                octave: octave.octave,
+                original_freq: freq,
+                freq: rounded_note.note_freq,
+                note: rounded_note.note_name,
+                detune: rounded_note.detune
+            };
+        }
+        else {
+            let detune_base = rounded_note.detune;
+            let note_diff = rounded_note.note_freq - freq;
+            let detune = 0;
+            if (note_diff < 0) {
+                let note_left = octave[rounded_note.prev_note];
+                if (!rounded_note.prev_note) {
+                    note_left = (_a = noteFreqRange[octave.octave - 1]) === null || _a === void 0 ? void 0 : _a.f;
+                }
+                detune =
+                    Math.round(-100 * Math.abs(note_diff / (note_left - rounded_note.note_freq))) +
+                        detune_base;
+                if (!note_left) {
+                    detune = detune_base;
+                }
+            }
+            else if (note_diff > 0) {
+                let note_right = octave[rounded_note.next_note];
+                if (!rounded_note.next_note) {
+                    note_right = (_b = noteFreqRange[octave.octave + 1]) === null || _b === void 0 ? void 0 : _b.g;
+                }
+                detune =
+                    Math.round(100 * Math.abs(note_diff / (note_right - rounded_note.note_freq))) +
+                        detune_base;
+                if (!note_right) {
+                    detune = detune_base;
+                }
+            }
+            else {
+                detune = detune_base;
+            }
+            return { octave: octave.octave, freq, detune };
+        }
+    }
+    else {
+        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
+        return null;
+    }
+}
+function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        let samples;
+        if (MultiNoteInstruments.includes(instrument_name)) {
+            samples = { multiNote: true };
+            for (const octave of noteFreqRange) {
+                let sampleRes = yield fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
+                let sampleBuffer = yield sampleRes.arrayBuffer();
+                let source = yield ctx.decodeAudioData(sampleBuffer);
+                samples[`C${octave.octave}`] = source;
+            }
+        }
+        else if (SingleNoteInstruments.includes(instrument_name)) {
+            samples = yield makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
+        }
+        else if (smaplingDef[instrument_name]) {
+            if ((_a = smaplingDef[instrument_name].sample) === null || _a === void 0 ? void 0 : _a.mono) {
+                // single
+                try {
+                    samples = yield makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono, `${baseUrl || ''}`);
+                }
+                catch (e) {
+                    console.error(e);
+                }
+            }
+            else {
+                // multi
+                try {
+                    samples = yield makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample, `${baseUrl || ''}`);
+                    samples.multiNote = true;
+                }
+                catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        else {
+            console.warn(`The instrument "${instrument_name}" is not supported or sampled.`);
+        }
+        return samples;
+    });
+}
+function makeMultiScaleSamplingNode(ctx, def, base) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let samples = { multiNote: true }, keys = Object.keys(def);
+        if (!keys.every(scaleKeyCheck$1)) {
+            console.error("A sampling note must be 'C' in octave 0 to 7");
+        }
+        for (const key of keys) {
+            if (def[key]) {
+                let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def[key]);
+                let sampleBuffer = yield sampleRes.arrayBuffer();
+                let source = yield ctx.decodeAudioData(sampleBuffer);
+                samples[key] = source;
+            }
+        }
+        return samples;
+    });
+}
+function makeSingleScaleSamplingNode(ctx, def, base) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def);
+        let sampleBuffer = yield sampleRes.arrayBuffer();
+        let source = yield ctx.decodeAudioData(sampleBuffer);
+        return {
+            mono: source,
+            multiNote: false
+        };
+    });
+}
+function scaleKeyCheck$1(key) {
+    return key.match(/^[C][0-7]$/);
+}
+
+function makeSynth(ctx, definition) {
+    let synth = new ErieSynth(ctx, definition.type || FM);
+    synth.generate(definition);
+    return synth;
+}
+class ErieSynth {
+    constructor(ctx, type) {
+        this.ctx = ctx;
+        this.frequency = new ErieSynthFrequency(this);
+        this.onended;
+        this.type = type;
+    }
+    generate(definition) {
+        if (this.type === FM) {
+            this.generateFM(definition);
+        }
+        else if (this.type === AM) {
+            this.generateAM(definition);
+        }
+    }
+    generateFM(definition) {
+        this.initDef = definition;
+        // carrier
+        this.carrier = this.ctx.createOscillator();
+        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
+        this.carrier.frequency.value = this.carrierPitch;
+        this.carrier.type = definition.carrierType || 'sine';
+        this.carrierType = definition.carrierType || 'sine';
+        if (definition.carrierDetune) {
+            this.carrierDetune = definition.carrierDetune;
+            this.carrier.detune.value = definition.carrierDetune;
+        }
+        // modulator
+        this.modulator = this.ctx.createOscillator();
+        this.modulator.type = definition.modulatorType || 'sine';
+        this.modulatorType = definition.modulatorType || 'sine';
+        // modulator gain
+        this.modulatorGain = this.ctx.createGain();
+        this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainFM;
+        this.modulatorGain.gain.value = this.modulatorVolume;
+        // modulator pitch > modulation index > harmonicity > carrier's pitch > default pitch
+        if (definition.modulatorPitch !== undefined) {
+            this.modulatorPitch = definition.modulatorPitch;
+        }
+        else if (definition.modulation !== undefined) {
+            this.modulation = definition.modulation;
+            this.modulatorPitch = this.modulatorVolume / this.modulation;
+        }
+        else if (definition.harmonicity !== undefined) {
+            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
+        }
+        else if (this.carrierPitch !== undefined) {
+            this.modulatorPitch = this.carrierPitch;
+        }
+        else {
+            this.modulatorPitch = DefModPitch;
+        }
+        this.modulator.frequency.value = this.modulatorPitch;
+        // envelope
+        this.envelope = this.ctx.createGain();
+        this.attackTime = definition.attackTime || 0.1;
+        this.releaseTime = definition.releaseTime || 0.1;
+        this.sustain = definition.sustain || 0.8;
+        this.decayTime = definition.decayTime || 0.2;
+        // Connect the nodes
+        this.modulator.connect(this.modulatorGain);
+        this.modulatorGain.connect(this.carrier.frequency);
+        this.carrier.connect(this.envelope);
+    }
+    generateAM(definition) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        this.initDef = definition;
+        // carrier
+        this.carrier = this.ctx.createOscillator();
+        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
+        this.carrier.frequency.value = this.carrierPitch;
+        this.carrier.type = (_a = definition.carrierType) !== null && _a !== void 0 ? _a : 'sine';
+        this.carrierType = (_b = definition.carrierType) !== null && _b !== void 0 ? _b : 'sine';
+        if (definition.carrierDetune) {
+            this.carrierDetune = definition.carrierDetune;
+            this.carrier.detune.value = definition.carrierDetune;
+        }
+        this.carrierVolume = (_c = definition.carrierVolume) !== null && _c !== void 0 ? _c : 1;
+        // modulator
+        this.modulator = this.ctx.createOscillator();
+        this.modulator.type = (_d = definition.modulatorType) !== null && _d !== void 0 ? _d : 'sine';
+        this.modulatorType = (_e = definition.modulatorType) !== null && _e !== void 0 ? _e : 'sine';
+        // modulator gain
+        this.modulatorGain = this.ctx.createGain();
+        if (definition.modulation !== undefined) {
+            this.modulation = definition.modulation;
+            this.modulatorVolume = ((_f = this.carrierVolume) !== null && _f !== void 0 ? _f : 1) * this.modulation;
+        }
+        else {
+            this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainAM;
+        }
+        this.modulatorGain.gain.value = this.modulatorVolume;
+        // modulator pitch 
+        if (definition.modulatorPitch !== undefined) {
+            this.modulatorPitch = definition.modulatorPitch;
+        }
+        else if (definition.harmonicity !== undefined) {
+            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
+        }
+        else if (this.carrierPitch !== undefined) {
+            this.modulatorPitch = this.carrierPitch;
+        }
+        else {
+            this.modulatorPitch = DefModPitch;
+        }
+        this.modulator.frequency.value = this.modulatorPitch;
+        // envelope
+        this.envelope = this.ctx.createGain();
+        this.attackTime = (_g = definition.attackTime) !== null && _g !== void 0 ? _g : 0.1;
+        this.releaseTime = (_h = definition.releaseTime) !== null && _h !== void 0 ? _h : 0.05;
+        this.sustain = (_j = definition.sustain) !== null && _j !== void 0 ? _j : 0.8;
+        this.decayTime = (_k = definition.decayTime) !== null && _k !== void 0 ? _k : 0.1;
+        // Connect the nodes
+        this.modulator.connect(this.modulatorGain.gain);
+        this.carrier.connect(this.modulatorGain);
+        this.modulatorGain.connect(this.envelope);
+    }
+    connect(node) {
+        this.envelope.connect(node);
+    }
+    start(time) {
+        this.carrier.start(time);
+        this.modulator.start(time);
+    }
+    stop(time) {
+        this.carrier.onended = this.onended;
+        this.carrier.stop(time + this.attackTime + this.releaseTime);
+        this.modulator.stop(time + this.attackTime + this.releaseTime);
+    }
+    get adTime() {
+        var _a, _b;
+        return ((_a = this.attackTime) !== null && _a !== void 0 ? _a : 0) + ((_b = this.decayTime) !== null && _b !== void 0 ? _b : 0);
+    }
+}
+class ErieSynthFrequency {
+    constructor(synther) {
+        this.value = DefModPitch;
+        this.automationRate = 'a-rate';
+        this.maxValue = 22050;
+        this.minValue = -22055;
+        this.synther = synther;
+    }
+    setValueAtTime(value, time) {
+        this.synther.carrier.frequency.setValueAtTime(value, time);
+    }
+    setTargetAtTime(value, time, timeConstant) {
+        this.synther.carrier.frequency.setTargetAtTime(value, time, timeConstant);
+    }
+    linearRampToValueAtTime(value, endTime) {
+        this.synther.carrier.frequency.linearRampToValueAtTime(value, endTime);
+    }
+    exponentialRampToValueAtTime(value, endTime) {
+        this.synther.carrier.frequency.exponentialRampToValueAtTime(value, endTime);
+    }
+    setValueCurveAtTime(values, startTime, duration) {
+        this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
+    }
+}
+// inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
+const AMMppaer = (amount) => (amount + 1) / 2;
+
+const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
+const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
+// inspired by : https://noisehack.com/generate-noise-web-audio-api/ (but it's not using audioscriptprocess, which is deprecated)
+// and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
+function makeNoiseNode(ctx, type, duration // seconds
+) {
+    // here, duration is the noise node's duration, for continuous tone it's the entire length;
+    const bufferSize = ctx.sampleRate * duration;
+    // Create an empty buffer
+    const noiseBuffer = new AudioBuffer({
+        length: bufferSize,
+        sampleRate: ctx.sampleRate,
+        numberOfChannels: 2
+    });
+    // Fill the buffer with noise
+    const data0 = noiseBuffer.getChannelData(0);
+    const data1 = noiseBuffer.getChannelData(0);
+    // for pink
+    let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
+    for (let i = 0; i < bufferSize; i++) {
+        if (type === PinkNoise) {
+            PinkNoiseFunction(coeffs);
+            data0[i] = coeffs.o;
+        }
+        else if (type === BrownNoise) {
+            BrownNoiseFunction(coeffs);
+            data0[i] = coeffs.o;
+        }
+        else {
+            data0[i] = WhiteNoiseFunction();
+        }
+        data1[i] = data0[i];
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    return noise;
+}
+function WhiteNoiseFunction() {
+    return Math.random() * 2 - 1;
+}
+function PinkNoiseFunction(c) {
+    let w = WhiteNoiseFunction();
+    c.p0 = 0.99886 * c.p0 + w * 0.0555179;
+    c.p1 = 0.99332 * c.p1 + w * 0.0750759;
+    c.p2 = 0.96900 * c.p2 + w * 0.1538520;
+    c.p3 = 0.86650 * c.p3 + w * 0.3104856;
+    c.p4 = 0.55000 * c.p4 + w * 0.5329522;
+    c.p5 = -0.7616 * c.p5 - w * 0.0168980;
+    c.o = c.p0 + c.p1 + c.p2 + c.p3 + c.p4 + c.p5 + c.p6 + w * 0.5362;
+    c.o *= 0.11;
+    c.p6 = w * 0.115926; // gain compensation
+}
+function BrownNoiseFunction(c) {
+    let w = WhiteNoiseFunction();
+    c.o = (c.p0 + (0.02 * w)) / 1.02;
+    c.p0 = c.o;
+    c.o *= 3.5; // gain compensation
+}
+
+function makeContext() {
+    return new AudioContext();
+}
+function makeOfflineContext(length) {
+    return new OfflineAudioContext(BufferChannels$1, SampleRate$1 * length, SampleRate$1);
+}
+function makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound, contEndTime) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (iType === "default") {
+        return ctx.createOscillator();
+    }
+    else if (isOscType(iType)) {
+        let osc = ctx.createOscillator();
+        osc.type = iType;
+        return osc;
+    }
+    else if (typeof iType === 'string' && NoiseTypes.includes(iType)) {
+        let dur = (_a = contEndTime !== null && contEndTime !== void 0 ? contEndTime : sound === null || sound === void 0 ? void 0 : sound.duration) !== null && _a !== void 0 ? _a : 0;
+        if (sound && 'detune' in sound && (sound === null || sound === void 0 ? void 0 : sound.detune) !== undefined && (sound === null || sound === void 0 ? void 0 : sound.detune) > 0)
+            dur += dur * ((sound === null || sound === void 0 ? void 0 : sound.detune) / 600);
+        return makeNoiseNode(ctx, iType, dur * 1.1);
+    }
+    else if (typeof iType === 'string' && MultiNoteInstruments.includes(iType)) {
+        let note = determineNoteRange((_b = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, {});
+        let sample = (_c = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _c === void 0 ? void 0 : _c[('C' + note.octave)];
+        let source = ctx.createBufferSource();
+        source.buffer = sample;
+        source.detune.value = note.detune;
+        return source;
+    }
+    else if (typeof iType === 'string' && SingleNoteInstruments.includes(iType) && instSamples) {
+        let sample = instSamples[iType].mono;
+        let source = ctx.createBufferSource();
+        source.buffer = sample;
+        return source;
+    }
+    else if (typeof iType === 'string' && ((_d = Object.keys(waveDefs || {})) === null || _d === void 0 ? void 0 : _d.includes(iType)) && waveDefs) {
+        let real_parsed = new Float32Array(waveDefs[iType].real);
+        let imag_parsed = new Float32Array(waveDefs[iType].imag);
+        const wave = ctx.createPeriodicWave(real_parsed, imag_parsed, { disableNormalization: waveDefs[iType].disableNormalization || false });
+        let osc = ctx.createOscillator();
+        osc.setPeriodicWave(wave);
+        return osc;
+    }
+    else if (typeof iType === 'string' && ((_e = Object.keys(instSamples || {})) === null || _e === void 0 ? void 0 : _e.includes(iType)) && instSamples) {
+        let sample;
+        let note = determineNoteRange((_f = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _f !== void 0 ? _f : DefaultFrequency, {});
+        if (instSamples[iType].multiNote) {
+            sample = (_g = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _g === void 0 ? void 0 : _g[('C' + note.octave)];
+        }
+        else {
+            sample = instSamples[iType].mono;
+        }
+        let source = ctx.createBufferSource();
+        source.buffer = sample;
+        if (instSamples[iType].multiNote) {
+            source.detune.value = note.detune;
+        }
+        return source;
+    }
+    else if (typeof iType === 'string' && ((_h = Object.keys(synthDefs || {})) === null || _h === void 0 ? void 0 : _h.includes(iType)) && synthDefs) {
+        let synth = makeSynth(ctx, synthDefs[iType]);
+        return synth;
+    }
+    else {
+        return ctx.createOscillator();
+    }
+}
+
+function setCurrentTime(ctx) {
+    return ctx.currentTime;
+}
+// export let ErieGlobalControl: GlobalControl, ErieGlobalState: GlobalState;
+function setErieGlobalControl(ctrl) {
+    if (isBrowserWindowPossible()) {
+        if (!('ErieGlobalControl' in window))
+            window.ErieGlobalControl = undefined;
+        window.ErieGlobalControl = ctrl;
+    }
+    else {
+        Globals.ErieGlobalControl = ctrl;
+    }
+}
+function isErieGlobalControlType(t) {
+    var _a, _b;
+    if (isBrowserWindowPossible()) {
+        return ((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.type) === t;
+    }
+    else {
+        return ((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.type) === t;
+    }
+}
+function isErieGlobalControlAudioContext() {
+    var _a, _b, _c, _d;
+    if (isBrowserWindowPossible()) {
+        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof AudioContext) || (((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof OfflineAudioContext);
+    }
+    else {
+        return (((_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player) instanceof AudioContext) || (((_d = Globals.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) instanceof OfflineAudioContext);
+    }
+}
+function isErieGlobalControlSpeechSynthesis() {
+    var _a, _b;
+    if (isBrowserWindowPossible()) {
+        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof SpeechSynthesis);
+    }
+    else {
+        return (((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof SpeechSynthesis);
+    }
+}
+function closeErieGlobalControl() {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    if (isBrowserWindowPossible()) {
+        if (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) && 'cancel' in ((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player)) {
+            (_c = window.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player.cancel();
+        }
+        else if (((_d = window.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) && 'close' in ((_e = window.ErieGlobalControl) === null || _e === void 0 ? void 0 : _e.player)) {
+            (_f = window.ErieGlobalControl) === null || _f === void 0 ? void 0 : _f.player.close();
+        }
+    }
+    else {
+        if (((_g = Globals.ErieGlobalControl) === null || _g === void 0 ? void 0 : _g.player) && 'cancel' in ((_h = Globals.ErieGlobalControl) === null || _h === void 0 ? void 0 : _h.player)) {
+            (_j = Globals.ErieGlobalControl) === null || _j === void 0 ? void 0 : _j.player.cancel();
+        }
+        else if (((_k = Globals.ErieGlobalControl) === null || _k === void 0 ? void 0 : _k.player) && 'close' in ((_l = Globals.ErieGlobalControl) === null || _l === void 0 ? void 0 : _l.player)) {
+            (_m = Globals.ErieGlobalControl) === null || _m === void 0 ? void 0 : _m.player.close();
+        }
+    }
+}
+function setErieGlobalState(state) {
+    if (isBrowserWindowPossible()) {
+        if (!('ErieGlobalState' in window))
+            window.ErieGlobalState = undefined;
+        window.ErieGlobalState = state;
+    }
+    else {
+        Globals.ErieGlobalState = state;
+    }
+}
+function isErieGlobalState(state) {
+    if (isBrowserWindowPossible()) {
+        return window.ErieGlobalState === state;
+    }
+    else {
+        return Globals.ErieGlobalState === state;
+    }
+}
+function setPlayerEvents(queue, config) {
+    if (typeof window !== 'undefined') {
+        const stop = function (event) {
+            if ('key' in event && event.key == 'x') {
+                setErieGlobalState(Stopped);
+                queue.state = Stopped;
+                closeErieGlobalControl();
+                notifyStop(config);
+            }
+        };
+        if (isBrowserWindowPossible()) {
+            window.addEventListener('keypress', stop);
+            if (!window.ErieGlobalPlayerEvents)
+                window.ErieGlobalPlayerEvents = new Map();
+            window.ErieGlobalPlayerEvents.set('stop-event', stop);
+        }
+        else {
+            Globals.ErieGlobalPlayerEvents.set('stop-event', stop);
+        }
+    }
+}
+function clearPlayerEvents() {
+    if (typeof window !== 'undefined') {
+        if (isBrowserWindowPossible()) {
+            if (!window.ErieGlobalPlayerEvents)
+                window.ErieGlobalPlayerEvents = new Map();
+            let stop = window.ErieGlobalPlayerEvents.get('stop-event');
+            if (stop)
+                window.removeEventListener('keypress', stop);
+            window.ErieGlobalPlayerEvents.delete('stop-event');
+        }
+        else {
+            Globals.ErieGlobalPlayerEvents.delete('stop-event');
+        }
+    }
+}
+function setErieGlobalStreamingControl(key, value) {
+    if (isBrowserWindowPossible()) {
+        // @ts-ignore
+        if (!('ErieGlobalStreamingControl' in window))
+            window.ErieGlobalStreamingControl = {};
+        window.ErieGlobalStreamingControl[key] = value;
+    }
+    else {
+        Globals.ErieGlobalStreamingControl[key] = value;
+    }
+}
+
+function rampBy(ramperType, // default -> linear
+param, // any audio parameter that has ramping methods
+value, // the value to set
+time_at, // when to set the value
+speed) {
+    switch (ramperType) {
+        case 'exponentialRampToValueAtTime':
+            // exponential ramping does not allow value 0
+            param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
+            break;
+        case 'linearRampToValueAtTime':
+            param.linearRampToValueAtTime(value, time_at);
+            break;
+        case 'setValueAtTime':
+            param.setValueAtTime(value, time_at);
+            break;
+        case 'setTargetAtTime':
+            if (speed !== undefined)
+                param.setTargetAtTime(value, time_at, speed !== null && speed !== void 0 ? speed : 0.6);
+            else
+                console.error("Speed paramemter must be defined for setTargetAtTime method.");
+            break;
+        default:
+            param.linearRampToValueAtTime(value, time_at);
+            break;
+    }
+}
+// note: how rampers are processed
+/*
+Precondition: A ramping method can only defined for a continuous tone.
+1. A ramping method is first defined in a spec under a channel.
+2. It is collected and passed along to a unit stream (only a unit stream) to aovid any potential collision.
+3. When a unit stream is played, it is passed as configuration information and the proper ramping function is selected using the rampBy function.
+*/
+
+// extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
+class BiquadFilter extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        this.ctx = ctx;
+        this.filter = ctx.createBiquadFilter();
+        this.destination = this.filter;
+        this.useGain = false;
+    }
+    initialize(time) {
+        this.filter.gain.setValueAtTime(1, time);
+    }
+    connect(node) {
+        this.filter.connect(node);
+    }
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+class LowpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'lowpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class HighpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'highpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class BandpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'bandpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class LowshelfBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'lowshelf';
+        this.destination = this.filter;
+        this.useGain = true;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class HighshelfBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'highshelf';
+        this.destination = this.filter;
+        this.useGain = true;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class PeakingBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'peaking';
+        this.destination = this.filter;
+        this.useGain = true;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class NotchBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'notch';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+class AllpassBiquadFilter extends BiquadFilter {
+    constructor(ctx) {
+        super(ctx);
+        this.filter.type = 'allpass';
+        this.destination = this.filter;
+    }
+    connect(node) {
+        this.destination.connect(node);
+    }
+    disconnect(node) {
+        this.destination.disconnect(node);
+    }
+}
+const BiquadEncoder = function (filter, sound, startTime, rampers) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (filter.useGain) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadGain, filter.filter.gain, ((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime);
+    }
+    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadPitch, filter.filter.frequency, ((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime);
+    }
+    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadQ, filter.filter.Q, ((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime);
+    }
+    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
+        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadDetune, filter.filter.detune, ((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime);
+    }
+};
+const BiquadFinisher = function (filter, sound, startTime, duration, rampers) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (filter.useGain) {
+        filter.filter.gain.setValueAtTime(((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime + duration);
+    }
+    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
+        filter.filter.frequency.setValueAtTime(((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime + duration);
+    }
+    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
+        filter.filter.Q.setValueAtTime(((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime + duration);
+    }
+    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
+        filter.filter.detune.setValueAtTime(((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime + duration);
+    }
+};
+
+class DefaultDynamicCompressor extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        this.ctx = ctx;
+        this.filter = ctx.createDynamicsCompressor();
+        this.destination = this.filter;
+    }
+    initialize() {
+        this.filter.attack.value = 20;
+        this.filter.knee.value = 40;
+        this.filter.ratio.value = 18;
+        this.filter.release.value = 0.25;
+        this.filter.threshold.value = -50;
+    }
+    connect(node) {
+        this.filter.connect(node);
+    }
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+const CompressorEncoder = function (filter, sound, startTime, rampers) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.dcAttack) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcAttack, filter.filter.attack, (_b = sound.others.dcAttack) !== null && _b !== void 0 ? _b : 1, startTime);
+    if (((_c = sound.others) === null || _c === void 0 ? void 0 : _c.dcKnee) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcKnee, filter.filter.knee, (_d = sound.others.dcKnee) !== null && _d !== void 0 ? _d : 1, startTime);
+    if (((_e = sound.others) === null || _e === void 0 ? void 0 : _e.dcRatio) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcRatio, filter.filter.ratio, (_f = sound.others.dcRatio) !== null && _f !== void 0 ? _f : 1, startTime);
+    if (((_g = sound.others) === null || _g === void 0 ? void 0 : _g.dcReduction) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcReduction, filter.filter.release, (_h = sound.others.dcReduction) !== null && _h !== void 0 ? _h : 1, startTime);
+    if (((_j = sound.others) === null || _j === void 0 ? void 0 : _j.dcThreshold) !== undefined)
+        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcThreshold, filter.filter.threshold, (_k = sound.others.dcThreshold) !== null && _k !== void 0 ? _k : 1, startTime);
+};
+const CompressorFinisher = function (filter, sound, startTime, duration, rampers) {
+};
+
+class DistortionFilter extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        this.ctx = ctx;
+        this.filter = ctx.createWaveShaper();
+        this.destination = this.filter;
+    }
+    initialize(s, e) {
+        // s: starting time is not important but for formatting
+        this.filter.curve = makeDistortionCurve(e);
+    }
+    connect(node) {
+        this.filter.connect(node);
+    }
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+// https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
+function makeDistortionCurve(amount) {
+    const k = amount !== null && amount !== void 0 ? amount : 50;
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n_samples; i++) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + k) * x * 10 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+}
+const DistortionEncoder = function (filter, sound, startTime, rampers) {
+    var _a;
+    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.distortion) !== undefined) {
+        filter.filter.curve = makeDistortionCurve(sound.others.distortion);
+    }
+    else {
+        filter.filter.curve = makeDistortionCurve(100);
+    }
+};
+const DistortionFinisher = function (filter, sound, startTime, duration, rampers) {
+    filter.filter.curve = makeDistortionCurve(50);
+};
+
+// This is a basic sample for how to define a custom filter
+class GainerFilter extends AudioFilterPrototype {
+    constructor(ctx) {
+        super(ctx);
+        // always needs an (offline) audio context
+        this.ctx = ctx;
+        // static parameters
+        this.attackTime = 0.1;
+        this.releaseTime = 0.1;
+        // always needs a `filter` property for dynamic parameters to be used by the encoder and finisher
+        // the name can change but... just stick to this
+        this.filter = ctx.createGain();
+        // always needs a desitnation that is connectable; sometimes it can be something other than the filter object.
+        // the name can never be changed because this is the property that other interfaces gonna access to this node.
+        this.destination = this.filter;
+    }
+    // [required] this is ran when the filter is applied for the first time
+    initialize(time) {
+        this.filter.gain.cancelScheduledValues(time);
+        this.filter.gain.setValueAtTime(0, time);
+    }
+    // the follwoing methods are required to satisfiy the basic audio node structure
+    // [required] this defines how this filter connects itself to another node
+    connect(node) {
+        this.filter.connect(node);
+    }
+    // [required] this defines how this filter *dis*connects itself to another node
+    disconnect(node) {
+        this.filter.disconnect(node);
+    }
+}
+// an encoder changes values at a time
+// must use `rampBy` function as a standard interface for ramping functions
+const GainerEncoder = function (filter, sound, startTime, rampers) {
+    var _a, _b;
+    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, // ramper methods (if provided, otherwise, 'linear')
+    filter.filter.gain, // actual node to set the value
+    (_b = (_a = sound.others) === null || _a === void 0 ? void 0 : _a.gain2) !== null && _b !== void 0 ? _b : 1, // the gain value
+    startTime + filter.attackTime // when the gain value kicks in
+    );
+};
+// a finisher sets the final values when the sound is done.
+// must use `rampBy` function as a standard interface for ramping functions
+const GainerFinisher = function (filter, sound, startTime, duration, rampers) {
+    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, filter.filter.gain, 0, (startTime || 0) + (duration || 1) - filter.releaseTime);
+};
+
+const PresetFilters = {
+    'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
+    'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'bandpass': { filter: BandpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'lowshelf': { filter: LowshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'highshelf': { filter: HighshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'peaking': { filter: PeakingBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'notch': { filter: NotchBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'allpass': { filter: AllpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
+    'defaultCompressor': { filter: DefaultDynamicCompressor, encoder: CompressorEncoder, finisher: CompressorFinisher },
+    'distortion': { filter: DistortionFilter, encoder: DistortionEncoder, finisher: DistortionFinisher }
+};
+const FilterExtraChannelTypes = {
+    gain2: { type: LOUDNESS_chn },
+    biquadDetune: { type: DETUNE_chn },
+    biquadPitch: { type: PITCH_chn }
+};
+
+function emitNotePlayEvent(type, note) {
+    if (isBrowserEventPossible()) {
+        document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
+            detail: {
+                type,
+                note
+            }
+        }));
+    }
+}
+function emitNoteStopEvent(type, note) {
+    if (isBrowserEventPossible()) {
+        document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
+            detail: {
+                type,
+                note
+            }
+        }));
+    }
+}
+
+function createPanner(ctx, cartesianInputs) {
+    if (cartesianInputs <= 1) {
+        const stereoPanner = ctx.createStereoPanner();
+        return stereoPanner;
+    }
+    else {
+        // default values: https://webaudio.github.io/web-audio-api/#PannerNode
+        // TODO: max Distance? Scales within 1? -> comment each value
+        const panner3D = ctx.createPanner();
+        panner3D.panningModel = 'equalpower';
+        panner3D.distanceModel = 'inverse';
+        panner3D.refDistance = 1;
+        panner3D.maxDistance = 10000;
+        panner3D.rolloffFactor = 1;
+        panner3D.coneInnerAngle = 360;
+        panner3D.coneOuterAngle = 360;
+        panner3D.coneOuterGain = 0;
+        return panner3D;
+    }
+}
+
+function playPause(ms, config) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 let ErieFilters = {};
 function registerFilter(name, filter, encoder, finisher) {
     ErieFilters[name] = { filter, encoder, finisher };
@@ -2355,7 +3469,7 @@ class Synth {
     }
 }
 
-function scaleKeyCheck$1(key) {
+function scaleKeyCheck(key) {
     return key.match(/^[C][0-7]$/);
 }
 class SampledTone {
@@ -2371,7 +3485,7 @@ class SampledTone {
     }
     setSample(s) {
         Object.keys(s).forEach((k) => {
-            if (!scaleKeyCheck$1(k) || k === undefined) {
+            if (!scaleKeyCheck(k) || k === undefined) {
                 throw new TypeError('The key of a sampling object should be "C" + "0-7".');
             }
             else if (k === "mono") {
@@ -2628,1887 +3742,6 @@ const Chimes = {
     'next': ChimeNext
 };
 
-function rampBy(ramperType, // default -> linear
-param, // any audio parameter that has ramping methods
-value, // the value to set
-time_at, // when to set the value
-speed) {
-    switch (ramperType) {
-        case 'exponentialRampToValueAtTime':
-            // exponential ramping does not allow value 0
-            param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
-            break;
-        case 'linearRampToValueAtTime':
-            param.linearRampToValueAtTime(value, time_at);
-            break;
-        case 'setValueAtTime':
-            param.setValueAtTime(value, time_at);
-            break;
-        case 'setTargetAtTime':
-            if (speed !== undefined)
-                param.setTargetAtTime(value, time_at, speed !== null && speed !== void 0 ? speed : 0.6);
-            else
-                console.error("Speed paramemter must be defined for setTargetAtTime method.");
-            break;
-        default:
-            param.linearRampToValueAtTime(value, time_at);
-            break;
-    }
-}
-// note: how rampers are processed
-/*
-Precondition: A ramping method can only defined for a continuous tone.
-1. A ramping method is first defined in a spec under a channel.
-2. It is collected and passed along to a unit stream (only a unit stream) to aovid any potential collision.
-3. When a unit stream is played, it is passed as configuration information and the proper ramping function is selected using the rampBy function.
-*/
-
-// extra channels => biquadDetune, biquadPitch, biquadGain, biquadQ
-class BiquadFilter extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        this.ctx = ctx;
-        this.filter = ctx.createBiquadFilter();
-        this.destination = this.filter;
-        this.useGain = false;
-    }
-    initialize(time) {
-        this.filter.gain.setValueAtTime(1, time);
-    }
-    connect(node) {
-        this.filter.connect(node);
-    }
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-class LowpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'lowpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class HighpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'highpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class BandpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'bandpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class LowshelfBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'lowshelf';
-        this.destination = this.filter;
-        this.useGain = true;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class HighshelfBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'highshelf';
-        this.destination = this.filter;
-        this.useGain = true;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class PeakingBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'peaking';
-        this.destination = this.filter;
-        this.useGain = true;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class NotchBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'notch';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-class AllpassBiquadFilter extends BiquadFilter {
-    constructor(ctx) {
-        super(ctx);
-        this.filter.type = 'allpass';
-        this.destination = this.filter;
-    }
-    connect(node) {
-        this.destination.connect(node);
-    }
-    disconnect(node) {
-        this.destination.disconnect(node);
-    }
-}
-const BiquadEncoder = function (filter, sound, startTime, rampers) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    if (filter.useGain) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadGain, filter.filter.gain, ((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime);
-    }
-    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadPitch, filter.filter.frequency, ((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime);
-    }
-    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadQ, filter.filter.Q, ((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime);
-    }
-    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
-        rampBy(startTime == 0 ? 'setValueAtTime' : rampers === null || rampers === void 0 ? void 0 : rampers.biquadDetune, filter.filter.detune, ((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime);
-    }
-};
-const BiquadFinisher = function (filter, sound, startTime, duration, rampers) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    if (filter.useGain) {
-        filter.filter.gain.setValueAtTime(((_b = (_a = sound === null || sound === void 0 ? void 0 : sound.others) === null || _a === void 0 ? void 0 : _a.biquadGain) !== null && _b !== void 0 ? _b : 1), startTime + duration);
-    }
-    if (((_c = sound === null || sound === void 0 ? void 0 : sound.others) === null || _c === void 0 ? void 0 : _c.biquadPitch) !== undefined) {
-        filter.filter.frequency.setValueAtTime(((_d = sound.others.biquadPitch) !== null && _d !== void 0 ? _d : 1), startTime + duration);
-    }
-    if (((_e = sound === null || sound === void 0 ? void 0 : sound.others) === null || _e === void 0 ? void 0 : _e.biquadQ) !== undefined) {
-        filter.filter.Q.setValueAtTime(((_f = sound.others.biquadQ) !== null && _f !== void 0 ? _f : 1), startTime + duration);
-    }
-    if (((_g = sound === null || sound === void 0 ? void 0 : sound.others) === null || _g === void 0 ? void 0 : _g.biquadDetune) !== undefined) {
-        filter.filter.detune.setValueAtTime(((_h = sound.others.biquadDetune) !== null && _h !== void 0 ? _h : 1), startTime + duration);
-    }
-};
-
-class DefaultDynamicCompressor extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        this.ctx = ctx;
-        this.filter = ctx.createDynamicsCompressor();
-        this.destination = this.filter;
-    }
-    initialize() {
-        this.filter.attack.value = 20;
-        this.filter.knee.value = 40;
-        this.filter.ratio.value = 18;
-        this.filter.release.value = 0.25;
-        this.filter.threshold.value = -50;
-    }
-    connect(node) {
-        this.filter.connect(node);
-    }
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-const CompressorEncoder = function (filter, sound, startTime, rampers) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.dcAttack) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcAttack, filter.filter.attack, (_b = sound.others.dcAttack) !== null && _b !== void 0 ? _b : 1, startTime);
-    if (((_c = sound.others) === null || _c === void 0 ? void 0 : _c.dcKnee) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcKnee, filter.filter.knee, (_d = sound.others.dcKnee) !== null && _d !== void 0 ? _d : 1, startTime);
-    if (((_e = sound.others) === null || _e === void 0 ? void 0 : _e.dcRatio) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcRatio, filter.filter.ratio, (_f = sound.others.dcRatio) !== null && _f !== void 0 ? _f : 1, startTime);
-    if (((_g = sound.others) === null || _g === void 0 ? void 0 : _g.dcReduction) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcReduction, filter.filter.release, (_h = sound.others.dcReduction) !== null && _h !== void 0 ? _h : 1, startTime);
-    if (((_j = sound.others) === null || _j === void 0 ? void 0 : _j.dcThreshold) !== undefined)
-        rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.dcThreshold, filter.filter.threshold, (_k = sound.others.dcThreshold) !== null && _k !== void 0 ? _k : 1, startTime);
-};
-const CompressorFinisher = function (filter, sound, startTime, duration, rampers) {
-};
-
-class DistortionFilter extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        this.ctx = ctx;
-        this.filter = ctx.createWaveShaper();
-        this.destination = this.filter;
-    }
-    initialize(s, e) {
-        // s: starting time is not important but for formatting
-        this.filter.curve = makeDistortionCurve(e);
-    }
-    connect(node) {
-        this.filter.connect(node);
-    }
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-// https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
-function makeDistortionCurve(amount) {
-    const k = amount !== null && amount !== void 0 ? amount : 50;
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n_samples; i++) {
-        const x = (i * 2) / n_samples - 1;
-        curve[i] = ((3 + k) * x * 10 * deg) / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-}
-const DistortionEncoder = function (filter, sound, startTime, rampers) {
-    var _a;
-    if (((_a = sound.others) === null || _a === void 0 ? void 0 : _a.distortion) !== undefined) {
-        filter.filter.curve = makeDistortionCurve(sound.others.distortion);
-    }
-    else {
-        filter.filter.curve = makeDistortionCurve(100);
-    }
-};
-const DistortionFinisher = function (filter, sound, startTime, duration, rampers) {
-    filter.filter.curve = makeDistortionCurve(50);
-};
-
-// This is a basic sample for how to define a custom filter
-class GainerFilter extends AudioFilterPrototype {
-    constructor(ctx) {
-        super(ctx);
-        // always needs an (offline) audio context
-        this.ctx = ctx;
-        // static parameters
-        this.attackTime = 0.1;
-        this.releaseTime = 0.1;
-        // always needs a `filter` property for dynamic parameters to be used by the encoder and finisher
-        // the name can change but... just stick to this
-        this.filter = ctx.createGain();
-        // always needs a desitnation that is connectable; sometimes it can be something other than the filter object.
-        // the name can never be changed because this is the property that other interfaces gonna access to this node.
-        this.destination = this.filter;
-    }
-    // [required] this is ran when the filter is applied for the first time
-    initialize(time) {
-        this.filter.gain.cancelScheduledValues(time);
-        this.filter.gain.setValueAtTime(0, time);
-    }
-    // the follwoing methods are required to satisfiy the basic audio node structure
-    // [required] this defines how this filter connects itself to another node
-    connect(node) {
-        this.filter.connect(node);
-    }
-    // [required] this defines how this filter *dis*connects itself to another node
-    disconnect(node) {
-        this.filter.disconnect(node);
-    }
-}
-// an encoder changes values at a time
-// must use `rampBy` function as a standard interface for ramping functions
-const GainerEncoder = function (filter, sound, startTime, rampers) {
-    var _a, _b;
-    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, // ramper methods (if provided, otherwise, 'linear')
-    filter.filter.gain, // actual node to set the value
-    (_b = (_a = sound.others) === null || _a === void 0 ? void 0 : _a.gain2) !== null && _b !== void 0 ? _b : 1, // the gain value
-    startTime + filter.attackTime // when the gain value kicks in
-    );
-};
-// a finisher sets the final values when the sound is done.
-// must use `rampBy` function as a standard interface for ramping functions
-const GainerFinisher = function (filter, sound, startTime, duration, rampers) {
-    rampBy(rampers === null || rampers === void 0 ? void 0 : rampers.gain2, filter.filter.gain, 0, (startTime || 0) + (duration || 1) - filter.releaseTime);
-};
-
-const PresetFilters = {
-    'gainer': { filter: GainerFilter, encoder: GainerEncoder, finisher: GainerFinisher },
-    'lowpass': { filter: LowpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'highpass': { filter: HighpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'bandpass': { filter: BandpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'lowshelf': { filter: LowshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'highshelf': { filter: HighshelfBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'peaking': { filter: PeakingBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'notch': { filter: NotchBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'allpass': { filter: AllpassBiquadFilter, encoder: BiquadEncoder, finisher: BiquadFinisher },
-    'defaultCompressor': { filter: DefaultDynamicCompressor, encoder: CompressorEncoder, finisher: CompressorFinisher },
-    'distortion': { filter: DistortionFilter, encoder: DistortionEncoder, finisher: DistortionFinisher }
-};
-const FilterExtraChannelTypes = {
-    gain2: { type: LOUDNESS_chn },
-    biquadDetune: { type: DETUNE_chn },
-    biquadPitch: { type: PITCH_chn }
-};
-
-function roundToNote(freq, scales) {
-    let min_diff = 5000, min_diff_note;
-    for (const noteName of noteScaleOrder) {
-        let diff = Math.abs(scales[noteName] - freq);
-        if (diff < min_diff) {
-            min_diff = diff;
-            min_diff_note = noteName;
-        }
-    }
-    return {
-        note_name: min_diff_note,
-        prev_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) - 1],
-        next_note: noteScaleOrder[noteScaleOrder.indexOf(min_diff_note) + 1],
-        note_freq: scales[min_diff_note],
-        detune: detuneAmmount[min_diff_note]
-    };
-}
-function roundToNoteScale(freq) {
-    var _a;
-    let octave;
-    for (const range of noteFreqRange) {
-        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
-            octave = range;
-        }
-        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
-            octave = range;
-        }
-        else if (range.gf <= freq && freq < range.fs) {
-            octave = range;
-        }
-    }
-    if (octave !== undefined) {
-        return (_a = roundToNote(freq, octave)) === null || _a === void 0 ? void 0 : _a.note_freq;
-    }
-    else {
-        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
-        return null;
-    }
-}
-function determineNoteRange(freq, config) {
-    var _a, _b;
-    let octave;
-    for (const range of noteFreqRange) {
-        if (range.octave == 0 && range.c <= freq && freq < range.fs) {
-            octave = range;
-        }
-        else if (range.octave == 7 && range.gf <= freq && freq <= range.fs) {
-            octave = range;
-        }
-        else if (range.gf <= freq && freq < range.fs) {
-            octave = range;
-        }
-    }
-    if (octave !== undefined) {
-        let rounded_note = roundToNote(freq, octave);
-        if (config === null || config === void 0 ? void 0 : config.round) {
-            return {
-                octave: octave.octave,
-                original_freq: freq,
-                freq: rounded_note.note_freq,
-                note: rounded_note.note_name,
-                detune: rounded_note.detune
-            };
-        }
-        else {
-            let detune_base = rounded_note.detune;
-            let note_diff = rounded_note.note_freq - freq;
-            let detune = 0;
-            if (note_diff < 0) {
-                let note_left = octave[rounded_note.prev_note];
-                if (!rounded_note.prev_note) {
-                    note_left = (_a = noteFreqRange[octave.octave - 1]) === null || _a === void 0 ? void 0 : _a.f;
-                }
-                detune =
-                    Math.round(-100 * Math.abs(note_diff / (note_left - rounded_note.note_freq))) +
-                        detune_base;
-                if (!note_left) {
-                    detune = detune_base;
-                }
-            }
-            else if (note_diff > 0) {
-                let note_right = octave[rounded_note.next_note];
-                if (!rounded_note.next_note) {
-                    note_right = (_b = noteFreqRange[octave.octave + 1]) === null || _b === void 0 ? void 0 : _b.g;
-                }
-                detune =
-                    Math.round(100 * Math.abs(note_diff / (note_right - rounded_note.note_freq))) +
-                        detune_base;
-                if (!note_right) {
-                    detune = detune_base;
-                }
-            }
-            else {
-                detune = detune_base;
-            }
-            return { octave: octave.octave, freq, detune };
-        }
-    }
-    else {
-        console.warn('Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.');
-        return null;
-    }
-}
-function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        let samples;
-        if (MultiNoteInstruments.includes(instrument_name)) {
-            samples = { multiNote: true };
-            for (const octave of noteFreqRange) {
-                let sampleRes = yield fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
-                let sampleBuffer = yield sampleRes.arrayBuffer();
-                let source = yield ctx.decodeAudioData(sampleBuffer);
-                samples[`C${octave.octave}`] = source;
-            }
-        }
-        else if (SingleNoteInstruments.includes(instrument_name)) {
-            samples = yield makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
-        }
-        else if (smaplingDef[instrument_name]) {
-            if ((_a = smaplingDef[instrument_name].sample) === null || _a === void 0 ? void 0 : _a.mono) {
-                // single
-                try {
-                    samples = yield makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono, `${baseUrl || ''}`);
-                }
-                catch (e) {
-                    console.error(e);
-                }
-            }
-            else {
-                // multi
-                try {
-                    samples = yield makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample, `${baseUrl || ''}`);
-                    samples.multiNote = true;
-                }
-                catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-        else {
-            console.warn(`The instrument "${instrument_name}" is not supported or sampled.`);
-        }
-        return samples;
-    });
-}
-function makeMultiScaleSamplingNode(ctx, def, base) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let samples = { multiNote: true }, keys = Object.keys(def);
-        if (!keys.every(scaleKeyCheck)) {
-            console.error("A sampling note must be 'C' in octave 0 to 7");
-        }
-        for (const key of keys) {
-            if (def[key]) {
-                let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def[key]);
-                let sampleBuffer = yield sampleRes.arrayBuffer();
-                let source = yield ctx.decodeAudioData(sampleBuffer);
-                samples[key] = source;
-            }
-        }
-        return samples;
-    });
-}
-function makeSingleScaleSamplingNode(ctx, def, base) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let sampleRes = yield fetch((base !== null && base !== void 0 ? base : "") + def);
-        let sampleBuffer = yield sampleRes.arrayBuffer();
-        let source = yield ctx.decodeAudioData(sampleBuffer);
-        return {
-            mono: source,
-            multiNote: false
-        };
-    });
-}
-function scaleKeyCheck(key) {
-    return key.match(/^[C][0-7]$/);
-}
-
-function makeSynth(ctx, definition) {
-    let synth = new ErieSynth(ctx, definition.type || FM);
-    synth.generate(definition);
-    return synth;
-}
-class ErieSynth {
-    constructor(ctx, type) {
-        this.ctx = ctx;
-        this.frequency = new ErieSynthFrequency(this);
-        this.onended;
-        this.type = type;
-    }
-    generate(definition) {
-        if (this.type === FM) {
-            this.generateFM(definition);
-        }
-        else if (this.type === AM) {
-            this.generateAM(definition);
-        }
-    }
-    generateFM(definition) {
-        this.initDef = definition;
-        // carrier
-        this.carrier = this.ctx.createOscillator();
-        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
-        this.carrier.frequency.value = this.carrierPitch;
-        this.carrier.type = definition.carrierType || 'sine';
-        this.carrierType = definition.carrierType || 'sine';
-        if (definition.carrierDetune) {
-            this.carrierDetune = definition.carrierDetune;
-            this.carrier.detune.value = definition.carrierDetune;
-        }
-        // modulator
-        this.modulator = this.ctx.createOscillator();
-        this.modulator.type = definition.modulatorType || 'sine';
-        this.modulatorType = definition.modulatorType || 'sine';
-        // modulator gain
-        this.modulatorGain = this.ctx.createGain();
-        this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainFM;
-        this.modulatorGain.gain.value = this.modulatorVolume;
-        // modulator pitch > modulation index > harmonicity > carrier's pitch > default pitch
-        if (definition.modulatorPitch !== undefined) {
-            this.modulatorPitch = definition.modulatorPitch;
-        }
-        else if (definition.modulation !== undefined) {
-            this.modulation = definition.modulation;
-            this.modulatorPitch = this.modulatorVolume / this.modulation;
-        }
-        else if (definition.harmonicity !== undefined) {
-            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
-        }
-        else if (this.carrierPitch !== undefined) {
-            this.modulatorPitch = this.carrierPitch;
-        }
-        else {
-            this.modulatorPitch = DefModPitch;
-        }
-        this.modulator.frequency.value = this.modulatorPitch;
-        // envelope
-        this.envelope = this.ctx.createGain();
-        this.attackTime = definition.attackTime || 0.1;
-        this.releaseTime = definition.releaseTime || 0.1;
-        this.sustain = definition.sustain || 0.8;
-        this.decayTime = definition.decayTime || 0.2;
-        // Connect the nodes
-        this.modulator.connect(this.modulatorGain);
-        this.modulatorGain.connect(this.carrier.frequency);
-        this.carrier.connect(this.envelope);
-    }
-    generateAM(definition) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
-        this.initDef = definition;
-        // carrier
-        this.carrier = this.ctx.createOscillator();
-        this.carrierPitch = definition.carrierPitch !== undefined ? definition.carrierPitch : DefCarrierPitch;
-        this.carrier.frequency.value = this.carrierPitch;
-        this.carrier.type = (_a = definition.carrierType) !== null && _a !== void 0 ? _a : 'sine';
-        this.carrierType = (_b = definition.carrierType) !== null && _b !== void 0 ? _b : 'sine';
-        if (definition.carrierDetune) {
-            this.carrierDetune = definition.carrierDetune;
-            this.carrier.detune.value = definition.carrierDetune;
-        }
-        this.carrierVolume = (_c = definition.carrierVolume) !== null && _c !== void 0 ? _c : 1;
-        // modulator
-        this.modulator = this.ctx.createOscillator();
-        this.modulator.type = (_d = definition.modulatorType) !== null && _d !== void 0 ? _d : 'sine';
-        this.modulatorType = (_e = definition.modulatorType) !== null && _e !== void 0 ? _e : 'sine';
-        // modulator gain
-        this.modulatorGain = this.ctx.createGain();
-        if (definition.modulation !== undefined) {
-            this.modulation = definition.modulation;
-            this.modulatorVolume = ((_f = this.carrierVolume) !== null && _f !== void 0 ? _f : 1) * this.modulation;
-        }
-        else {
-            this.modulatorVolume = definition.modulatorVolume !== undefined ? definition.modulatorVolume : DefaultModGainAM;
-        }
-        this.modulatorGain.gain.value = this.modulatorVolume;
-        // modulator pitch 
-        if (definition.modulatorPitch !== undefined) {
-            this.modulatorPitch = definition.modulatorPitch;
-        }
-        else if (definition.harmonicity !== undefined) {
-            this.modulatorPitch = definition.harmonicity * this.carrierPitch;
-        }
-        else if (this.carrierPitch !== undefined) {
-            this.modulatorPitch = this.carrierPitch;
-        }
-        else {
-            this.modulatorPitch = DefModPitch;
-        }
-        this.modulator.frequency.value = this.modulatorPitch;
-        // envelope
-        this.envelope = this.ctx.createGain();
-        this.attackTime = (_g = definition.attackTime) !== null && _g !== void 0 ? _g : 0.1;
-        this.releaseTime = (_h = definition.releaseTime) !== null && _h !== void 0 ? _h : 0.05;
-        this.sustain = (_j = definition.sustain) !== null && _j !== void 0 ? _j : 0.8;
-        this.decayTime = (_k = definition.decayTime) !== null && _k !== void 0 ? _k : 0.1;
-        // Connect the nodes
-        this.modulator.connect(this.modulatorGain.gain);
-        this.carrier.connect(this.modulatorGain);
-        this.modulatorGain.connect(this.envelope);
-    }
-    connect(node) {
-        this.envelope.connect(node);
-    }
-    start(time) {
-        this.carrier.start(time);
-        this.modulator.start(time);
-    }
-    stop(time) {
-        this.carrier.onended = this.onended;
-        this.carrier.stop(time + this.attackTime + this.releaseTime);
-        this.modulator.stop(time + this.attackTime + this.releaseTime);
-    }
-    get adTime() {
-        var _a, _b;
-        return ((_a = this.attackTime) !== null && _a !== void 0 ? _a : 0) + ((_b = this.decayTime) !== null && _b !== void 0 ? _b : 0);
-    }
-}
-class ErieSynthFrequency {
-    constructor(synther) {
-        this.value = DefModPitch;
-        this.automationRate = 'a-rate';
-        this.maxValue = 22050;
-        this.minValue = -22055;
-        this.synther = synther;
-    }
-    setValueAtTime(value, time) {
-        this.synther.carrier.frequency.setValueAtTime(value, time);
-    }
-    setTargetAtTime(value, time, timeConstant) {
-        this.synther.carrier.frequency.setTargetAtTime(value, time, timeConstant);
-    }
-    linearRampToValueAtTime(value, endTime) {
-        this.synther.carrier.frequency.linearRampToValueAtTime(value, endTime);
-    }
-    exponentialRampToValueAtTime(value, endTime) {
-        this.synther.carrier.frequency.exponentialRampToValueAtTime(value, endTime);
-    }
-    setValueCurveAtTime(values, startTime, duration) {
-        this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
-    }
-}
-// inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
-const AMMppaer = (amount) => (amount + 1) / 2;
-
-const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
-const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
-// inspired by : https://noisehack.com/generate-noise-web-audio-api/ (but it's not using audioscriptprocess, which is deprecated)
-// and https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
-function makeNoiseNode(ctx, type, duration // seconds
-) {
-    // here, duration is the noise node's duration, for continuous tone it's the entire length;
-    const bufferSize = ctx.sampleRate * duration;
-    // Create an empty buffer
-    const noiseBuffer = new AudioBuffer({
-        length: bufferSize,
-        sampleRate: ctx.sampleRate,
-        numberOfChannels: 2
-    });
-    // Fill the buffer with noise
-    const data0 = noiseBuffer.getChannelData(0);
-    const data1 = noiseBuffer.getChannelData(0);
-    // for pink
-    let coeffs = { p0: 0.0, p1: 0.0, p2: 0.0, p3: 0.0, p4: 0.0, p5: 0.0, p6: 0.0, o: 0 };
-    for (let i = 0; i < bufferSize; i++) {
-        if (type === PinkNoise) {
-            PinkNoiseFunction(coeffs);
-            data0[i] = coeffs.o;
-        }
-        else if (type === BrownNoise) {
-            BrownNoiseFunction(coeffs);
-            data0[i] = coeffs.o;
-        }
-        else {
-            data0[i] = WhiteNoiseFunction();
-        }
-        data1[i] = data0[i];
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-    return noise;
-}
-function WhiteNoiseFunction() {
-    return Math.random() * 2 - 1;
-}
-function PinkNoiseFunction(c) {
-    let w = WhiteNoiseFunction();
-    c.p0 = 0.99886 * c.p0 + w * 0.0555179;
-    c.p1 = 0.99332 * c.p1 + w * 0.0750759;
-    c.p2 = 0.96900 * c.p2 + w * 0.1538520;
-    c.p3 = 0.86650 * c.p3 + w * 0.3104856;
-    c.p4 = 0.55000 * c.p4 + w * 0.5329522;
-    c.p5 = -0.7616 * c.p5 - w * 0.0168980;
-    c.o = c.p0 + c.p1 + c.p2 + c.p3 + c.p4 + c.p5 + c.p6 + w * 0.5362;
-    c.o *= 0.11;
-    c.p6 = w * 0.115926; // gain compensation
-}
-function BrownNoiseFunction(c) {
-    let w = WhiteNoiseFunction();
-    c.o = (c.p0 + (0.02 * w)) / 1.02;
-    c.p0 = c.o;
-    c.o *= 3.5; // gain compensation
-}
-
-function makeContext() {
-    return new AudioContext();
-}
-function makeOfflineContext(length) {
-    return new OfflineAudioContext(BufferChannels$1, SampleRate$1 * length, SampleRate$1);
-}
-function makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound, contEndTime) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    if (iType === "default") {
-        return ctx.createOscillator();
-    }
-    else if (isOscType(iType)) {
-        let osc = ctx.createOscillator();
-        osc.type = iType;
-        return osc;
-    }
-    else if (typeof iType === 'string' && NoiseTypes.includes(iType)) {
-        let dur = (_a = contEndTime !== null && contEndTime !== void 0 ? contEndTime : sound === null || sound === void 0 ? void 0 : sound.duration) !== null && _a !== void 0 ? _a : 0;
-        if (sound && 'detune' in sound && (sound === null || sound === void 0 ? void 0 : sound.detune) !== undefined && (sound === null || sound === void 0 ? void 0 : sound.detune) > 0)
-            dur += dur * ((sound === null || sound === void 0 ? void 0 : sound.detune) / 600);
-        return makeNoiseNode(ctx, iType, dur * 1.1);
-    }
-    else if (typeof iType === 'string' && MultiNoteInstruments.includes(iType)) {
-        let note = determineNoteRange((_b = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, {});
-        let sample = (_c = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _c === void 0 ? void 0 : _c[('C' + note.octave)];
-        let source = ctx.createBufferSource();
-        source.buffer = sample;
-        source.detune.value = note.detune;
-        return source;
-    }
-    else if (typeof iType === 'string' && SingleNoteInstruments.includes(iType) && instSamples) {
-        let sample = instSamples[iType].mono;
-        let source = ctx.createBufferSource();
-        source.buffer = sample;
-        return source;
-    }
-    else if (typeof iType === 'string' && ((_d = Object.keys(waveDefs || {})) === null || _d === void 0 ? void 0 : _d.includes(iType)) && waveDefs) {
-        let real_parsed = new Float32Array(waveDefs[iType].real);
-        let imag_parsed = new Float32Array(waveDefs[iType].imag);
-        const wave = ctx.createPeriodicWave(real_parsed, imag_parsed, { disableNormalization: waveDefs[iType].disableNormalization || false });
-        let osc = ctx.createOscillator();
-        osc.setPeriodicWave(wave);
-        return osc;
-    }
-    else if (typeof iType === 'string' && ((_e = Object.keys(instSamples || {})) === null || _e === void 0 ? void 0 : _e.includes(iType)) && instSamples) {
-        let sample;
-        let note = determineNoteRange((_f = sound === null || sound === void 0 ? void 0 : sound.pitch) !== null && _f !== void 0 ? _f : DefaultFrequency, {});
-        if (instSamples[iType].multiNote) {
-            sample = (_g = instSamples === null || instSamples === void 0 ? void 0 : instSamples[iType]) === null || _g === void 0 ? void 0 : _g[('C' + note.octave)];
-        }
-        else {
-            sample = instSamples[iType].mono;
-        }
-        let source = ctx.createBufferSource();
-        source.buffer = sample;
-        if (instSamples[iType].multiNote) {
-            source.detune.value = note.detune;
-        }
-        return source;
-    }
-    else if (typeof iType === 'string' && ((_h = Object.keys(synthDefs || {})) === null || _h === void 0 ? void 0 : _h.includes(iType)) && synthDefs) {
-        let synth = makeSynth(ctx, synthDefs[iType]);
-        return synth;
-    }
-    else {
-        return ctx.createOscillator();
-    }
-}
-
-function emitNotePlayEvent(type, note) {
-    if (isBrowserEventPossible()) {
-        document.body.dispatchEvent(new CustomEvent("erieOnNotePlay", {
-            detail: {
-                type,
-                note
-            }
-        }));
-    }
-}
-function emitNoteStopEvent(type, note) {
-    if (isBrowserEventPossible()) {
-        document.body.dispatchEvent(new CustomEvent("erieOnNoteStop", {
-            detail: {
-                type,
-                note
-            }
-        }));
-    }
-}
-
-// event-related
-function sendToneStartEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnPlayTone", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-started' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendToneFinishEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnFinishTone", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'tone-finished' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendSpeechStartEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnPlaySpeech", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-started' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendSpeechFinishEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnFinishSpeech", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'speech-finished' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendQueueStartEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnPlayQueue", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'started' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendQueueFinishEvent(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnFinishQueue", { detail });
-        document.body.dispatchEvent(playEvent);
-        let chnageEvent = new CustomEvent("erieOnStatusChange", { detail: { status: 'finished' } });
-        document.body.dispatchEvent(chnageEvent);
-    }
-}
-function sendStreamingSignal(detail) {
-    if (isBrowserEventPossible()) {
-        let playEvent = new CustomEvent("erieOnStreamingSignal", { detail });
-        document.body.dispatchEvent(playEvent);
-    }
-}
-
-function setCurrentTime(ctx) {
-    return ctx.currentTime;
-}
-// export let ErieGlobalControl: GlobalControl, ErieGlobalState: GlobalState;
-function setErieGlobalControl(ctrl) {
-    if (isBrowserWindowPossible()) {
-        if (!('ErieGlobalControl' in window))
-            window.ErieGlobalControl = undefined;
-        window.ErieGlobalControl = ctrl;
-    }
-    else {
-        Globals.ErieGlobalControl = ctrl;
-    }
-}
-function isErieGlobalControlType(t) {
-    var _a, _b;
-    if (isBrowserWindowPossible()) {
-        return ((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.type) === t;
-    }
-    else {
-        return ((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.type) === t;
-    }
-}
-function isErieGlobalControlAudioContext() {
-    var _a, _b, _c, _d;
-    if (isBrowserWindowPossible()) {
-        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof AudioContext) || (((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof OfflineAudioContext);
-    }
-    else {
-        return (((_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player) instanceof AudioContext) || (((_d = Globals.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) instanceof OfflineAudioContext);
-    }
-}
-function isErieGlobalControlSpeechSynthesis() {
-    var _a, _b;
-    if (isBrowserWindowPossible()) {
-        return (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) instanceof SpeechSynthesis);
-    }
-    else {
-        return (((_b = Globals.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player) instanceof SpeechSynthesis);
-    }
-}
-function closeErieGlobalControl() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
-    if (isBrowserWindowPossible()) {
-        if (((_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) && 'cancel' in ((_b = window.ErieGlobalControl) === null || _b === void 0 ? void 0 : _b.player)) {
-            (_c = window.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c.player.cancel();
-        }
-        else if (((_d = window.ErieGlobalControl) === null || _d === void 0 ? void 0 : _d.player) && 'close' in ((_e = window.ErieGlobalControl) === null || _e === void 0 ? void 0 : _e.player)) {
-            (_f = window.ErieGlobalControl) === null || _f === void 0 ? void 0 : _f.player.close();
-        }
-    }
-    else {
-        if (((_g = Globals.ErieGlobalControl) === null || _g === void 0 ? void 0 : _g.player) && 'cancel' in ((_h = Globals.ErieGlobalControl) === null || _h === void 0 ? void 0 : _h.player)) {
-            (_j = Globals.ErieGlobalControl) === null || _j === void 0 ? void 0 : _j.player.cancel();
-        }
-        else if (((_k = Globals.ErieGlobalControl) === null || _k === void 0 ? void 0 : _k.player) && 'close' in ((_l = Globals.ErieGlobalControl) === null || _l === void 0 ? void 0 : _l.player)) {
-            (_m = Globals.ErieGlobalControl) === null || _m === void 0 ? void 0 : _m.player.close();
-        }
-    }
-}
-function setErieGlobalState(state) {
-    if (isBrowserWindowPossible()) {
-        if (!('ErieGlobalState' in window))
-            window.ErieGlobalState = undefined;
-        window.ErieGlobalState = state;
-    }
-    else {
-        Globals.ErieGlobalState = state;
-    }
-}
-function isErieGlobalState(state) {
-    if (isBrowserWindowPossible()) {
-        return window.ErieGlobalState === state;
-    }
-    else {
-        return Globals.ErieGlobalState === state;
-    }
-}
-function setPlayerEvents(queue, config) {
-    if (typeof window !== 'undefined') {
-        const stop = function (event) {
-            if ('key' in event && event.key == 'x') {
-                setErieGlobalState(Stopped);
-                queue.state = Stopped;
-                closeErieGlobalControl();
-                notifyStop(config);
-            }
-        };
-        if (isBrowserWindowPossible()) {
-            window.addEventListener('keypress', stop);
-            if (!window.ErieGlobalPlayerEvents)
-                window.ErieGlobalPlayerEvents = new Map();
-            window.ErieGlobalPlayerEvents.set('stop-event', stop);
-        }
-        else {
-            Globals.ErieGlobalPlayerEvents.set('stop-event', stop);
-        }
-    }
-}
-function clearPlayerEvents() {
-    if (typeof window !== 'undefined') {
-        if (isBrowserWindowPossible()) {
-            if (!window.ErieGlobalPlayerEvents)
-                window.ErieGlobalPlayerEvents = new Map();
-            let stop = window.ErieGlobalPlayerEvents.get('stop-event');
-            if (stop)
-                window.removeEventListener('keypress', stop);
-            window.ErieGlobalPlayerEvents.delete('stop-event');
-        }
-        else {
-            Globals.ErieGlobalPlayerEvents.delete('stop-event');
-        }
-    }
-}
-function setErieGlobalStreamingControl(key, value) {
-    if (isBrowserWindowPossible()) {
-        // @ts-ignore
-        if (!('ErieGlobalStreamingControl' in window))
-            window.ErieGlobalStreamingControl = {};
-        window.ErieGlobalStreamingControl[key] = value;
-    }
-    else {
-        Globals.ErieGlobalStreamingControl[key] = value;
-    }
-}
-
-function createPanner(ctx, cartesianInputs) {
-    if (cartesianInputs <= 1) {
-        const stereoPanner = ctx.createStereoPanner();
-        return stereoPanner;
-    }
-    else {
-        // default values: https://webaudio.github.io/web-audio-api/#PannerNode
-        // TODO: max Distance? Scales within 1? -> comment each value
-        const panner3D = ctx.createPanner();
-        panner3D.panningModel = 'equalpower';
-        panner3D.distanceModel = 'inverse';
-        panner3D.refDistance = 1;
-        panner3D.maxDistance = 10000;
-        panner3D.rolloffFactor = 1;
-        panner3D.coneInnerAngle = 360;
-        panner3D.coneOuterAngle = 360;
-        panner3D.coneOuterGain = 0;
-        return panner3D;
-    }
-}
-
-function playPause(ms, config) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
-
-// The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
-function makeWaveFromBuffer(buffer, ext) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let nChannels = buffer.numberOfChannels, samples = buffer.length, sampleRate = buffer.sampleRate, waveLength = samples * nChannels * 2 + 44, waveBuffer = new ArrayBuffer(waveLength), view = new DataView(waveBuffer), channelData = [];
-        let offset = 0, viewPos = 0;
-        // write WAVE header
-        viewPos = setUint32(view, 0x46464952, viewPos); // "RIFF"
-        viewPos = setUint32(view, waveLength - 8, viewPos); // file waveLength - 8
-        viewPos = setUint32(view, 0x45564157, viewPos); // "WAVE"
-        viewPos = setUint32(view, 0x20746d66, viewPos); // "fmt " chunk
-        viewPos = setUint32(view, 16, viewPos); // waveLength = 16
-        viewPos = setUint16(view, 1, viewPos); // PCM (uncompressed)
-        viewPos = setUint16(view, nChannels, viewPos);
-        viewPos = setUint32(view, sampleRate, viewPos);
-        viewPos = setUint32(view, sampleRate * 2 * nChannels, viewPos); // avg. bytes/sec
-        viewPos = setUint16(view, nChannels * 2, viewPos); // block-align
-        viewPos = setUint16(view, 16, viewPos); // 16-bit (hardcoded in this demo)
-        viewPos = setUint32(view, 0x61746164, viewPos); // "data" - chunk
-        viewPos = setUint32(view, waveLength - viewPos - 4, viewPos); // chunk waveLength
-        // write interleaved data
-        for (let i = 0; i < nChannels; i++) {
-            channelData.push(buffer.getChannelData(i));
-        }
-        while (viewPos < waveLength) {
-            for (let i = 0; i < nChannels; i++) {
-                // interleave channelData
-                let sample = Math.max(-1, Math.min(1, channelData[i][offset])); // clamp
-                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
-                view.setInt16(viewPos, sample, true); // write 16-bit sample
-                viewPos += 2;
-            }
-            offset++; // next source sample
-        }
-        // create Blob
-        // @ts-ignore
-        let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
-        if (ext === '$raw') {
-            return waveBuffer;
-        }
-        else if (ext) {
-            return new Blob([waveBlob], { type: "audio/" + (ext || "wav") });
-        }
-        else
-            return waveBlob;
-    });
-}
-function setUint16(view, data, viewPos) {
-    view.setUint16(viewPos, data, true);
-    viewPos += 2;
-    return viewPos;
-}
-function setUint32(view, data, viewPos) {
-    view.setUint32(viewPos, data, true);
-    viewPos += 4;
-    return viewPos;
-}
-
-const SampleRate = 44100, BufferChannels = 2;
-class AudioPrimitiveBuffer {
-    constructor(length, sampleRate) {
-        // in seconds
-        this.length = length;
-        this.sampleRate = sampleRate || SampleRate;
-        this.compiled = false;
-        this.compiledBuffer;
-        this.primitive = [];
-    }
-    add(at, data) {
-        this.primitive.push({ at, data });
-    }
-    compile() {
-        return __awaiter(this, void 0, void 0, function* () {
-            let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels)) || BufferChannels;
-            if (maxChannels < 1)
-                maxChannels = BufferChannels;
-            else if (maxChannels > 32)
-                maxChannels = 32;
-            let bufferLength = this.length ? this.length * this.sampleRate : this.primitive.map((p) => p.data.length).reduce((a, c) => a + c, 0);
-            if (bufferLength == 0)
-                bufferLength = this.sampleRate * 0.1;
-            let temp_ctx = new AudioContext();
-            this.compiledBuffer = temp_ctx.createBuffer(maxChannels, bufferLength, this.sampleRate);
-            let lastAt;
-            for (const p of this.primitive) {
-                let at = p.at === "next" ? (lastAt || 0) : Math.round((p.at || 0) * 44100);
-                for (let i = 0; i < maxChannels; i++) {
-                    let channelData = this.compiledBuffer.getChannelData(i);
-                    let currChannelData = p.data.getChannelData(i % p.data.numberOfChannels);
-                    currChannelData.forEach((q, k) => {
-                        channelData[at + k] += q;
-                    });
-                }
-                lastAt = at + p.data.length;
-            }
-            this.compiled = true;
-            return this.compiledBuffer;
-        });
-    }
-}
-function concatenateBuffers(buffers) {
-    let totalLength = buffers.map((d) => (d === null || d === void 0 ? void 0 : d.length) || 0).reduce((a, c) => a + c, 0);
-    let ctx = new AudioContext();
-    let totalBuffer = ctx.createBuffer(2, totalLength, ctx.sampleRate);
-    let view = 0;
-    for (const buffer of buffers) {
-        for (let i = 0; i < 2; i++) {
-            let channelData = totalBuffer.getChannelData(i);
-            let currChannelData = buffer.numberOfChannels == 1 ? buffer.getChannelData(0) : buffer.getChannelData(i);
-            for (let j = 0; j < buffer.length; j++) {
-                channelData[view + j] = currChannelData[j];
-            }
-        }
-        view += buffer.length;
-    }
-    return totalBuffer;
-}
-
-const channels = 2;
-// TODO
-function generatePCMCode(queue) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g;
-        // currently only support sine wave
-        // this is an experimental feature. currently only works for non-overlaid tone-series queues.
-        // queue: a discrete or continous queue data
-        // supported channels: time, pitch, loudness, pan
-        let ctx = new AudioContext();
-        let sampleRate = ctx.sampleRate;
-        let queues = [];
-        if (isToneSeriesQueueItem(queue)) {
-            queues.push(queue);
-        }
-        else if (isToneOverlaySeriesQueueItem(queue)) {
-            queues.push(...queue.overlays);
-        }
-        let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d) => getEndTime1(d) + (d.postReverb || 0))));
-        let length = Math.max(...queue_lengths);
-        let frameCount = sampleRate * length;
-        let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
-        let channel0 = buffer.getChannelData(0);
-        let channel1 = buffer.getChannelData(1);
-        for (let i = 0; i < frameCount; i++) {
-            channel0[i] = 0;
-            channel1[i] = 0;
-        }
-        for (const queue of queues) {
-            let sounds = queue.sounds;
-            if (!queue.continued) {
-                // discrete sounds
-                for (const sound of sounds) {
-                    let f = getStartTime1(sound) * sampleRate, t = (getEndTime1(sound) + ((_a = sound.postReverb) !== null && _a !== void 0 ? _a : 0)) * sampleRate;
-                    let length = t - f;
-                    let data = populatePCMforFreq(((_b = sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency), length, sampleRate);
-                    let gain = sound.loudness;
-                    if (gain === undefined)
-                        gain = 1;
-                    let pan = sound.pan;
-                    if (pan === undefined)
-                        pan = 0;
-                    let LRgain = getLRgain(pan);
-                    for (let i = 0; i < length; i++) {
-                        channel0[f + i] += data[i] * gain * LRgain[0];
-                        channel1[f + i] += data[i] * gain * LRgain[1];
-                    }
-                }
-            }
-            else {
-                // continous sound
-                let ramp_pan = getRampFunction((_c = queue.ramp) === null || _c === void 0 ? void 0 : _c.pan), ramp_gain = getRampFunction((_d = queue.ramp) === null || _d === void 0 ? void 0 : _d.loudness);
-                if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
-                    sounds.sort((a, b) => getStartTime1(a) - getStartTime1(b));
-                    let acc_prev = 0;
-                    for (let i = 0; i < sounds.length - 1; i++) {
-                        let sound = sounds[i], next_sound = sounds[i + 1];
-                        let f = Math.round(getStartTime1(sound) * sampleRate), t = Math.round(getStartTime1(next_sound) * sampleRate);
-                        let length = t - f;
-                        let pcm_pop = populatePCMforFreqRamp(((_e = sound.pitch) !== null && _e !== void 0 ? _e : DefaultFrequency), ((_f = next_sound.pitch) !== null && _f !== void 0 ? _f : DefaultFrequency), (_g = queue.ramp) === null || _g === void 0 ? void 0 : _g.pitch, acc_prev, length, sampleRate);
-                        if (pcm_pop) {
-                            let data = pcm_pop === null || pcm_pop === void 0 ? void 0 : pcm_pop.data, acc = pcm_pop === null || pcm_pop === void 0 ? void 0 : pcm_pop.acc;
-                            acc_prev = acc;
-                            let f_gain = sound.loudness;
-                            if (f_gain === undefined)
-                                f_gain = 1;
-                            let f_pan = sound.pan;
-                            if (f_pan === undefined)
-                                f_pan = 0;
-                            let t_gain = sound.loudness;
-                            if (t_gain === undefined)
-                                t_gain = 1;
-                            let t_pan = sound.pan;
-                            if (t_pan === undefined)
-                                t_pan = 0;
-                            for (let j = 0; j < length; j++) {
-                                let rpi = data[j];
-                                let rga = ramp_gain(f_gain, t_gain, j / length);
-                                let rpa = ramp_pan(f_pan, t_pan, j / length);
-                                let LRgain = getLRgain(rpa);
-                                channel0[f + j] += rpi * rga * LRgain[0];
-                                channel1[f + j] += rpi * rga * LRgain[1];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return buffer;
-    });
-}
-function populatePCMforFreq(pitch, frameCount, sampleRate) {
-    let data = new Float32Array(frameCount);
-    let cycle = pitch == 0 ? 0 : sampleRate / pitch;
-    for (let i = 0; i < frameCount; i++) {
-        data[i] = Math.sin(2 * Math.PI / cycle * i);
-    }
-    return data;
-}
-function populatePCMforFreqRamp(pitch_from, pitch_to, ramp, acc, frameCount, sampleRate) {
-    if (ramp === "abrupt" || ramp === false) {
-        return { data: populatePCMforFreq(pitch_from, frameCount, sampleRate), acc: 0 };
-    }
-    else if (ramp === "linear" || ramp === true || ramp === undefined) {
-        let data = new Float32Array(frameCount);
-        let cycle_from = pitch_from == 0 ? 0 : sampleRate / pitch_from, cycle_to = pitch_to == 0 ? 0 : sampleRate / pitch_to;
-        let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
-            return cycle_from + ((cycle_to - cycle_from) / (frameCount - 1) * i);
-        });
-        for (let i = 0; i < frameCount; i++) {
-            acc += 2 * Math.PI / cycles[i];
-            if (Math.sin(acc) == 0)
-                acc = 0;
-            data[i] = Math.sin(acc);
-        }
-        return { data, acc };
-    }
-    else if (ramp === "exponential") {
-        let data = new Float32Array(frameCount);
-        let cycle_from = sampleRate / pitch_from, cycle_to = sampleRate / pitch_to;
-        let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
-            return (cycle_to - cycle_from) * Math.exp(i / frameCount) + cycle_from;
-        });
-        for (let i = 0; i < frameCount; i++) {
-            acc += 2 * Math.PI / cycles[i];
-            if (Math.sin(acc) == 0)
-                acc = 0;
-            data[i] = Math.sin(acc);
-        }
-        return { data, acc };
-    }
-}
-function getLRgain(pan) {
-    let panp = Math.PI * (pan + 1) / 4;
-    return [Math.cos(panp), Math.sin(panp)];
-}
-function getRampFunction(ramp) {
-    if (ramp === "linear" || ramp === true || ramp === undefined) {
-        return (a, b, r) => { return a * (1 - r) + b * r; };
-    }
-    else if (ramp === "abrupt" || ramp === false) {
-        return (a, _, __) => { return a; };
-    }
-    else if (ramp === "exponential") {
-        return (a, b, r) => {
-            return (b - a) * Math.exp(r) + a;
-        };
-    }
-    else {
-        console.error("Unsupported Ramp Method.");
-    }
-}
-
-function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
-        // if it is from a discrete series and being stopped, then do nothing
-        if ((config === null || config === void 0 ? void 0 : config.subpart) && isErieGlobalState(Stopped))
-            return;
-        // if it is an individual play (not from a discrete series)
-        if (!(config === null || config === void 0 ? void 0 : config.subpart))
-            setErieGlobalState(undefined);
-        // clear previous state
-        setErieGlobalState(undefined);
-        // set audio context controls
-        setErieGlobalControl({ type: ToneType, player: ctx });
-        let sid;
-        // if it is an individual play (not from a discrete series), fire a new tone start event
-        if (!config.subpart) {
-            sid = genRid();
-            sendToneStartEvent({ sid });
-        }
-        if (sound.tap !== undefined && ((_b = (_a = sound.tap) === null || _a === void 0 ? void 0 : _a.pattern) === null || _b === void 0 ? void 0 : _b.constructor.name) === "Array") {
-            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
-            let tapSound = deepcopy(sound);
-            let t = 1, acc = 0, i = 0; // d
-            if (sound.tap.pattern.length == 0) {
-                yield playPause((sound.duration || 0.2) * 1000);
-                sendToneFinishEvent({ sid });
-            }
-            emitNotePlayEvent('tone', sound);
-            for (const s of sound.tap.pattern) {
-                if (t === 1) {
-                    tapSound.duration = s;
-                    if (s > 0) {
-                        yield __playSingleTone(ctx, ct + acc, tapSound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
-                    }
-                    t = 0;
-                }
-                else {
-                    yield playPause(s * 1000);
-                    t = 1;
-                }
-                acc += s;
-                i++;
-                if (i == sound.tap.pattern.length) {
-                    if (!config.subpart) {
-                        sendToneFinishEvent({ sid });
-                    }
-                }
-            }
-            emitNoteStopEvent('tone', sound);
-            return;
-        }
-        else {
-            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
-            emitNotePlayEvent('tone', sound);
-            yield __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
-            emitNoteStopEvent('tone', sound);
-            if (!config.subpart) {
-                sendToneFinishEvent({ sid });
-            }
-            return;
-        }
-    });
-}
-function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
-        // treat dynamic duration (this is a really special case; for chime only)
-        if (config.dynamic_duration && sound.instrument_type && sound.instrument_type in instSamples) {
-            if ('mono' in instSamples[sound.instrument_type]) {
-                // @ts-ignore
-                let sample = instSamples[sound.instrument_type].mono;
-                sound.duration = sample.duration;
-            }
-        }
-        // filters
-        let ctx = _ctx, offline = false;
-        if (((_a = bufferPrimitve === null || bufferPrimitve === void 0 ? void 0 : bufferPrimitve.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioPrimitiveBuffer.name) {
-            offline = true;
-            ctx = makeOfflineContext((_b = sound.duration) !== null && _b !== void 0 ? _b : 0);
-            ct = 0;
-        }
-        let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
-        for (const filterName of filters) {
-            if (PresetFilters[filterName]) {
-                filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
-                filterEncoders[filterName] = PresetFilters[filterName].encoder;
-                filterFinishers[filterName] = PresetFilters[filterName].finisher;
-            }
-            else if (ErieFilters[filterName]) {
-                filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
-                filterEncoders[filterName] = ErieFilters[filterName].encoder;
-                filterFinishers[filterName] = ErieFilters[filterName].finisher;
-            }
-        }
-        let destination = ctx.destination;
-        for (const filterName of filters) {
-            let filter = filterNodes[filterName];
-            if (filter) {
-                filter.connect(destination);
-                filter.initialize(ct, sound.duration);
-                destination = filter.destination;
-            }
-        }
-        // gain == loudness
-        const gain = ctx.createGain();
-        gain.connect(destination);
-        // DONE  function to handle this and call as needed (look at ramp)
-        const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
-        const isStereo = cartesianInputs === 1 && sound.panX !== undefined;
-        const panner = createPanner(ctx, cartesianInputs);
-        panner.connect(gain);
-        // play as async promise
-        // get the current time
-        // get discrete oscillator
-        let iType = sound.timbre || (config === null || config === void 0 ? void 0 : config.instrument_type);
-        const inst = makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound);
-        inst.connect(panner);
-        // set auditory values
-        if (inst instanceof OscillatorNode) {
-            rampBy('setValueAtTime', inst.frequency, (_c = sound.pitch) !== null && _c !== void 0 ? _c : DefaultFrequency, ct);
-        }
-        else if (inst instanceof ErieSynth) {
-            rampBy('setValueAtTime', inst.frequency, (_e = (_d = sound.pitch) !== null && _d !== void 0 ? _d : inst.carrierPitch) !== null && _e !== void 0 ? _e : DefaultFrequency, ct);
-            if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
-                rampBy('setValueAtTime', inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), ct);
-            }
-            else if (inst.type === AM && sound.modulation !== undefined && sound.modulation > 0) {
-                rampBy('setValueAtTime', inst.modulatorGain.gain, (sound.loudness || 1) * sound.modulation, ct);
-            }
-            if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-                inst.modulator.frequency.cancelScheduledValues(ct);
-                rampBy('setValueAtTime', inst.modulator.frequency, ((_g = (_f = sound.pitch) !== null && _f !== void 0 ? _f : inst.carrierPitch) !== null && _g !== void 0 ? _g : DefaultFrequency) * sound.harmonicity, ct);
-            }
-            else if (sound.harmonicity === undefined) {
-                inst.modulator.frequency.cancelScheduledValues(ct);
-                rampBy('setValueAtTime', inst.modulator.frequency, sound.pitch, ct);
-            }
-            inst.envelope.gain.cancelScheduledValues(ct);
-            rampBy('setValueAtTime', inst.envelope.gain, 0, ct);
-            rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, ct + (inst.attackTime || 0));
-            if (inst.decayTime) {
-                // rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + getStartTime1(sound) + inst.adTime);
-                rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + inst.adTime);
-            }
-            rampBy('setValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + ((_h = sound.duration) !== null && _h !== void 0 ? _h : 0));
-            rampBy('linearRampToValueAtTime', inst.envelope.gain, 0, ct + ((_j = sound.duration) !== null && _j !== void 0 ? _j : 0) + inst.adTime);
-        }
-        if (sound.detune && 'detune' in inst && inst.detune) {
-            rampBy('setValueAtTime', inst.detune, (_k = sound.detune) !== null && _k !== void 0 ? _k : 0, ct);
-        }
-        if (sound.loudness !== undefined) {
-            rampBy('setValueAtTime', gain.gain, (_l = sound.loudness) !== null && _l !== void 0 ? _l : 1, ct);
-        }
-        if (sound.postReverb) {
-            rampBy('setTargetAtTime', gain.gain, 0, ct + ((_m = sound.duration) !== null && _m !== void 0 ? _m : 0) * 0.95, 0.015);
-            rampBy('setTargetAtTime', gain.gain, 0.45, ct + ((_o = sound.duration) !== null && _o !== void 0 ? _o : 0), 0.015);
-            rampBy('exponentialRampToValueAtTime', gain.gain, 0.02, ct + (getDuration1(sound)) * 0.95);
-        }
-        else {
-            sound.postReverb = 0;
-        }
-        let et = ct + ((_p = sound.duration) !== null && _p !== void 0 ? _p : 0) + ((_q = sound.postReverb) !== null && _q !== void 0 ? _q : 0);
-        if (inst instanceof ErieSynth) {
-            et += ((_r = inst.attackTime) !== null && _r !== void 0 ? _r : 0) + ((_s = inst.releaseTime) !== null && _s !== void 0 ? _s : 0);
-        }
-        for (const filterName of filters) {
-            let encoder = filterEncoders[filterName];
-            let finisher = filterFinishers[filterName];
-            if (encoder) {
-                encoder(filterNodes[filterName], sound, ct);
-            }
-            if (finisher) {
-                // finisher(filterNodes[filterName], sound, ct + getStartTime1(sound), et);
-                finisher(filterNodes[filterName], sound, ct, et);
-            }
-        }
-        rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.05);
-        if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
-            panner.pan.setValueAtTime(sound.panX, ct);
-        }
-        else if (!isStereo && panner instanceof PannerNode) {
-            if (sound.panX !== undefined)
-                panner.positionX.setValueAtTime(sound.panX, ct);
-            if (sound.panY !== undefined)
-                panner.positionY.setValueAtTime(sound.panY, ct);
-            if (sound.panZ !== undefined)
-                panner.positionZ.setValueAtTime(sound.panZ, ct);
-        }
-        // play & stop
-        if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {
-            inst.start(0);
-            inst.stop(getDuration1(sound));
-            let rb = yield ctx.startRendering();
-            if (sound.start !== 'after_previous')
-                bufferPrimitve.add((_t = sound.start) !== null && _t !== void 0 ? _t : 0, rb);
-            else
-                bufferPrimitve.add('next', rb);
-        }
-        else {
-            return new Promise((resolve, reject) => {
-                inst.onended = (_) => {
-                    resolve();
-                };
-                inst.start(ct);
-                inst.stop(ct + getDuration1(sound));
-            });
-        }
-        return;
-    });
-}
-
-const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
-function makeTick(ctx, def, duration, instSamples) {
-    var _a, _b, _c;
-    // ticker definition;
-    if (!def)
-        return null;
-    else if (typeof duration === 'number') {
-        let tickPattern = [];
-        let interval = round((_a = def.interval) !== null && _a !== void 0 ? _a : 0.5, -2);
-        let tickDur = def.band;
-        tickDur = round(tickDur !== null && tickDur !== void 0 ? tickDur : 0.1, -2);
-        let pause = interval - tickDur;
-        let count = Math.floor(duration / interval);
-        let totalTime = 0;
-        if (def.playAtTime0 === undefined)
-            def.playAtTime0 = true;
-        if (def.playAtTime0) {
-            tickPattern.push({ tick: tickDur });
-            totalTime += tickDur;
-        }
-        for (let i = 0; i < count; i++) {
-            tickPattern.push({ pause });
-            tickPattern.push({ tick: tickDur });
-            totalTime += pause + tickDur;
-        }
-        if (duration > totalTime) {
-            tickPattern.push({ pause: duration - totalTime });
-        }
-        let tickInst = makeInstrument(ctx, (_b = def.instrument) !== null && _b !== void 0 ? _b : 'default', instSamples);
-        if ('frequency' in tickInst)
-            tickInst.frequency.value = 150;
-        if (def.pitch && 'frequency' in tickInst)
-            tickInst.frequency.value = def.pitch;
-        if (def.oscType && 'type' in tickInst)
-            tickInst.type = def.oscType;
-        let gain = ctx.createGain();
-        tickInst.connect(gain);
-        gain.connect(ctx.destination);
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        let acc = 0;
-        for (const p of tickPattern) {
-            if (p.tick) {
-                gain.gain.setTargetAtTime(def.loudness || Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
-                acc += p.tick;
-            }
-            else if (p.pause) {
-                gain.gain.setTargetAtTime(0, ctx.currentTime + acc, 0.015);
-                acc += p.pause;
-            }
-        }
-        return tickInst;
-    }
-    else if (duration === 'indefinite') {
-        // if indefininte, then return a generator
-        let interval = round((_c = def.interval) !== null && _c !== void 0 ? _c : 0.5, -2);
-        let tickDur = def.band;
-        tickDur = round(tickDur !== null && tickDur !== void 0 ? tickDur : 0.1, -2);
-        let pause = interval - tickDur;
-        if (def.playAtTime0 === undefined)
-            def.playAtTime0 = true;
-        let tickPattern = def.playAtTime0 ? [{ tick: tickDur }, { pause }] : [{ pause }, { tick: tickDur }];
-        return () => {
-            var _a, _b;
-            let tickInst = makeInstrument(ctx, (_a = def.instrument) !== null && _a !== void 0 ? _a : 'default', instSamples);
-            if ('frequency' in tickInst)
-                tickInst.frequency.value = 150;
-            if (def.pitch && 'frequency' in tickInst)
-                tickInst.frequency.value = def.pitch;
-            if (def.oscType && 'type' in tickInst)
-                tickInst.type = def.oscType;
-            let gain = ctx.createGain();
-            tickInst.connect(gain);
-            gain.connect(ctx.destination);
-            gain.gain.setValueAtTime(0, ctx.currentTime);
-            let acc = 0;
-            for (const p of tickPattern) {
-                if (p.tick) {
-                    gain.gain.setTargetAtTime((_b = def.loudness) !== null && _b !== void 0 ? _b : Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
-                    acc += p.tick;
-                }
-                else if (p.pause) {
-                    gain.gain.setTargetAtTime(0, ctx.currentTime + acc, 0.015);
-                    acc += p.pause;
-                }
-            }
-            return tickInst;
-        };
-    }
-    return null;
-}
-function playTick(_ctx, def, duration, start, end, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let ctx = _ctx;
-        if (bufferPrimitve)
-            ctx = makeOfflineContext(duration);
-        let tick = makeTick(ctx, def, duration);
-        if (tick) {
-            tick.start(start);
-            tick.stop(end);
-        }
-        if (bufferPrimitve && ctx instanceof OfflineAudioContext) {
-            let rb = yield ctx.startRendering();
-            bufferPrimitve.add(start, rb);
-        }
-        return;
-    });
-}
-
-function playAbsoluteDiscreteTones(ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // clear previous state
-        setErieGlobalState(undefined);
-        // playing a series of discrete tones with an aboslute schedule
-        // set audio context controls
-        setErieGlobalControl({ type: ToneType, player: ctx });
-        // sort queue to mark the last node for sequence end check
-        let q0 = queue.toSorted(glyphSorterByStart);
-        q0[0].isFirst = true;
-        let q = q0.toSorted(glyphSorterByEnd);
-        q[q.length - 1].isLast = true;
-        config.subpart = true;
-        let endTime = getEndTime1(q[q.length - 1]);
-        // play as async promise
-        let sid = genRid();
-        sendToneStartEvent({ sid });
-        // gain == loudness
-        // for timing
-        // let timingCtx = bufferPrimitve ? makeOfflineContext(endTime) : new AudioContext();
-        let timingCtx = new AudioContext();
-        const gain = timingCtx.createGain();
-        gain.connect(timingCtx.destination);
-        gain.gain.value = 0;
-        return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
-            // get the current time
-            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
-            // set and play sounds
-            for (let sound of q) {
-                if (isErieGlobalState(Stopped)) {
-                    // resolve();
-                    break;
-                }
-                // get discrete oscillator
-                const inst = makeInstrument(timingCtx);
-                inst.connect(gain);
-                // after stopping (need to define before stopping!)
-                inst.onended = () => __awaiter(this, void 0, void 0, function* () {
-                    var _a, _b;
-                    if ((config === null || config === void 0 ? void 0 : config.falseTiming) && isErieGlobalControlType(SpeechType)) {
-                        (_b = (_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) === null || _b === void 0 ? void 0 : _b.cancel();
-                    }
-                    yield playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
-                    if (sound.isLast) {
-                        sendToneFinishEvent({ sid });
-                        resolve();
-                    }
-                });
-                // play & stop
-                inst.start(ct + sound.start);
-                inst.stop(ct + sound.start + 0.01);
-            }
-            if (config.tick) {
-                playTick(ctx, config.tick, endTime, ct + 0.01, ct + endTime + 0.01, bufferPrimitve);
-            }
-        }));
-    });
-}
-
-function playAbsoluteContinuousTones(_ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
-        // clear previous state
-        setErieGlobalState(undefined);
-        // sort queue to mark the first and last node for sequence end check
-        let q0 = queue.toSorted(glyphSorterByStart);
-        q0[0].isFirst = true;
-        let q = q0.toSorted(glyphSorterByEnd);
-        q[q.length - 1].isLast = true;
-        // get the last tone's finish time
-        let endTime = getEndTime1(q[q.length - 1]);
-        // get the context
-        let ctx = _ctx, offline = false;
-        if (((_a = bufferPrimitve === null || bufferPrimitve === void 0 ? void 0 : bufferPrimitve.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioPrimitiveBuffer.name) {
-            offline = true;
-            ctx = makeOfflineContext(endTime);
-            bufferPrimitve.length = endTime;
-        }
-        // set audio context controls
-        setErieGlobalControl({ type: ToneType, player: ctx });
-        // rampers 
-        let rampers = {};
-        if (config.ramp) {
-            Object.keys(config.ramp || {}).forEach((chn) => {
-                let name = config.ramp[chn] in RamperNames ? RamperNames[config.ramp[chn]] : undefined;
-                if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
-                    rampers.tap = name;
-                }
-                else {
-                    rampers[chn] = name;
-                }
-            });
-        }
-        // filters
-        let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
-        for (const filterName of filters) {
-            if (filterName in PresetFilters && PresetFilters[filterName]) {
-                filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
-                filterEncoders[filterName] = PresetFilters[filterName].encoder;
-                filterFinishers[filterName] = PresetFilters[filterName].finisher;
-            }
-            else if ('filterName' in ErieFilters[filterName]) {
-                filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
-                filterEncoders[filterName] = ErieFilters[filterName].encoder;
-                filterFinishers[filterName] = ErieFilters[filterName].finisher;
-            }
-        }
-        let destination = ctx.destination;
-        for (const filterName of filters) {
-            let filter = filterNodes[filterName];
-            if (filter) {
-                filter.connect(destination);
-                filter.initialize(ctx.currentTime, endTime);
-                destination = filter.destination;
-            }
-        }
-        // gain == loudness
-        const gain = ctx.createGain();
-        gain.connect(destination);
-        //DONE - function to handle this
-        // decide between stereo or 3d pan
-        const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => queue[0][key] !== undefined).length;
-        const isStereo = cartesianInputs === 1 && queue[0].panX !== undefined;
-        const panner = createPanner(ctx, cartesianInputs);
-        panner.connect(gain);
-        let sid = genRid();
-        sendToneStartEvent({ sid });
-        // play as async promise
-        // get instrument
-        const inst = makeInstrument(ctx, config === null || config === void 0 ? void 0 : config.instrument_type, instSamples, synthDefs, waveDefs, q[0], endTime);
-        inst.connect(panner);
-        let startTime;
-        // get the current time
-        let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
-        for (let sound of q) {
-            let st = ct + getStartTime1(sound), base_et = ct + getEndTime1(sound);
-            // sampled tone pitch is already set when the instrument was created + they can't compose a continuous tone.
-            if (inst instanceof OscillatorNode) {
-                // osc pitch
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_b = sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, st);
-            }
-            else if (inst instanceof ErieSynth) {
-                // synth pitch
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_c = sound.pitch) !== null && _c !== void 0 ? _c : DefaultFrequency, st);
-                // modulation
-                if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
-                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), st);
-                }
-                else if (inst.type === AM && sound.modulation !== undefined) {
-                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulatorGain.gain, ((_d = sound.loudness) !== null && _d !== void 0 ? _d : 1) * sound.modulation, st);
-                }
-                // hamonicity
-                if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.harmonicity, inst.modulator.frequency, ((_f = (_e = sound.pitch) !== null && _e !== void 0 ? _e : inst.carrierPitch) !== null && _f !== void 0 ? _f : DefaultFrequency) * sound.harmonicity, st);
-                }
-                // initialize the envelope
-                inst.envelope.gain.cancelScheduledValues(st);
-                // before attack
-                rampBy('setValueAtTime', inst.envelope.gain, 0, st);
-                // attack + sustain
-                rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, st + ((_g = inst.attackTime) !== null && _g !== void 0 ? _g : 0));
-                if (inst.decayTime) {
-                    // sustain + decay
-                    rampBy('linearRampToValueAtTime', inst.envelope.gain, (_h = inst.sustain) !== null && _h !== void 0 ? _h : 1, st + inst.adTime);
-                }
-            }
-            // detune
-            if (sound.detune && 'detune' in inst && inst.detune) {
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st);
-            }
-            // loudness/gain
-            if (sound.loudness !== undefined) {
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
-            }
-            // panner node
-            // DONE - Check stereo vs 3d
-            if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
-                rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
-            }
-            else if (!isStereo && panner instanceof PannerNode) {
-                if (sound.panX !== undefined)
-                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
-                if (sound.panY !== undefined)
-                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
-                if (sound.panZ !== undefined)
-                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
-            }
-            if (sound.isFirst) {
-                // play the first
-                startTime = st;
-            }
-            if (sound.isLast) {
-                // smooth ending
-                // rampBy('linearRampToValueAtTime', gain.gain, (sound.loudness ?? 1), st + 0.05);
-                rampBy('setTargetAtTime', gain.gain, 0, base_et, 0.6);
-                if (inst instanceof ErieSynth) {
-                    inst.envelope.gain.cancelScheduledValues(st);
-                    rampBy('setTargetAtTime', inst.envelope.gain, ((_j = sound.loudness) !== null && _j !== void 0 ? _j : 1), base_et, 0.6);
-                    rampBy('setTargetAtTime', inst.envelope.gain, 0, base_et, 0.6);
-                }
-            }
-            for (const filterName of filters) {
-                let encoder = filterEncoders[filterName];
-                let finisher = filterFinishers[filterName];
-                if (encoder) {
-                    encoder(filterNodes[filterName], sound, st, rampers);
-                }
-                if (finisher) {
-                    finisher(filterNodes[filterName], sound, st, base_et + (inst instanceof ErieSynth ? inst.adTime : 0), rampers);
-                }
-            }
-        }
-        const tick = makeTick(ctx, config.tick, endTime);
-        emitNotePlayEvent('tone', q[0]);
-        if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {
-            if (tick) {
-                tick.start(0);
-                tick.stop(endTime);
-            }
-            // after stopping (need to define before stopping!)
-            inst.onended = (e) => {
-                setErieGlobalControl(undefined);
-                setErieGlobalState(undefined);
-                emitNoteStopEvent('tone', q[0]);
-                sendToneFinishEvent({ sid });
-            };
-            inst.start(0);
-            inst.stop(endTime);
-            let rb = yield ctx.startRendering();
-            bufferPrimitve.add(0, rb);
-        }
-        else {
-            return new Promise((resolve, reject) => {
-                if (tick) {
-                    tick.start(startTime);
-                    tick.stop(ct + endTime);
-                }
-                // after stopping (need to define before stopping!)
-                inst.onended = (e) => {
-                    setErieGlobalControl(undefined);
-                    setErieGlobalState(undefined);
-                    emitNoteStopEvent('tone', q[0]);
-                    sendToneFinishEvent({ sid });
-                    resolve();
-                };
-                inst.start(startTime);
-                inst.stop(ct + endTime);
-            });
-        }
-    });
-}
-
 let ErieGlobalSynth;
 function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -4537,683 +3770,6 @@ function WebSpeechGenerator(sound, config, onstart, onend, resolve) {
                 resolve();
         };
     });
-}
-
-function playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // if it is from a discrete series and being stopped, then do nothing
-        if ((config === null || config === void 0 ? void 0 : config.subpart) && isErieGlobalState(Stopped))
-            return;
-        // if it is an individual play (not from a discrete series)
-        if (!(config === null || config === void 0 ? void 0 : config.subpart))
-            setErieGlobalState(undefined);
-        let sid = genRid();
-        if (!config.subpart) {
-            sendSpeechStartEvent({ sound, sid });
-        }
-        let onstart = () => {
-            emitNotePlayEvent(SpeechType, sound);
-        };
-        let onend = () => {
-            clearPlayerEvents();
-            setErieGlobalControl(undefined);
-            setErieGlobalState(undefined);
-            emitNoteStopEvent(SpeechType, sound);
-            if (!config.subpart) {
-                sendSpeechFinishEvent({ sid });
-            }
-        };
-        if (typeof window !== 'undefined' && bufferPrimitve && typeof ttsFetchFunction === 'function') {
-            let speechRendered = yield ttsFetchFunction({ text: sound, config });
-            let ctx = new AudioContext();
-            bufferPrimitve.add('next', yield ctx.decodeAudioData(speechRendered));
-        }
-        // else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
-        //   await GoogleCloudTTSGenerator(sound, config);
-        // } 
-        else {
-            if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
-                console.warn("Google Cloud TTS API can only be used on Node.js Server environment.");
-            }
-            return new Promise((resolve, reject) => {
-                WebSpeechGenerator(sound, config, onstart, onend, resolve);
-            });
-        }
-        return;
-    });
-}
-
-function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve, ttsFetchFunction) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // clear previous state
-        setErieGlobalState(undefined);
-        let config = deepcopy(_config);
-        config.subpart = true;
-        for (const sound of queue) {
-            if (isErieGlobalState(Stopped))
-                break;
-            let sid = genRid();
-            if (sound.speech) {
-                sendSpeechStartEvent({ sound, sid });
-                yield playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction);
-                sendSpeechFinishEvent({ sid });
-            }
-            else {
-                sendToneStartEvent({ sid });
-                yield playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
-                sendToneFinishEvent({ sid });
-            }
-        }
-        setErieGlobalState(undefined);
-        return;
-    });
-}
-
-function playAbsoluteSpeeches(ctx, queue, config, ttsFetchFunction, bufferPrimitve) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // clear previous state
-        setErieGlobalState(undefined);
-        // playing a series of discrete tones with an aboslute schedule
-        // set audio context controls
-        setErieGlobalControl({ type: ToneType, player: ctx });
-        // gain == loudness
-        const gain = ctx.createGain();
-        gain.connect(ctx.destination);
-        gain.gain.value = 0;
-        // sort queue to mark the last node for sequence end check
-        let q0 = queue.toSorted(glyphSorterByStart);
-        q0[0].isFirst = true;
-        let q = q0.toSorted(glyphSorterByEnd);
-        q[q.length - 1].isLast = true;
-        config.subpart = true;
-        // play as async promise
-        return new Promise((resolve, reject) => {
-            // get the current time
-            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
-            // set and play sounds
-            let prev;
-            for (let sound of q) {
-                if (isErieGlobalState(Stopped)) {
-                    resolve();
-                    break;
-                }
-                if (prev) {
-                    getStartTime1(q) - getEndTime1(prev);
-                }
-                // get discrete oscillator
-                const inst = makeInstrument(ctx);
-                inst.connect(gain);
-                // after stopping (need to define before stopping!)
-                // this part actually plays the sound
-                inst.onended = () => {
-                    if ((config === null || config === void 0 ? void 0 : config.falseTiming) && isErieGlobalControlType(SpeechType)) {
-                        closeErieGlobalControl();
-                    }
-                    playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction);
-                    if (sound.isLast) {
-                        resolve();
-                    }
-                };
-                // play & stop
-                inst.start(ct + sound.start - 0.02);
-                inst.stop(ct + sound.start);
-                prev = q;
-            }
-        });
-    });
-}
-
-function rampContinuousTone(ctx, q, duration, inst, panner, isStereo, gain, rampers, filters, filterNodes, filterEncoders, filterFinishers, config) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
-        // get the current time
-        let ct = setCurrentTime(ctx);
-        for (let sound of q) {
-            let delay = 0.15;
-            let st = ct + getStartTime1(sound) + delay, base_et = ct + getEndTime1(sound) + delay;
-            // sampled tone pitch is already set when the instrument was created + they can't compose a continuous tone.
-            if (inst instanceof OscillatorNode) {
-                // osc pitch
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_a = sound.pitch) !== null && _a !== void 0 ? _a : DefaultFrequency, st);
-            }
-            else if (inst instanceof ErieSynth) {
-                // synth pitch
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_b = sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, st);
-                // modulation
-                if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
-                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), st);
-                }
-                else if (inst.type === AM && sound.modulation !== undefined) {
-                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulatorGain.gain, ((_c = sound.loudness) !== null && _c !== void 0 ? _c : 1) * sound.modulation, st);
-                }
-                // hamonicity
-                if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.harmonicity, inst.modulator.frequency, ((_e = (_d = sound.pitch) !== null && _d !== void 0 ? _d : inst.carrierPitch) !== null && _e !== void 0 ? _e : DefaultFrequency) * sound.harmonicity, st);
-                }
-                // initialize the envelope
-                inst.envelope.gain.cancelScheduledValues(st);
-                // before attack
-                rampBy('setValueAtTime', inst.envelope.gain, 0, st);
-                // attack + sustain
-                rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, st + ((_f = inst.attackTime) !== null && _f !== void 0 ? _f : 0));
-                if (inst.decayTime) {
-                    // sustain + decay
-                    rampBy('linearRampToValueAtTime', inst.envelope.gain, (_g = inst.sustain) !== null && _g !== void 0 ? _g : 1, st + inst.adTime);
-                }
-            }
-            // detune
-            if (sound.detune && 'detune' in inst && inst.detune) {
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st);
-            }
-            // loudness/gain
-            if (sound.loudness !== undefined) {
-                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
-            }
-            // panner node
-            // DONE - Check stereo vs 3d
-            if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
-                rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
-            }
-            else if (!isStereo && panner instanceof PannerNode) {
-                if (sound.panX !== undefined)
-                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
-                if (sound.panY !== undefined)
-                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
-                if (sound.panZ !== undefined)
-                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
-            }
-            if (sound.isFirst) ;
-            if (sound.isLast) {
-                // smooth ending
-                // rampBy('linearRampToValueAtTime', gain.gain, (sound.loudness ?? 1), st + 0.05);
-                rampBy('setTargetAtTime', gain.gain, 0, base_et, 0.6);
-                if (inst instanceof ErieSynth) {
-                    inst.envelope.gain.cancelScheduledValues(st);
-                    rampBy('setTargetAtTime', inst.envelope.gain, ((_h = sound.loudness) !== null && _h !== void 0 ? _h : 1), base_et, 0.6);
-                    rampBy('setTargetAtTime', inst.envelope.gain, 0, base_et, 0.6);
-                }
-            }
-            for (const filterName of filters) {
-                let encoder = filterEncoders[filterName];
-                let finisher = filterFinishers[filterName];
-                if (encoder) {
-                    encoder(filterNodes[filterName], sound, st, rampers);
-                }
-                if (finisher) {
-                    finisher(filterNodes[filterName], sound, st, base_et + (inst instanceof ErieSynth ? inst.adTime : 0), rampers);
-                }
-            }
-        }
-        yield playPause(duration * 1000);
-        return;
-    });
-}
-
-class AudioGraphQueue {
-    constructor() {
-        this.queue = [];
-        this.state = Finished;
-        this.playAt;
-        this.config = {};
-        this.sampledInstruments = [];
-        this.sampledInstrumentSources = {};
-        this.samplings = {};
-        this.synths = {};
-        this.waves = {};
-        this.playId;
-        this.buffers = [];
-    }
-    // set
-    setConfig(key, value) {
-        this.config[key] = value;
-    }
-    setSampling(samplings) {
-        for (const k in samplings) {
-            if (!this.samplings[k])
-                this.samplings[k] = deepcopy(samplings[k]);
-        }
-    }
-    setSynths(synths) {
-        for (const k in synths) {
-            if (!this.synths[k])
-                this.synths[k] = deepcopy(synths[k]);
-        }
-    }
-    setWaves(waves) {
-        for (const k in waves) {
-            if (!this.waves[k])
-                this.waves[k] = deepcopy(waves[k]);
-        }
-    }
-    // checks
-    isSupportedInst(k) {
-        return SupportedInstruments.includes(k);
-    }
-    isSampling(k) {
-        var _a;
-        return ((_a = this.samplings) === null || _a === void 0 ? void 0 : _a[k]) !== undefined;
-    }
-    isSynth(k) {
-        var _a;
-        return ((_a = this.synths) === null || _a === void 0 ? void 0 : _a[k]) !== undefined;
-    }
-    isWave(k) {
-        var _a;
-        return ((_a = this.waves) === null || _a === void 0 ? void 0 : _a[k]) !== undefined;
-    }
-    add(type, group_id, info, lineConfig, at) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7;
-        let checkInstrumentSampling = new Set(), userSampledInstruments = new Set();
-        if (QueueItemTypes.includes(type)) {
-            let item = {
-                group_id,
-                type,
-                config: lineConfig,
-            };
-            if (type === TextType && isTextQueueItem(item) && isTextInfo(info)) {
-                item.speech = (_a = info === null || info === void 0 ? void 0 : info.speech) !== null && _a !== void 0 ? _a : '';
-                if ((info === null || info === void 0 ? void 0 : info.speechRate) !== undefined)
-                    item.speechRate = info === null || info === void 0 ? void 0 : info.speechRate;
-                item.language = info.language;
-                item.pitch = info.pitch;
-                item.loudness = info.loudness;
-            }
-            else if (type === ToneType && isToneQueueItem(item) && isSoundInfo(info)) {
-                item.instrument_type = info.instrument_type;
-                if (this.isSupportedInst(item.instrument_type))
-                    checkInstrumentSampling.add(item.instrument_type);
-                else if (this.isSampling(item.instrument_type))
-                    userSampledInstruments.add(item.instrument_type);
-                item.start = (_d = (_c = (_b = info.sound) === null || _b === void 0 ? void 0 : _b.start) !== null && _c !== void 0 ? _c : info.start) !== null && _d !== void 0 ? _d : 0;
-                item.end = (_f = (_e = info.sound) === null || _e === void 0 ? void 0 : _e.end) !== null && _f !== void 0 ? _f : (getStartTime1(item) + ((_h = (_g = info.sound) === null || _g === void 0 ? void 0 : _g.duration) !== null && _h !== void 0 ? _h : 0.2));
-                item.duration = (_k = (_j = info.sound) === null || _j === void 0 ? void 0 : _j.duration) !== null && _k !== void 0 ? _k : item.end - getStartTime1(item); // in seconds
-                item.pitch = (_m = (_l = info.sound) === null || _l === void 0 ? void 0 : _l.pitch) !== null && _m !== void 0 ? _m : DefaultFrequency;
-                item.detune = (_o = info.sound) === null || _o === void 0 ? void 0 : _o.detune;
-                item.loudness = (_q = (_p = info.sound) === null || _p === void 0 ? void 0 : _p.loudness) !== null && _q !== void 0 ? _q : 1;
-                item.pan = (_r = info.sound) === null || _r === void 0 ? void 0 : _r.pan;
-                item.panX = (_s = info.sound) === null || _s === void 0 ? void 0 : _s.panX;
-                item.panY = (_t = info.sound) === null || _t === void 0 ? void 0 : _t.panY;
-                item.panZ = (_u = info.sound) === null || _u === void 0 ? void 0 : _u.panZ;
-                item.postReverb = (_w = (_v = info.sound) === null || _v === void 0 ? void 0 : _v.postReverb) !== null && _w !== void 0 ? _w : 0;
-                item.timbre = (_y = (_x = info.sound) === null || _x === void 0 ? void 0 : _x.timbre) !== null && _y !== void 0 ? _y : info.instrument_type;
-                let tapCount = (_z = info.sound) === null || _z === void 0 ? void 0 : _z.tapCount, tapSpeed = (_0 = info.sound) === null || _0 === void 0 ? void 0 : _0.tapSpeed;
-                if (tapCount || tapSpeed) {
-                    item.tap = mergeTapPattern(tapCount, tapSpeed);
-                    item.duration = (_1 = item.tap) === null || _1 === void 0 ? void 0 : _1.totalLength;
-                }
-                item.modulation = (_3 = (_2 = info.sound) === null || _2 === void 0 ? void 0 : _2.modulation) !== null && _3 !== void 0 ? _3 : 0;
-                item.harmonicity = (_5 = (_4 = info.sound) === null || _4 === void 0 ? void 0 : _4.harmonicity) !== null && _5 !== void 0 ? _5 : 0;
-                item.others = {};
-                // custom channels;
-                Object.keys((_6 = info.sound) !== null && _6 !== void 0 ? _6 : {}).forEach((chn) => {
-                    var _a;
-                    if (item.others && !DefaultChannels.includes(chn)) {
-                        item.others[chn] = (_a = info.sound) === null || _a === void 0 ? void 0 : _a[chn];
-                    }
-                });
-                if (item.others && info.sound.others) {
-                    Object.assign(item.others, info.sound.others);
-                }
-                // filters
-                item.filters = (_7 = info.filters) !== null && _7 !== void 0 ? _7 : [];
-                if (this.isSupportedInst(item.timbre))
-                    checkInstrumentSampling.add(item.timbre);
-                else if (this.isSampling(item.timbre))
-                    userSampledInstruments.add(item.timbre);
-            }
-            else if (type === ToneSeries && isSeriesQueueItem(item) && isToneSeriesInfo(info)) {
-                item.duration = info.duration;
-                item.instrument_type = info.instrument_type;
-                if (this.isSupportedInst(item.instrument_type))
-                    checkInstrumentSampling.add(item.instrument_type);
-                else if (this.isSampling(item.instrument_type))
-                    userSampledInstruments.add(item.instrument_type);
-                item.sounds = makeSingleStreamQueueValues(info.sounds);
-                if (item.sounds.hasSpeech)
-                    item.type = ToneSpeechSeries;
-                item.sounds[item.sounds.length - 1].isLast = true;
-                item.continued = info.continued;
-                item.relative = info.relative;
-                // filters
-                item.filters = info.filters || [];
-                if (this.isSupportedInst(item.instrument_type))
-                    checkInstrumentSampling.add(item.instrument_type);
-                else if (this.isSampling(item.instrument_type))
-                    userSampledInstruments.add(item.instrument_type);
-                item.sounds.forEach((sound) => {
-                    if (sound.timbre && this.isSupportedInst(sound.timbre))
-                        checkInstrumentSampling.add(sound.timbre);
-                    else if (sound.timbre && this.isSampling(sound.timbre))
-                        userSampledInstruments.add(sound.timbre);
-                });
-                if (info.ramp) {
-                    item.ramp = deepcopy(info.ramp);
-                }
-            }
-            else if (type === ToneOverlaySeries && isToneOverlaySeriesQueueItem(item) && isToneOverlayInfo(info)) {
-                item.duration = info.duration;
-                if (info.overlays.length > 0) {
-                    item.overlays = info.overlays.map((d) => {
-                        let o = {
-                            instrument_type: d.instrument_type,
-                            sounds: makeSingleStreamQueueValues(d.sounds),
-                            continued: d.continued,
-                            relative: d.relative,
-                            filters: d.filters || []
-                        };
-                        o.sounds[o.sounds.length - 1].isLast = true;
-                        if (this.isSupportedInst(o.instrument_type))
-                            checkInstrumentSampling.add(o.instrument_type);
-                        else if (this.isSampling(o.instrument_type))
-                            userSampledInstruments.add(o.instrument_type);
-                        o.sounds.forEach((sound) => {
-                            if (sound.timbre && this.isSupportedInst(sound.timbre))
-                                checkInstrumentSampling.add(sound.timbre);
-                            else if (sound.timbre && this.isSampling(sound.timbre))
-                                userSampledInstruments.add(sound.timbre);
-                        });
-                        if (d.ramp) {
-                            o.ramp = deepcopy(d.ramp);
-                        }
-                        return o;
-                    });
-                }
-                else {
-                    item.overlays = info.overlays;
-                }
-            }
-            else if (type === Pause && isPauseQueueItem(item) && isPauseInfo(info)) {
-                item.duration = info.duration; // in seconds
-            }
-            Array.from(checkInstrumentSampling).forEach((inst) => {
-                if (!this.sampledInstruments.includes(inst)) {
-                    this.sampledInstruments.push(inst);
-                }
-            });
-            Array.from(userSampledInstruments).forEach((inst) => {
-                if (!this.sampledInstruments.includes(inst)) {
-                    this.sampledInstruments.push(inst);
-                }
-            });
-            if (at !== undefined) {
-                this.queue.splice(at, 0, item);
-            }
-            else {
-                this.queue.push(item);
-            }
-        }
-    }
-    // todo: deprecate this...
-    addMulti(multiples, lineConfig, pos) {
-        let at = pos;
-        for (const mul of multiples) {
-            if (mul === null || mul === void 0 ? void 0 : mul.type) {
-                this.add(mul.type, 0, mul, lineConfig, at);
-                if (at !== undefined) {
-                    at += 1;
-                }
-            }
-        }
-    }
-    addQueue(group_id, queue, pos) {
-        queue.queue.forEach((item) => item.group_id = group_id);
-        if (pos !== undefined) {
-            this.queue.splice(pos, 0, ...queue.queue);
-        }
-        else {
-            this.queue.push(...queue.queue);
-        }
-        this.setSampling(queue.samplings);
-        this.sampledInstruments.push(...queue.sampledInstruments);
-        this.setSynths(queue.synths);
-        this.setWaves(queue.waves);
-    }
-    play(i, j, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.state !== Playing) {
-                setPlayerEvents(this, this.config);
-                let queue = this.queue;
-                this.playAt = i || 0;
-                let outputs = Array((j || queue.length) - (i || 0)).fill({});
-                // for pause & resume
-                if (i !== undefined && j !== undefined) {
-                    queue = this.queue.slice(i, j);
-                }
-                else if (i !== undefined) {
-                    queue = this.queue.slice(i, this.queue.length);
-                }
-                else if (j !== undefined) {
-                    queue = this.queue.slice(0, j);
-                }
-                this.state = Playing;
-                this.fireStartEvent();
-                let k = 0;
-                for (const item of queue) {
-                    // @ts-ignore
-                    // why? the below condition can change over time
-                    if (this.state === Stopped || this.state === Paused)
-                        break;
-                    outputs[k] = yield this.playLine(item, options);
-                    this.playAt += 1;
-                    k++;
-                }
-                this.fireStopEvent();
-                clearPlayerEvents();
-                this.state = Stopped;
-                this.playAt = undefined;
-                return outputs;
-            }
-        });
-    }
-    playLine(item, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e;
-            let config = deepcopy(this.config);
-            if ('config' in item && item.config)
-                Object.assign(config, item.config);
-            if ('ramp' in item && item.ramp)
-                config.ramp = item.ramp;
-            let bufferPrimitve;
-            if (options === null || options === void 0 ? void 0 : options.pcm) {
-                if (item.duration === undefined) {
-                    console.error("For PCM generation, duration must be specified!", item);
-                }
-                else {
-                    bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
-                }
-            }
-            let ttsFetchFunction = options === null || options === void 0 ? void 0 : options.ttsFetchFunction;
-            if (isTextQueueItem(item)) {
-                yield playSingleSpeech(item, config, bufferPrimitve, ttsFetchFunction);
-            }
-            else if (isToneQueueItem(item)) {
-                let ctx = makeContext();
-                for (const inst of this.sampledInstruments) {
-                    if (inst && !this.sampledInstrumentSources[inst]) {
-                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_a = this.config.options) === null || _a === void 0 ? void 0 : _a.baseUrl);
-                    }
-                }
-                yield playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, (_b = item.filters) !== null && _b !== void 0 ? _b : [], bufferPrimitve);
-                ctx.close();
-            }
-            else if (isPauseQueueItem(item)) {
-                yield playPause(item.duration * 1000);
-            }
-            else if (isToneSeriesQueueItem(item)) {
-                let ctx = makeContext();
-                for (const inst of this.sampledInstruments) {
-                    if (inst && !this.sampledInstrumentSources[inst]) {
-                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_c = this.config.options) === null || _c === void 0 ? void 0 : _c.baseUrl);
-                    }
-                }
-                if (item.continued) {
-                    config.instrument_type = item.instrument_type;
-                    yield playAbsoluteContinuousTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
-                }
-                else if (!item.relative) {
-                    yield playAbsoluteDiscreteTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
-                }
-                else {
-                    yield playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
-                }
-                ctx.close();
-            }
-            else if (isToneSpeechSeriesQueueItem(item)) {
-                let ctx = makeContext();
-                for (const inst of this.sampledInstruments) {
-                    if (inst && !this.sampledInstrumentSources[inst]) {
-                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_d = this.config.options) === null || _d === void 0 ? void 0 : _d.baseUrl);
-                    }
-                }
-                yield playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
-                ctx.close();
-            }
-            else if (isToneOverlaySeriesQueueItem(item)) {
-                let promises = [];
-                let ctx = makeContext();
-                for (const inst of this.sampledInstruments) {
-                    if (inst && !this.sampledInstrumentSources[inst]) {
-                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_e = this.config.options) === null || _e === void 0 ? void 0 : _e.baseUrl);
-                    }
-                }
-                for (let stream of item.overlays) {
-                    if (stream.continued) {
-                        config.instrument_type = stream.instrument_type;
-                        promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
-                    }
-                    else if (!stream.relative) {
-                        promises.push(playAbsoluteDiscreteTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
-                    }
-                    else {
-                        promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve, ttsFetchFunction));
-                    }
-                }
-                yield Promise.all(promises);
-                ctx.close();
-            }
-            if (bufferPrimitve) {
-                let currBuffer = yield (bufferPrimitve === null || bufferPrimitve === void 0 ? void 0 : bufferPrimitve.compile());
-                this.buffers.push(currBuffer);
-                return bufferPrimitve;
-            }
-            return;
-        });
-    }
-    stop() {
-        // button-based stop
-        // for event stop ==> audio-graph-player-proto.js
-        if (this.state === Playing) {
-            closeErieGlobalControl();
-            // @ts-ignore
-            // this can be changed over time!
-            if (this.state !== Stopped) {
-                this.state = Stopped;
-                notifyStop(this.config);
-                this.fireStopEvent();
-                clearPlayerEvents();
-                this.playAt = undefined;
-            }
-        }
-    }
-    pause() {
-        this.state = Paused;
-        notifyPause(this.config);
-    }
-    resume() {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield notifyResume(this.config);
-            return this.play(this.playAt);
-        });
-    }
-    fireStartEvent() {
-        this.playId = genRid();
-        sendQueueStartEvent({ pid: this.playId });
-    }
-    fireStopEvent() {
-        sendQueueFinishEvent({ pid: this.playId });
-    }
-    destroy() {
-        this.state = Finished;
-        this.queue = [];
-        clearPlayerEvents();
-    }
-    getFullAudio(ttsFetchFunction) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let output = [];
-            let ctx = new AudioContext();
-            let options = { pcm: true, ttsFetchFunction };
-            for (let i = 0; i < this.queue.length; i++) {
-                let buffers = yield this.play(i, i + 1, options);
-                if (buffers) {
-                    for (const b of buffers) {
-                        if ((b === null || b === void 0 ? void 0 : b.constructor.name) === (AudioPrimitiveBuffer === null || AudioPrimitiveBuffer === void 0 ? void 0 : AudioPrimitiveBuffer.name)) {
-                            output.push(b.compiledBuffer);
-                        }
-                        else {
-                            output.push(yield ctx.decodeAudioData(b));
-                        }
-                    }
-                }
-            }
-            let merged = concatenateBuffers(output);
-            let blob = yield makeWaveFromBuffer(merged, "mp3");
-            // @ts-ignore
-            return window.URL.createObjectURL(blob);
-        });
-    }
-}
-function makeSingleStreamQueueValues(sounds) {
-    var _a, _b;
-    let queue_values = [];
-    for (const sound of sounds) {
-        let start = sound.start;
-        let dur = sound.duration !== undefined ? sound.duration : (((_a = sound.end) !== null && _a !== void 0 ? _a : 0) - getStartTime1({ start }));
-        let tap = mergeTapPattern(sound.tapCount, sound.tapSpeed);
-        if (sound.tapCount || sound.tapSpeed) {
-            if ((tap === null || tap === void 0 ? void 0 : tap.totalLength) !== undefined)
-                dur = tap.totalLength;
-        }
-        let ith_q = {
-            pitch: sound.pitch,
-            detune: sound.detune,
-            loudness: sound.loudness,
-            start,
-            duration: dur,
-            pan: sound.pan,
-            panX: sound.panX,
-            panY: sound.panY,
-            panZ: sound.panZ,
-            speech: sound.speech,
-            language: sound.language,
-            postReverb: (Math.round(((_b = sound.postReverb) !== null && _b !== void 0 ? _b : 0) * 100) / 100),
-            timbre: sound.timbre,
-            tap,
-            modulation: sound.modulation || 0,
-            harmonicity: sound.harmonicity || 0,
-            __datum: sound.__datum,
-            others: {}
-        };
-        if (sound.speech) {
-            ith_q.duration = undefined;
-            queue_values.hasSpeech = true;
-        }
-        // custom channels;
-        Object.keys(sound || {}).forEach((chn) => {
-            if (ith_q.others && !DefaultChannels.includes(chn) && chn !== '__datum') {
-                ith_q.others[chn] = sound[chn];
-            }
-        });
-        if (ith_q.others && sound.others) {
-            Object.assign(ith_q.others, sound.others);
-        }
-        queue_values.push(ith_q);
-    }
-    queue_values = queue_values.sort((a, b) => (getStartTime1(a) - getStartTime1(b)));
-    return queue_values;
-}
-function isAudioGraphQueue(o) {
-    var _a;
-    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioGraphQueue.name;
 }
 
 // chime instrument -> FM Synth
@@ -6191,78 +4747,1522 @@ class Fold {
     }
 }
 
-class UnitStream {
-    constructor(id, instrument_type, stream, scales, opt) {
-        this.id = id;
-        this.instrument_type = instrument_type;
-        this.stream = stream;
-        this.option = opt || {};
-        this.scales = scales;
-        this.config = {};
-        this.name;
-        this.ramp = {};
-    }
-    setTitle(t) {
-        this.title = t;
-    }
-    setDescription(d) {
-        this.description = d;
-    }
-    setName(name) {
-        this.name = name;
-    }
-    setConfig(key, value) {
-        this.config[key] = value;
-    }
-    setFilters(audioFilters) {
-        this.audioFilters = audioFilters;
-    }
-    setRamp(ramp) {
-        this.ramp = deepcopy(ramp);
-    }
-    make_tone_text(i) {
-        var _a, _b;
-        let text = [];
-        let identifier = (i !== undefined ? `The ${toOrdinalNumbers(i + 1)}` : `This`);
-        if (this.name)
-            text.push({ type: TextType, speech: `${identifier} stream is for ${this.name} layer and has a tone of`, speechRate: (_a = this.config) === null || _a === void 0 ? void 0 : _a.speechRate });
+// The below code is adopted from: https://russellgood.com/how-to-convert-audiowaveBuffer-to-audio-file/
+function makeWaveFromBuffer(buffer, ext) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let nChannels = buffer.numberOfChannels, samples = buffer.length, sampleRate = buffer.sampleRate, waveLength = samples * nChannels * 2 + 44, waveBuffer = new ArrayBuffer(waveLength), view = new DataView(waveBuffer), channelData = [];
+        let offset = 0, viewPos = 0;
+        // write WAVE header
+        viewPos = setUint32(view, 0x46464952, viewPos); // "RIFF"
+        viewPos = setUint32(view, waveLength - 8, viewPos); // file waveLength - 8
+        viewPos = setUint32(view, 0x45564157, viewPos); // "WAVE"
+        viewPos = setUint32(view, 0x20746d66, viewPos); // "fmt " chunk
+        viewPos = setUint32(view, 16, viewPos); // waveLength = 16
+        viewPos = setUint16(view, 1, viewPos); // PCM (uncompressed)
+        viewPos = setUint16(view, nChannels, viewPos);
+        viewPos = setUint32(view, sampleRate, viewPos);
+        viewPos = setUint32(view, sampleRate * 2 * nChannels, viewPos); // avg. bytes/sec
+        viewPos = setUint16(view, nChannels * 2, viewPos); // block-align
+        viewPos = setUint16(view, 16, viewPos); // 16-bit (hardcoded in this demo)
+        viewPos = setUint32(view, 0x61746164, viewPos); // "data" - chunk
+        viewPos = setUint32(view, waveLength - viewPos - 4, viewPos); // chunk waveLength
+        // write interleaved data
+        for (let i = 0; i < nChannels; i++) {
+            channelData.push(buffer.getChannelData(i));
+        }
+        while (viewPos < waveLength) {
+            for (let i = 0; i < nChannels; i++) {
+                // interleave channelData
+                let sample = Math.max(-1, Math.min(1, channelData[i][offset])); // clamp
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+                view.setInt16(viewPos, sample, true); // write 16-bit sample
+                viewPos += 2;
+            }
+            offset++; // next source sample
+        }
+        // create Blob
+        // @ts-ignore
+        let waveBlob = new Blob([waveBuffer], { type: "audio/wav" });
+        if (ext === '$raw') {
+            return waveBuffer;
+        }
+        else if (ext) {
+            return new Blob([waveBlob], { type: "audio/" + (ext || "wav") });
+        }
         else
-            text.push({ type: TextType, speech: `${identifier} stream has a tone of`, speechRate: (_b = this.config) === null || _b === void 0 ? void 0 : _b.speechRate });
-        text.push({ type: ToneType, sound: { pitch: DefaultFrequency, duration: 0.2, start: 0 }, instrument_type: this.instrument_type });
-        return text;
+            return waveBlob;
+    });
+}
+function setUint16(view, data, viewPos) {
+    view.setUint16(viewPos, data, true);
+    viewPos += 2;
+    return viewPos;
+}
+function setUint32(view, data, viewPos) {
+    view.setUint32(viewPos, data, true);
+    viewPos += 4;
+    return viewPos;
+}
+
+const SampleRate = 44100, BufferChannels = 2;
+class AudioPrimitiveBuffer {
+    constructor(length, sampleRate) {
+        // in seconds
+        this.length = length;
+        this.sampleRate = sampleRate || SampleRate;
+        this.compiled = false;
+        this.compiledBuffer;
+        this.primitive = [];
     }
-    make_scale_text(channel) {
-        let scales = this.scales;
-        let text = Object.keys(scales)
-            .filter((chn) => ((!channel && !OmitDesc.includes(chn)) || chn === channel))
-            .map((c) => {
-            var _a, _b;
-            return {
-                id: (_a = scales[c]) === null || _a === void 0 ? void 0 : _a.scaleId,
-                channel: c,
-                description: (_b = scales[c]) === null || _b === void 0 ? void 0 : _b.description
-            };
-        });
-        return text.flat();
+    add(at, data) {
+        this.primitive.push({ at, data });
     }
-    prerender() {
+    compile() {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            return {
-                instrument_type: this.instrument_type,
-                sounds: this.stream,
-                continued: (_a = this.option) === null || _a === void 0 ? void 0 : _a.is_continued,
-                relative: (_b = this.option) === null || _b === void 0 ? void 0 : _b.relative,
-                filters: this.audioFilters,
-                ramp: this.ramp,
-                duration: this.duration
-            };
+            let maxChannels = Math.max(...this.primitive.map((p) => p.data.numberOfChannels || BufferChannels)) || BufferChannels;
+            if (maxChannels < 1)
+                maxChannels = BufferChannels;
+            else if (maxChannels > 32)
+                maxChannels = 32;
+            let bufferLength = this.length ? this.length * this.sampleRate : this.primitive.map((p) => p.data.length).reduce((a, c) => a + c, 0);
+            if (bufferLength == 0)
+                bufferLength = this.sampleRate * 0.1;
+            let temp_ctx = new AudioContext();
+            this.compiledBuffer = temp_ctx.createBuffer(maxChannels, bufferLength, this.sampleRate);
+            let lastAt;
+            for (const p of this.primitive) {
+                let at = p.at === "next" ? (lastAt || 0) : Math.round((p.at || 0) * 44100);
+                for (let i = 0; i < maxChannels; i++) {
+                    let channelData = this.compiledBuffer.getChannelData(i);
+                    let currChannelData = p.data.getChannelData(i % p.data.numberOfChannels);
+                    currChannelData.forEach((q, k) => {
+                        channelData[at + k] += q;
+                    });
+                }
+                lastAt = at + p.data.length;
+            }
+            this.compiled = true;
+            return this.compiledBuffer;
         });
     }
 }
-function isUnitStreamObject(o) {
+function concatenateBuffers(buffers) {
+    let totalLength = buffers.map((d) => (d === null || d === void 0 ? void 0 : d.length) || 0).reduce((a, c) => a + c, 0);
+    let ctx = new AudioContext();
+    let totalBuffer = ctx.createBuffer(2, totalLength, ctx.sampleRate);
+    let view = 0;
+    for (const buffer of buffers) {
+        for (let i = 0; i < 2; i++) {
+            let channelData = totalBuffer.getChannelData(i);
+            let currChannelData = buffer.numberOfChannels == 1 ? buffer.getChannelData(0) : buffer.getChannelData(i);
+            for (let j = 0; j < buffer.length; j++) {
+                channelData[view + j] = currChannelData[j];
+            }
+        }
+        view += buffer.length;
+    }
+    return totalBuffer;
+}
+
+const channels = 2;
+// TODO
+function generatePCMCode(queue) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g;
+        // currently only support sine wave
+        // this is an experimental feature. currently only works for non-overlaid tone-series queues.
+        // queue: a discrete or continous queue data
+        // supported channels: time, pitch, loudness, pan
+        let ctx = new AudioContext();
+        let sampleRate = ctx.sampleRate;
+        let queues = [];
+        if (isToneSeriesQueueItem(queue)) {
+            queues.push(queue);
+        }
+        else if (isToneOverlaySeriesQueueItem(queue)) {
+            queues.push(...queue.overlays);
+        }
+        let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d) => getEndTime1(d) + (d.postReverb || 0))));
+        let length = Math.max(...queue_lengths);
+        let frameCount = sampleRate * length;
+        let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
+        let channel0 = buffer.getChannelData(0);
+        let channel1 = buffer.getChannelData(1);
+        for (let i = 0; i < frameCount; i++) {
+            channel0[i] = 0;
+            channel1[i] = 0;
+        }
+        for (const queue of queues) {
+            let sounds = queue.sounds;
+            if (!queue.continued) {
+                // discrete sounds
+                for (const sound of sounds) {
+                    let f = getStartTime1(sound) * sampleRate, t = (getEndTime1(sound) + ((_a = sound.postReverb) !== null && _a !== void 0 ? _a : 0)) * sampleRate;
+                    let length = t - f;
+                    let data = populatePCMforFreq(((_b = sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency), length, sampleRate);
+                    let gain = sound.loudness;
+                    if (gain === undefined)
+                        gain = 1;
+                    let pan = sound.pan;
+                    if (pan === undefined)
+                        pan = 0;
+                    let LRgain = getLRgain(pan);
+                    for (let i = 0; i < length; i++) {
+                        channel0[f + i] += data[i] * gain * LRgain[0];
+                        channel1[f + i] += data[i] * gain * LRgain[1];
+                    }
+                }
+            }
+            else {
+                // continous sound
+                let ramp_pan = getRampFunction((_c = queue.ramp) === null || _c === void 0 ? void 0 : _c.pan), ramp_gain = getRampFunction((_d = queue.ramp) === null || _d === void 0 ? void 0 : _d.loudness);
+                if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
+                    sounds.sort((a, b) => getStartTime1(a) - getStartTime1(b));
+                    let acc_prev = 0;
+                    for (let i = 0; i < sounds.length - 1; i++) {
+                        let sound = sounds[i], next_sound = sounds[i + 1];
+                        let f = Math.round(getStartTime1(sound) * sampleRate), t = Math.round(getStartTime1(next_sound) * sampleRate);
+                        let length = t - f;
+                        let pcm_pop = populatePCMforFreqRamp(((_e = sound.pitch) !== null && _e !== void 0 ? _e : DefaultFrequency), ((_f = next_sound.pitch) !== null && _f !== void 0 ? _f : DefaultFrequency), (_g = queue.ramp) === null || _g === void 0 ? void 0 : _g.pitch, acc_prev, length, sampleRate);
+                        if (pcm_pop) {
+                            let data = pcm_pop === null || pcm_pop === void 0 ? void 0 : pcm_pop.data, acc = pcm_pop === null || pcm_pop === void 0 ? void 0 : pcm_pop.acc;
+                            acc_prev = acc;
+                            let f_gain = sound.loudness;
+                            if (f_gain === undefined)
+                                f_gain = 1;
+                            let f_pan = sound.pan;
+                            if (f_pan === undefined)
+                                f_pan = 0;
+                            let t_gain = sound.loudness;
+                            if (t_gain === undefined)
+                                t_gain = 1;
+                            let t_pan = sound.pan;
+                            if (t_pan === undefined)
+                                t_pan = 0;
+                            for (let j = 0; j < length; j++) {
+                                let rpi = data[j];
+                                let rga = ramp_gain(f_gain, t_gain, j / length);
+                                let rpa = ramp_pan(f_pan, t_pan, j / length);
+                                let LRgain = getLRgain(rpa);
+                                channel0[f + j] += rpi * rga * LRgain[0];
+                                channel1[f + j] += rpi * rga * LRgain[1];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return buffer;
+    });
+}
+function populatePCMforFreq(pitch, frameCount, sampleRate) {
+    let data = new Float32Array(frameCount);
+    let cycle = pitch == 0 ? 0 : sampleRate / pitch;
+    for (let i = 0; i < frameCount; i++) {
+        data[i] = Math.sin(2 * Math.PI / cycle * i);
+    }
+    return data;
+}
+function populatePCMforFreqRamp(pitch_from, pitch_to, ramp, acc, frameCount, sampleRate) {
+    if (ramp === "abrupt" || ramp === false) {
+        return { data: populatePCMforFreq(pitch_from, frameCount, sampleRate), acc: 0 };
+    }
+    else if (ramp === "linear" || ramp === true || ramp === undefined) {
+        let data = new Float32Array(frameCount);
+        let cycle_from = pitch_from == 0 ? 0 : sampleRate / pitch_from, cycle_to = pitch_to == 0 ? 0 : sampleRate / pitch_to;
+        let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
+            return cycle_from + ((cycle_to - cycle_from) / (frameCount - 1) * i);
+        });
+        for (let i = 0; i < frameCount; i++) {
+            acc += 2 * Math.PI / cycles[i];
+            if (Math.sin(acc) == 0)
+                acc = 0;
+            data[i] = Math.sin(acc);
+        }
+        return { data, acc };
+    }
+    else if (ramp === "exponential") {
+        let data = new Float32Array(frameCount);
+        let cycle_from = sampleRate / pitch_from, cycle_to = sampleRate / pitch_to;
+        let cycles = Array(frameCount).fill(cycle_from).map((_, i) => {
+            return (cycle_to - cycle_from) * Math.exp(i / frameCount) + cycle_from;
+        });
+        for (let i = 0; i < frameCount; i++) {
+            acc += 2 * Math.PI / cycles[i];
+            if (Math.sin(acc) == 0)
+                acc = 0;
+            data[i] = Math.sin(acc);
+        }
+        return { data, acc };
+    }
+}
+function getLRgain(pan) {
+    let panp = Math.PI * (pan + 1) / 4;
+    return [Math.cos(panp), Math.sin(panp)];
+}
+function getRampFunction(ramp) {
+    if (ramp === "linear" || ramp === true || ramp === undefined) {
+        return (a, b, r) => { return a * (1 - r) + b * r; };
+    }
+    else if (ramp === "abrupt" || ramp === false) {
+        return (a, _, __) => { return a; };
+    }
+    else if (ramp === "exponential") {
+        return (a, b, r) => {
+            return (b - a) * Math.exp(r) + a;
+        };
+    }
+    else {
+        console.error("Unsupported Ramp Method.");
+    }
+}
+
+function playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
+        // if it is from a discrete series and being stopped, then do nothing
+        if ((config === null || config === void 0 ? void 0 : config.subpart) && isErieGlobalState(Stopped))
+            return;
+        // if it is an individual play (not from a discrete series)
+        if (!(config === null || config === void 0 ? void 0 : config.subpart))
+            setErieGlobalState(undefined);
+        // clear previous state
+        setErieGlobalState(undefined);
+        // set audio context controls
+        setErieGlobalControl({ type: ToneType, player: ctx });
+        let sid;
+        // if it is an individual play (not from a discrete series), fire a new tone start event
+        if (!config.subpart) {
+            sid = genRid();
+            sendToneStartEvent({ sid });
+        }
+        if (sound.tap !== undefined && ((_b = (_a = sound.tap) === null || _a === void 0 ? void 0 : _a.pattern) === null || _b === void 0 ? void 0 : _b.constructor.name) === "Array") {
+            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+            let tapSound = deepcopy(sound);
+            let t = 1, acc = 0, i = 0; // d
+            if (sound.tap.pattern.length == 0) {
+                yield playPause((sound.duration || 0.2) * 1000);
+                sendToneFinishEvent({ sid });
+            }
+            emitNotePlayEvent('tone', sound);
+            for (const s of sound.tap.pattern) {
+                if (t === 1) {
+                    tapSound.duration = s;
+                    if (s > 0) {
+                        yield __playSingleTone(ctx, ct + acc, tapSound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+                    }
+                    t = 0;
+                }
+                else {
+                    yield playPause(s * 1000);
+                    t = 1;
+                }
+                acc += s;
+                i++;
+                if (i == sound.tap.pattern.length) {
+                    if (!config.subpart) {
+                        sendToneFinishEvent({ sid });
+                    }
+                }
+            }
+            emitNoteStopEvent('tone', sound);
+            return;
+        }
+        else {
+            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+            emitNotePlayEvent('tone', sound);
+            yield __playSingleTone(ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+            emitNoteStopEvent('tone', sound);
+            if (!config.subpart) {
+                sendToneFinishEvent({ sid });
+            }
+            return;
+        }
+    });
+}
+function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
+        // treat dynamic duration (this is a really special case; for chime only)
+        if (config.dynamic_duration && sound.instrument_type && sound.instrument_type in instSamples) {
+            if ('mono' in instSamples[sound.instrument_type]) {
+                // @ts-ignore
+                let sample = instSamples[sound.instrument_type].mono;
+                sound.duration = sample.duration;
+            }
+        }
+        // filters
+        let ctx = _ctx, offline = false;
+        if (((_a = bufferPrimitve === null || bufferPrimitve === void 0 ? void 0 : bufferPrimitve.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioPrimitiveBuffer.name) {
+            offline = true;
+            ctx = makeOfflineContext((_b = sound.duration) !== null && _b !== void 0 ? _b : 0);
+            ct = 0;
+        }
+        let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
+        for (const filterName of filters) {
+            if (PresetFilters[filterName]) {
+                filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
+                filterEncoders[filterName] = PresetFilters[filterName].encoder;
+                filterFinishers[filterName] = PresetFilters[filterName].finisher;
+            }
+            else if (ErieFilters[filterName]) {
+                filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
+                filterEncoders[filterName] = ErieFilters[filterName].encoder;
+                filterFinishers[filterName] = ErieFilters[filterName].finisher;
+            }
+        }
+        let destination = ctx.destination;
+        for (const filterName of filters) {
+            let filter = filterNodes[filterName];
+            if (filter) {
+                filter.connect(destination);
+                filter.initialize(ct, sound.duration);
+                destination = filter.destination;
+            }
+        }
+        // gain == loudness
+        const gain = ctx.createGain();
+        gain.connect(destination);
+        // DONE  function to handle this and call as needed (look at ramp)
+        const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => sound[key] !== undefined).length;
+        const isStereo = cartesianInputs === 1 && sound.panX !== undefined;
+        const panner = createPanner(ctx, cartesianInputs);
+        panner.connect(gain);
+        // play as async promise
+        // get the current time
+        // get discrete oscillator
+        let iType = sound.timbre || (config === null || config === void 0 ? void 0 : config.instrument_type);
+        const inst = makeInstrument(ctx, iType, instSamples, synthDefs, waveDefs, sound);
+        inst.connect(panner);
+        // set auditory values
+        if (inst instanceof OscillatorNode) {
+            rampBy('setValueAtTime', inst.frequency, (_c = sound.pitch) !== null && _c !== void 0 ? _c : DefaultFrequency, ct);
+        }
+        else if (inst instanceof ErieSynth) {
+            rampBy('setValueAtTime', inst.frequency, (_e = (_d = sound.pitch) !== null && _d !== void 0 ? _d : inst.carrierPitch) !== null && _e !== void 0 ? _e : DefaultFrequency, ct);
+            if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
+                rampBy('setValueAtTime', inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), ct);
+            }
+            else if (inst.type === AM && sound.modulation !== undefined && sound.modulation > 0) {
+                rampBy('setValueAtTime', inst.modulatorGain.gain, (sound.loudness || 1) * sound.modulation, ct);
+            }
+            if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+                inst.modulator.frequency.cancelScheduledValues(ct);
+                rampBy('setValueAtTime', inst.modulator.frequency, ((_g = (_f = sound.pitch) !== null && _f !== void 0 ? _f : inst.carrierPitch) !== null && _g !== void 0 ? _g : DefaultFrequency) * sound.harmonicity, ct);
+            }
+            else if (sound.harmonicity === undefined) {
+                inst.modulator.frequency.cancelScheduledValues(ct);
+                rampBy('setValueAtTime', inst.modulator.frequency, sound.pitch, ct);
+            }
+            inst.envelope.gain.cancelScheduledValues(ct);
+            rampBy('setValueAtTime', inst.envelope.gain, 0, ct);
+            rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, ct + (inst.attackTime || 0));
+            if (inst.decayTime) {
+                // rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + getStartTime1(sound) + inst.adTime);
+                rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + inst.adTime);
+            }
+            rampBy('setValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + ((_h = sound.duration) !== null && _h !== void 0 ? _h : 0));
+            rampBy('linearRampToValueAtTime', inst.envelope.gain, 0, ct + ((_j = sound.duration) !== null && _j !== void 0 ? _j : 0) + inst.adTime);
+        }
+        if (sound.detune && 'detune' in inst && inst.detune) {
+            rampBy('setValueAtTime', inst.detune, (_k = sound.detune) !== null && _k !== void 0 ? _k : 0, ct);
+        }
+        if (sound.loudness !== undefined) {
+            rampBy('setValueAtTime', gain.gain, (_l = sound.loudness) !== null && _l !== void 0 ? _l : 1, ct);
+        }
+        if (sound.postReverb) {
+            rampBy('setTargetAtTime', gain.gain, 0, ct + ((_m = sound.duration) !== null && _m !== void 0 ? _m : 0) * 0.95, 0.015);
+            rampBy('setTargetAtTime', gain.gain, 0.45, ct + ((_o = sound.duration) !== null && _o !== void 0 ? _o : 0), 0.015);
+            rampBy('exponentialRampToValueAtTime', gain.gain, 0.02, ct + (getDuration1(sound)) * 0.95);
+        }
+        else {
+            sound.postReverb = 0;
+        }
+        let et = ct + ((_p = sound.duration) !== null && _p !== void 0 ? _p : 0) + ((_q = sound.postReverb) !== null && _q !== void 0 ? _q : 0);
+        if (inst instanceof ErieSynth) {
+            et += ((_r = inst.attackTime) !== null && _r !== void 0 ? _r : 0) + ((_s = inst.releaseTime) !== null && _s !== void 0 ? _s : 0);
+        }
+        for (const filterName of filters) {
+            let encoder = filterEncoders[filterName];
+            let finisher = filterFinishers[filterName];
+            if (encoder) {
+                encoder(filterNodes[filterName], sound, ct);
+            }
+            if (finisher) {
+                // finisher(filterNodes[filterName], sound, ct + getStartTime1(sound), et);
+                finisher(filterNodes[filterName], sound, ct, et);
+            }
+        }
+        rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.05);
+        if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
+            panner.pan.setValueAtTime(sound.panX, ct);
+        }
+        else if (!isStereo && panner instanceof PannerNode) {
+            if (sound.panX !== undefined)
+                panner.positionX.setValueAtTime(sound.panX, ct);
+            if (sound.panY !== undefined)
+                panner.positionY.setValueAtTime(sound.panY, ct);
+            if (sound.panZ !== undefined)
+                panner.positionZ.setValueAtTime(sound.panZ, ct);
+        }
+        // play & stop
+        if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {
+            inst.start(0);
+            inst.stop(getDuration1(sound));
+            let rb = yield ctx.startRendering();
+            if (sound.start !== 'after_previous')
+                bufferPrimitve.add((_t = sound.start) !== null && _t !== void 0 ? _t : 0, rb);
+            else
+                bufferPrimitve.add('next', rb);
+        }
+        else {
+            return new Promise((resolve, reject) => {
+                inst.onended = (_) => {
+                    resolve();
+                };
+                inst.start(ct);
+                inst.stop(ct + getDuration1(sound));
+            });
+        }
+        return;
+    });
+}
+
+const Def_Tick_Interval = 0.5, Def_Tick_Interval_Beat = 2, Def_Tick_Duration = 0.1, Def_Tick_Duration_Beat = 0.5, Def_Tick_Loudness = 0.4;
+function makeTick(ctx, def, duration, instSamples) {
+    var _a, _b, _c;
+    // ticker definition;
+    if (!def)
+        return null;
+    else if (typeof duration === 'number') {
+        let tickPattern = [];
+        let interval = round((_a = def.interval) !== null && _a !== void 0 ? _a : 0.5, -2);
+        let tickDur = def.band;
+        tickDur = round(tickDur !== null && tickDur !== void 0 ? tickDur : 0.1, -2);
+        let pause = interval - tickDur;
+        let count = Math.floor(duration / interval);
+        let totalTime = 0;
+        if (def.playAtTime0 === undefined)
+            def.playAtTime0 = true;
+        if (def.playAtTime0) {
+            tickPattern.push({ tick: tickDur });
+            totalTime += tickDur;
+        }
+        for (let i = 0; i < count; i++) {
+            tickPattern.push({ pause });
+            tickPattern.push({ tick: tickDur });
+            totalTime += pause + tickDur;
+        }
+        if (duration > totalTime) {
+            tickPattern.push({ pause: duration - totalTime });
+        }
+        let tickInst = makeInstrument(ctx, (_b = def.instrument) !== null && _b !== void 0 ? _b : 'default', instSamples);
+        if ('frequency' in tickInst)
+            tickInst.frequency.value = 150;
+        if (def.pitch && 'frequency' in tickInst)
+            tickInst.frequency.value = def.pitch;
+        if (def.oscType && 'type' in tickInst)
+            tickInst.type = def.oscType;
+        let gain = ctx.createGain();
+        tickInst.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        let acc = 0;
+        for (const p of tickPattern) {
+            if (p.tick) {
+                gain.gain.setTargetAtTime(def.loudness || Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
+                acc += p.tick;
+            }
+            else if (p.pause) {
+                gain.gain.setTargetAtTime(0, ctx.currentTime + acc, 0.015);
+                acc += p.pause;
+            }
+        }
+        return tickInst;
+    }
+    else if (duration === 'indefinite') {
+        // if indefininte, then return a generator
+        let interval = round((_c = def.interval) !== null && _c !== void 0 ? _c : 0.5, -2);
+        let tickDur = def.band;
+        tickDur = round(tickDur !== null && tickDur !== void 0 ? tickDur : 0.1, -2);
+        let pause = interval - tickDur;
+        if (def.playAtTime0 === undefined)
+            def.playAtTime0 = true;
+        let tickPattern = def.playAtTime0 ? [{ tick: tickDur }, { pause }] : [{ pause }, { tick: tickDur }];
+        return () => {
+            var _a, _b;
+            let tickInst = makeInstrument(ctx, (_a = def.instrument) !== null && _a !== void 0 ? _a : 'default', instSamples);
+            if ('frequency' in tickInst)
+                tickInst.frequency.value = 150;
+            if (def.pitch && 'frequency' in tickInst)
+                tickInst.frequency.value = def.pitch;
+            if (def.oscType && 'type' in tickInst)
+                tickInst.type = def.oscType;
+            let gain = ctx.createGain();
+            tickInst.connect(gain);
+            gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            let acc = 0;
+            for (const p of tickPattern) {
+                if (p.tick) {
+                    gain.gain.setTargetAtTime((_b = def.loudness) !== null && _b !== void 0 ? _b : Def_Tick_Loudness, ctx.currentTime + acc, 0.015);
+                    acc += p.tick;
+                }
+                else if (p.pause) {
+                    gain.gain.setTargetAtTime(0, ctx.currentTime + acc, 0.015);
+                    acc += p.pause;
+                }
+            }
+            return tickInst;
+        };
+    }
+    return null;
+}
+function playTick(_ctx, def, duration, start, end, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let ctx = _ctx;
+        if (bufferPrimitve)
+            ctx = makeOfflineContext(duration);
+        let tick = makeTick(ctx, def, duration);
+        if (tick) {
+            tick.start(start);
+            tick.stop(end);
+        }
+        if (bufferPrimitve && ctx instanceof OfflineAudioContext) {
+            let rb = yield ctx.startRendering();
+            bufferPrimitve.add(start, rb);
+        }
+        return;
+    });
+}
+
+function playAbsoluteDiscreteTones(ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // clear previous state
+        setErieGlobalState(undefined);
+        // playing a series of discrete tones with an aboslute schedule
+        // set audio context controls
+        setErieGlobalControl({ type: ToneType, player: ctx });
+        // sort queue to mark the last node for sequence end check
+        let q0 = queue.toSorted(glyphSorterByStart);
+        q0[0].isFirst = true;
+        let q = q0.toSorted(glyphSorterByEnd);
+        q[q.length - 1].isLast = true;
+        config.subpart = true;
+        let endTime = getEndTime1(q[q.length - 1]);
+        // play as async promise
+        let sid = genRid();
+        sendToneStartEvent({ sid });
+        // gain == loudness
+        // for timing
+        // let timingCtx = bufferPrimitve ? makeOfflineContext(endTime) : new AudioContext();
+        let timingCtx = new AudioContext();
+        const gain = timingCtx.createGain();
+        gain.connect(timingCtx.destination);
+        gain.gain.value = 0;
+        return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+            // get the current time
+            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+            // set and play sounds
+            for (let sound of q) {
+                if (isErieGlobalState(Stopped)) {
+                    // resolve();
+                    break;
+                }
+                // get discrete oscillator
+                const inst = makeInstrument(timingCtx);
+                inst.connect(gain);
+                // after stopping (need to define before stopping!)
+                inst.onended = () => __awaiter(this, void 0, void 0, function* () {
+                    var _a, _b;
+                    if ((config === null || config === void 0 ? void 0 : config.falseTiming) && isErieGlobalControlType(SpeechType)) {
+                        (_b = (_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a.player) === null || _b === void 0 ? void 0 : _b.cancel();
+                    }
+                    yield playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+                    if (sound.isLast) {
+                        sendToneFinishEvent({ sid });
+                        resolve();
+                    }
+                });
+                // play & stop
+                inst.start(ct + sound.start);
+                inst.stop(ct + sound.start + 0.01);
+            }
+            if (config.tick) {
+                playTick(ctx, config.tick, endTime, ct + 0.01, ct + endTime + 0.01, bufferPrimitve);
+            }
+        }));
+    });
+}
+
+function playAbsoluteContinuousTones(_ctx, queue, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+        // clear previous state
+        setErieGlobalState(undefined);
+        // sort queue to mark the first and last node for sequence end check
+        let q0 = queue.toSorted(glyphSorterByStart);
+        q0[0].isFirst = true;
+        let q = q0.toSorted(glyphSorterByEnd);
+        q[q.length - 1].isLast = true;
+        // get the last tone's finish time
+        let endTime = getEndTime1(q[q.length - 1]);
+        // get the context
+        let ctx = _ctx, offline = false;
+        if (((_a = bufferPrimitve === null || bufferPrimitve === void 0 ? void 0 : bufferPrimitve.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioPrimitiveBuffer.name) {
+            offline = true;
+            ctx = makeOfflineContext(endTime);
+            bufferPrimitve.length = endTime;
+        }
+        // set audio context controls
+        setErieGlobalControl({ type: ToneType, player: ctx });
+        // rampers 
+        let rampers = {};
+        if (config.ramp) {
+            Object.keys(config.ramp || {}).forEach((chn) => {
+                let name = config.ramp[chn] in RamperNames ? RamperNames[config.ramp[chn]] : undefined;
+                if (chn === TAPCNT_chn || chn === TAPSPD_chn) {
+                    rampers.tap = name;
+                }
+                else {
+                    rampers[chn] = name;
+                }
+            });
+        }
+        // filters
+        let filterEncoders = {}, filterFinishers = {}, filterNodes = {};
+        for (const filterName of filters) {
+            if (filterName in PresetFilters && PresetFilters[filterName]) {
+                filterNodes[filterName] = new PresetFilters[filterName].filter(ctx);
+                filterEncoders[filterName] = PresetFilters[filterName].encoder;
+                filterFinishers[filterName] = PresetFilters[filterName].finisher;
+            }
+            else if ('filterName' in ErieFilters[filterName]) {
+                filterNodes[filterName] = new ErieFilters[filterName].filter(ctx);
+                filterEncoders[filterName] = ErieFilters[filterName].encoder;
+                filterFinishers[filterName] = ErieFilters[filterName].finisher;
+            }
+        }
+        let destination = ctx.destination;
+        for (const filterName of filters) {
+            let filter = filterNodes[filterName];
+            if (filter) {
+                filter.connect(destination);
+                filter.initialize(ctx.currentTime, endTime);
+                destination = filter.destination;
+            }
+        }
+        // gain == loudness
+        const gain = ctx.createGain();
+        gain.connect(destination);
+        //DONE - function to handle this
+        // decide between stereo or 3d pan
+        const cartesianInputs = ['panX', 'panY', 'panZ'].filter(key => queue[0][key] !== undefined).length;
+        const isStereo = cartesianInputs === 1 && queue[0].panX !== undefined;
+        const panner = createPanner(ctx, cartesianInputs);
+        panner.connect(gain);
+        let sid = genRid();
+        sendToneStartEvent({ sid });
+        // play as async promise
+        // get instrument
+        const inst = makeInstrument(ctx, config === null || config === void 0 ? void 0 : config.instrument_type, instSamples, synthDefs, waveDefs, q[0], endTime);
+        inst.connect(panner);
+        let startTime;
+        // get the current time
+        let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+        for (let sound of q) {
+            let st = ct + getStartTime1(sound), base_et = ct + getEndTime1(sound);
+            // sampled tone pitch is already set when the instrument was created + they can't compose a continuous tone.
+            if (inst instanceof OscillatorNode) {
+                // osc pitch
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_b = sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, st);
+            }
+            else if (inst instanceof ErieSynth) {
+                // synth pitch
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_c = sound.pitch) !== null && _c !== void 0 ? _c : DefaultFrequency, st);
+                // modulation
+                if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
+                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), st);
+                }
+                else if (inst.type === AM && sound.modulation !== undefined) {
+                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulatorGain.gain, ((_d = sound.loudness) !== null && _d !== void 0 ? _d : 1) * sound.modulation, st);
+                }
+                // hamonicity
+                if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.harmonicity, inst.modulator.frequency, ((_f = (_e = sound.pitch) !== null && _e !== void 0 ? _e : inst.carrierPitch) !== null && _f !== void 0 ? _f : DefaultFrequency) * sound.harmonicity, st);
+                }
+                // initialize the envelope
+                inst.envelope.gain.cancelScheduledValues(st);
+                // before attack
+                rampBy('setValueAtTime', inst.envelope.gain, 0, st);
+                // attack + sustain
+                rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, st + ((_g = inst.attackTime) !== null && _g !== void 0 ? _g : 0));
+                if (inst.decayTime) {
+                    // sustain + decay
+                    rampBy('linearRampToValueAtTime', inst.envelope.gain, (_h = inst.sustain) !== null && _h !== void 0 ? _h : 1, st + inst.adTime);
+                }
+            }
+            // detune
+            if (sound.detune && 'detune' in inst && inst.detune) {
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st);
+            }
+            // loudness/gain
+            if (sound.loudness !== undefined) {
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
+            }
+            // panner node
+            // DONE - Check stereo vs 3d
+            if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
+                rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
+            }
+            else if (!isStereo && panner instanceof PannerNode) {
+                if (sound.panX !== undefined)
+                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
+                if (sound.panY !== undefined)
+                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
+                if (sound.panZ !== undefined)
+                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
+            }
+            if (sound.isFirst) {
+                // play the first
+                startTime = st;
+            }
+            if (sound.isLast) {
+                // smooth ending
+                // rampBy('linearRampToValueAtTime', gain.gain, (sound.loudness ?? 1), st + 0.05);
+                rampBy('setTargetAtTime', gain.gain, 0, base_et, 0.6);
+                if (inst instanceof ErieSynth) {
+                    inst.envelope.gain.cancelScheduledValues(st);
+                    rampBy('setTargetAtTime', inst.envelope.gain, ((_j = sound.loudness) !== null && _j !== void 0 ? _j : 1), base_et, 0.6);
+                    rampBy('setTargetAtTime', inst.envelope.gain, 0, base_et, 0.6);
+                }
+            }
+            for (const filterName of filters) {
+                let encoder = filterEncoders[filterName];
+                let finisher = filterFinishers[filterName];
+                if (encoder) {
+                    encoder(filterNodes[filterName], sound, st, rampers);
+                }
+                if (finisher) {
+                    finisher(filterNodes[filterName], sound, st, base_et + (inst instanceof ErieSynth ? inst.adTime : 0), rampers);
+                }
+            }
+        }
+        const tick = makeTick(ctx, config.tick, endTime);
+        emitNotePlayEvent('tone', q[0]);
+        if (offline && bufferPrimitve && ctx instanceof OfflineAudioContext) {
+            if (tick) {
+                tick.start(0);
+                tick.stop(endTime);
+            }
+            // after stopping (need to define before stopping!)
+            inst.onended = (e) => {
+                setErieGlobalControl(undefined);
+                setErieGlobalState(undefined);
+                emitNoteStopEvent('tone', q[0]);
+                sendToneFinishEvent({ sid });
+            };
+            inst.start(0);
+            inst.stop(endTime);
+            let rb = yield ctx.startRendering();
+            bufferPrimitve.add(0, rb);
+        }
+        else {
+            return new Promise((resolve, reject) => {
+                if (tick) {
+                    tick.start(startTime);
+                    tick.stop(ct + endTime);
+                }
+                // after stopping (need to define before stopping!)
+                inst.onended = (e) => {
+                    setErieGlobalControl(undefined);
+                    setErieGlobalState(undefined);
+                    emitNoteStopEvent('tone', q[0]);
+                    sendToneFinishEvent({ sid });
+                    resolve();
+                };
+                inst.start(startTime);
+                inst.stop(ct + endTime);
+            });
+        }
+    });
+}
+
+function playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // if it is from a discrete series and being stopped, then do nothing
+        if ((config === null || config === void 0 ? void 0 : config.subpart) && isErieGlobalState(Stopped))
+            return;
+        // if it is an individual play (not from a discrete series)
+        if (!(config === null || config === void 0 ? void 0 : config.subpart))
+            setErieGlobalState(undefined);
+        let sid = genRid();
+        if (!config.subpart) {
+            sendSpeechStartEvent({ sound, sid });
+        }
+        let onstart = () => {
+            emitNotePlayEvent(SpeechType, sound);
+        };
+        let onend = () => {
+            clearPlayerEvents();
+            setErieGlobalControl(undefined);
+            setErieGlobalState(undefined);
+            emitNoteStopEvent(SpeechType, sound);
+            if (!config.subpart) {
+                sendSpeechFinishEvent({ sid });
+            }
+        };
+        if (typeof window !== 'undefined' && bufferPrimitve && typeof ttsFetchFunction === 'function') {
+            let speechRendered = yield ttsFetchFunction({ text: sound, config });
+            let ctx = new AudioContext();
+            bufferPrimitve.add('next', yield ctx.decodeAudioData(speechRendered));
+        }
+        // else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+        //   await GoogleCloudTTSGenerator(sound, config);
+        // } 
+        else {
+            if (typeof window !== 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
+                console.warn("Google Cloud TTS API can only be used on Node.js Server environment.");
+            }
+            return new Promise((resolve, reject) => {
+                WebSpeechGenerator(sound, config, onstart, onend, resolve);
+            });
+        }
+        return;
+    });
+}
+
+function playRelativeDiscreteTonesAndSpeeches(ctx, queue, _config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve, ttsFetchFunction) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // clear previous state
+        setErieGlobalState(undefined);
+        let config = deepcopy(_config);
+        config.subpart = true;
+        for (const sound of queue) {
+            if (isErieGlobalState(Stopped))
+                break;
+            let sid = genRid();
+            if (sound.speech) {
+                sendSpeechStartEvent({ sound, sid });
+                yield playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction);
+                sendSpeechFinishEvent({ sid });
+            }
+            else {
+                sendToneStartEvent({ sid });
+                yield playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+                sendToneFinishEvent({ sid });
+            }
+        }
+        setErieGlobalState(undefined);
+        return;
+    });
+}
+
+function playAbsoluteSpeeches(ctx, queue, config, ttsFetchFunction, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // clear previous state
+        setErieGlobalState(undefined);
+        // playing a series of discrete tones with an aboslute schedule
+        // set audio context controls
+        setErieGlobalControl({ type: ToneType, player: ctx });
+        // gain == loudness
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.value = 0;
+        // sort queue to mark the last node for sequence end check
+        let q0 = queue.toSorted(glyphSorterByStart);
+        q0[0].isFirst = true;
+        let q = q0.toSorted(glyphSorterByEnd);
+        q[q.length - 1].isLast = true;
+        config.subpart = true;
+        // play as async promise
+        return new Promise((resolve, reject) => {
+            // get the current time
+            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+            // set and play sounds
+            let prev;
+            for (let sound of q) {
+                if (isErieGlobalState(Stopped)) {
+                    resolve();
+                    break;
+                }
+                if (prev) {
+                    getStartTime1(q) - getEndTime1(prev);
+                }
+                // get discrete oscillator
+                const inst = makeInstrument(ctx);
+                inst.connect(gain);
+                // after stopping (need to define before stopping!)
+                // this part actually plays the sound
+                inst.onended = () => {
+                    if ((config === null || config === void 0 ? void 0 : config.falseTiming) && isErieGlobalControlType(SpeechType)) {
+                        closeErieGlobalControl();
+                    }
+                    playSingleSpeech(sound, config, bufferPrimitve, ttsFetchFunction);
+                    if (sound.isLast) {
+                        resolve();
+                    }
+                };
+                // play & stop
+                inst.start(ct + sound.start - 0.02);
+                inst.stop(ct + sound.start);
+                prev = q;
+            }
+        });
+    });
+}
+
+function rampContinuousTone(ctx, q, duration, inst, panner, isStereo, gain, rampers, filters, filterNodes, filterEncoders, filterFinishers, config) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        // get the current time
+        let ct = setCurrentTime(ctx);
+        for (let sound of q) {
+            let delay = 0.15;
+            let st = ct + getStartTime1(sound) + delay, base_et = ct + getEndTime1(sound) + delay;
+            // sampled tone pitch is already set when the instrument was created + they can't compose a continuous tone.
+            if (inst instanceof OscillatorNode) {
+                // osc pitch
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_a = sound.pitch) !== null && _a !== void 0 ? _a : DefaultFrequency, st);
+            }
+            else if (inst instanceof ErieSynth) {
+                // synth pitch
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, (_b = sound.pitch) !== null && _b !== void 0 ? _b : DefaultFrequency, st);
+                // modulation
+                if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
+                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), st);
+                }
+                else if (inst.type === AM && sound.modulation !== undefined) {
+                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulatorGain.gain, ((_c = sound.loudness) !== null && _c !== void 0 ? _c : 1) * sound.modulation, st);
+                }
+                // hamonicity
+                if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
+                    rampBy(sound.isFirst ? 'setValueAtTime' : rampers.harmonicity, inst.modulator.frequency, ((_e = (_d = sound.pitch) !== null && _d !== void 0 ? _d : inst.carrierPitch) !== null && _e !== void 0 ? _e : DefaultFrequency) * sound.harmonicity, st);
+                }
+                // initialize the envelope
+                inst.envelope.gain.cancelScheduledValues(st);
+                // before attack
+                rampBy('setValueAtTime', inst.envelope.gain, 0, st);
+                // attack + sustain
+                rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, st + ((_f = inst.attackTime) !== null && _f !== void 0 ? _f : 0));
+                if (inst.decayTime) {
+                    // sustain + decay
+                    rampBy('linearRampToValueAtTime', inst.envelope.gain, (_g = inst.sustain) !== null && _g !== void 0 ? _g : 1, st + inst.adTime);
+                }
+            }
+            // detune
+            if (sound.detune && 'detune' in inst && inst.detune) {
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st);
+            }
+            // loudness/gain
+            if (sound.loudness !== undefined) {
+                rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
+            }
+            // panner node
+            // DONE - Check stereo vs 3d
+            if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
+                rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
+            }
+            else if (!isStereo && panner instanceof PannerNode) {
+                if (sound.panX !== undefined)
+                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
+                if (sound.panY !== undefined)
+                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
+                if (sound.panZ !== undefined)
+                    rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
+            }
+            if (sound.isFirst) ;
+            if (sound.isLast) {
+                // smooth ending
+                // rampBy('linearRampToValueAtTime', gain.gain, (sound.loudness ?? 1), st + 0.05);
+                rampBy('setTargetAtTime', gain.gain, 0, base_et, 0.6);
+                if (inst instanceof ErieSynth) {
+                    inst.envelope.gain.cancelScheduledValues(st);
+                    rampBy('setTargetAtTime', inst.envelope.gain, ((_h = sound.loudness) !== null && _h !== void 0 ? _h : 1), base_et, 0.6);
+                    rampBy('setTargetAtTime', inst.envelope.gain, 0, base_et, 0.6);
+                }
+            }
+            for (const filterName of filters) {
+                let encoder = filterEncoders[filterName];
+                let finisher = filterFinishers[filterName];
+                if (encoder) {
+                    encoder(filterNodes[filterName], sound, st, rampers);
+                }
+                if (finisher) {
+                    finisher(filterNodes[filterName], sound, st, base_et + (inst instanceof ErieSynth ? inst.adTime : 0), rampers);
+                }
+            }
+        }
+        yield playPause(duration * 1000);
+        return;
+    });
+}
+
+class AudioGraphQueue {
+    constructor() {
+        this.queue = [];
+        this.state = Finished;
+        this.playAt;
+        this.config = {};
+        this.sampledInstruments = [];
+        this.sampledInstrumentSources = {};
+        this.samplings = {};
+        this.synths = {};
+        this.waves = {};
+        this.playId;
+        this.buffers = [];
+    }
+    // set
+    setConfig(key, value) {
+        this.config[key] = value;
+    }
+    setSampling(samplings) {
+        for (const k in samplings) {
+            if (!this.samplings[k])
+                this.samplings[k] = deepcopy(samplings[k]);
+        }
+    }
+    setSynths(synths) {
+        for (const k in synths) {
+            if (!this.synths[k])
+                this.synths[k] = deepcopy(synths[k]);
+        }
+    }
+    setWaves(waves) {
+        for (const k in waves) {
+            if (!this.waves[k])
+                this.waves[k] = deepcopy(waves[k]);
+        }
+    }
+    // checks
+    isSupportedInst(k) {
+        return SupportedInstruments.includes(k);
+    }
+    isSampling(k) {
+        var _a;
+        return ((_a = this.samplings) === null || _a === void 0 ? void 0 : _a[k]) !== undefined;
+    }
+    isSynth(k) {
+        var _a;
+        return ((_a = this.synths) === null || _a === void 0 ? void 0 : _a[k]) !== undefined;
+    }
+    isWave(k) {
+        var _a;
+        return ((_a = this.waves) === null || _a === void 0 ? void 0 : _a[k]) !== undefined;
+    }
+    add(type, group_id, info, lineConfig, at) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7;
+        let checkInstrumentSampling = new Set(), userSampledInstruments = new Set();
+        if (QueueItemTypes.includes(type)) {
+            let item = {
+                group_id,
+                type,
+                config: lineConfig,
+            };
+            if (type === TextType && isTextQueueItem(item) && isTextInfo(info)) {
+                item.speech = (_a = info === null || info === void 0 ? void 0 : info.speech) !== null && _a !== void 0 ? _a : '';
+                if ((info === null || info === void 0 ? void 0 : info.speechRate) !== undefined)
+                    item.speechRate = info === null || info === void 0 ? void 0 : info.speechRate;
+                item.language = info.language;
+                item.pitch = info.pitch;
+                item.loudness = info.loudness;
+            }
+            else if (type === ToneType && isToneQueueItem(item) && isSoundInfo(info)) {
+                item.instrument_type = info.instrument_type;
+                if (this.isSupportedInst(item.instrument_type))
+                    checkInstrumentSampling.add(item.instrument_type);
+                else if (this.isSampling(item.instrument_type))
+                    userSampledInstruments.add(item.instrument_type);
+                item.start = (_d = (_c = (_b = info.sound) === null || _b === void 0 ? void 0 : _b.start) !== null && _c !== void 0 ? _c : info.start) !== null && _d !== void 0 ? _d : 0;
+                item.end = (_f = (_e = info.sound) === null || _e === void 0 ? void 0 : _e.end) !== null && _f !== void 0 ? _f : (getStartTime1(item) + ((_h = (_g = info.sound) === null || _g === void 0 ? void 0 : _g.duration) !== null && _h !== void 0 ? _h : 0.2));
+                item.duration = (_k = (_j = info.sound) === null || _j === void 0 ? void 0 : _j.duration) !== null && _k !== void 0 ? _k : item.end - getStartTime1(item); // in seconds
+                item.pitch = (_m = (_l = info.sound) === null || _l === void 0 ? void 0 : _l.pitch) !== null && _m !== void 0 ? _m : DefaultFrequency;
+                item.detune = (_o = info.sound) === null || _o === void 0 ? void 0 : _o.detune;
+                item.loudness = (_q = (_p = info.sound) === null || _p === void 0 ? void 0 : _p.loudness) !== null && _q !== void 0 ? _q : 1;
+                item.pan = (_r = info.sound) === null || _r === void 0 ? void 0 : _r.pan;
+                item.panX = (_s = info.sound) === null || _s === void 0 ? void 0 : _s.panX;
+                item.panY = (_t = info.sound) === null || _t === void 0 ? void 0 : _t.panY;
+                item.panZ = (_u = info.sound) === null || _u === void 0 ? void 0 : _u.panZ;
+                item.postReverb = (_w = (_v = info.sound) === null || _v === void 0 ? void 0 : _v.postReverb) !== null && _w !== void 0 ? _w : 0;
+                item.timbre = (_y = (_x = info.sound) === null || _x === void 0 ? void 0 : _x.timbre) !== null && _y !== void 0 ? _y : info.instrument_type;
+                let tapCount = (_z = info.sound) === null || _z === void 0 ? void 0 : _z.tapCount, tapSpeed = (_0 = info.sound) === null || _0 === void 0 ? void 0 : _0.tapSpeed;
+                if (tapCount || tapSpeed) {
+                    item.tap = mergeTapPattern(tapCount, tapSpeed);
+                    item.duration = (_1 = item.tap) === null || _1 === void 0 ? void 0 : _1.totalLength;
+                }
+                item.modulation = (_3 = (_2 = info.sound) === null || _2 === void 0 ? void 0 : _2.modulation) !== null && _3 !== void 0 ? _3 : 0;
+                item.harmonicity = (_5 = (_4 = info.sound) === null || _4 === void 0 ? void 0 : _4.harmonicity) !== null && _5 !== void 0 ? _5 : 0;
+                item.others = {};
+                // custom channels;
+                Object.keys((_6 = info.sound) !== null && _6 !== void 0 ? _6 : {}).forEach((chn) => {
+                    var _a;
+                    if (item.others && !DefaultChannels.includes(chn)) {
+                        item.others[chn] = (_a = info.sound) === null || _a === void 0 ? void 0 : _a[chn];
+                    }
+                });
+                if (item.others && info.sound.others) {
+                    Object.assign(item.others, info.sound.others);
+                }
+                // filters
+                item.filters = (_7 = info.filters) !== null && _7 !== void 0 ? _7 : [];
+                if (this.isSupportedInst(item.timbre))
+                    checkInstrumentSampling.add(item.timbre);
+                else if (this.isSampling(item.timbre))
+                    userSampledInstruments.add(item.timbre);
+            }
+            else if (type === ToneSeries && isSeriesQueueItem(item) && isToneSeriesInfo(info)) {
+                item.duration = info.duration;
+                item.instrument_type = info.instrument_type;
+                if (this.isSupportedInst(item.instrument_type))
+                    checkInstrumentSampling.add(item.instrument_type);
+                else if (this.isSampling(item.instrument_type))
+                    userSampledInstruments.add(item.instrument_type);
+                item.sounds = makeSingleStreamQueueValues(info.sounds);
+                if (item.sounds.hasSpeech)
+                    item.type = ToneSpeechSeries;
+                item.sounds[item.sounds.length - 1].isLast = true;
+                item.continued = info.continued;
+                item.relative = info.relative;
+                // filters
+                item.filters = info.filters || [];
+                if (this.isSupportedInst(item.instrument_type))
+                    checkInstrumentSampling.add(item.instrument_type);
+                else if (this.isSampling(item.instrument_type))
+                    userSampledInstruments.add(item.instrument_type);
+                item.sounds.forEach((sound) => {
+                    if (sound.timbre && this.isSupportedInst(sound.timbre))
+                        checkInstrumentSampling.add(sound.timbre);
+                    else if (sound.timbre && this.isSampling(sound.timbre))
+                        userSampledInstruments.add(sound.timbre);
+                });
+                if (info.ramp) {
+                    item.ramp = deepcopy(info.ramp);
+                }
+            }
+            else if (type === ToneOverlaySeries && isToneOverlaySeriesQueueItem(item) && isToneOverlayInfo(info)) {
+                item.duration = info.duration;
+                if (info.overlays.length > 0) {
+                    item.overlays = info.overlays.map((d) => {
+                        let o = {
+                            instrument_type: d.instrument_type,
+                            sounds: makeSingleStreamQueueValues(d.sounds),
+                            continued: d.continued,
+                            relative: d.relative,
+                            filters: d.filters || []
+                        };
+                        o.sounds[o.sounds.length - 1].isLast = true;
+                        if (this.isSupportedInst(o.instrument_type))
+                            checkInstrumentSampling.add(o.instrument_type);
+                        else if (this.isSampling(o.instrument_type))
+                            userSampledInstruments.add(o.instrument_type);
+                        o.sounds.forEach((sound) => {
+                            if (sound.timbre && this.isSupportedInst(sound.timbre))
+                                checkInstrumentSampling.add(sound.timbre);
+                            else if (sound.timbre && this.isSampling(sound.timbre))
+                                userSampledInstruments.add(sound.timbre);
+                        });
+                        if (d.ramp) {
+                            o.ramp = deepcopy(d.ramp);
+                        }
+                        return o;
+                    });
+                }
+                else {
+                    item.overlays = info.overlays;
+                }
+            }
+            else if (type === Pause && isPauseQueueItem(item) && isPauseInfo(info)) {
+                item.duration = info.duration; // in seconds
+            }
+            Array.from(checkInstrumentSampling).forEach((inst) => {
+                if (!this.sampledInstruments.includes(inst)) {
+                    this.sampledInstruments.push(inst);
+                }
+            });
+            Array.from(userSampledInstruments).forEach((inst) => {
+                if (!this.sampledInstruments.includes(inst)) {
+                    this.sampledInstruments.push(inst);
+                }
+            });
+            if (at !== undefined) {
+                this.queue.splice(at, 0, item);
+            }
+            else {
+                this.queue.push(item);
+            }
+        }
+    }
+    // todo: deprecate this...
+    addMulti(multiples, lineConfig, pos) {
+        let at = pos;
+        for (const mul of multiples) {
+            if (mul === null || mul === void 0 ? void 0 : mul.type) {
+                this.add(mul.type, 0, mul, lineConfig, at);
+                if (at !== undefined) {
+                    at += 1;
+                }
+            }
+        }
+    }
+    addQueue(group_id, queue, pos) {
+        queue.queue.forEach((item) => item.group_id = group_id);
+        if (pos !== undefined) {
+            this.queue.splice(pos, 0, ...queue.queue);
+        }
+        else {
+            this.queue.push(...queue.queue);
+        }
+        this.setSampling(queue.samplings);
+        this.sampledInstruments.push(...queue.sampledInstruments);
+        this.setSynths(queue.synths);
+        this.setWaves(queue.waves);
+    }
+    play(i, j, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.state !== Playing) {
+                setPlayerEvents(this, this.config);
+                let queue = this.queue;
+                this.playAt = i || 0;
+                let outputs = Array((j || queue.length) - (i || 0)).fill({});
+                // for pause & resume
+                if (i !== undefined && j !== undefined) {
+                    queue = this.queue.slice(i, j);
+                }
+                else if (i !== undefined) {
+                    queue = this.queue.slice(i, this.queue.length);
+                }
+                else if (j !== undefined) {
+                    queue = this.queue.slice(0, j);
+                }
+                this.state = Playing;
+                this.fireStartEvent();
+                let k = 0;
+                for (const item of queue) {
+                    // @ts-ignore
+                    // why? the below condition can change over time
+                    if (this.state === Stopped || this.state === Paused)
+                        break;
+                    outputs[k] = yield this.playLine(item, options);
+                    this.playAt += 1;
+                    k++;
+                }
+                this.fireStopEvent();
+                clearPlayerEvents();
+                this.state = Stopped;
+                this.playAt = undefined;
+                return outputs;
+            }
+        });
+    }
+    playLine(item, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d, _e;
+            let config = deepcopy(this.config);
+            if ('config' in item && item.config)
+                Object.assign(config, item.config);
+            if ('ramp' in item && item.ramp)
+                config.ramp = item.ramp;
+            let bufferPrimitve;
+            if (options === null || options === void 0 ? void 0 : options.pcm) {
+                if (item.duration === undefined) {
+                    console.error("For PCM generation, duration must be specified!", item);
+                }
+                else {
+                    bufferPrimitve = new AudioPrimitiveBuffer(item.duration);
+                }
+            }
+            let ttsFetchFunction = options === null || options === void 0 ? void 0 : options.ttsFetchFunction;
+            if (isTextQueueItem(item)) {
+                yield playSingleSpeech(item, config, bufferPrimitve, ttsFetchFunction);
+            }
+            else if (isToneQueueItem(item)) {
+                let ctx = makeContext();
+                for (const inst of this.sampledInstruments) {
+                    if (inst && !this.sampledInstrumentSources[inst]) {
+                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_a = this.config.options) === null || _a === void 0 ? void 0 : _a.baseUrl);
+                    }
+                }
+                yield playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, (_b = item.filters) !== null && _b !== void 0 ? _b : [], bufferPrimitve);
+                ctx.close();
+            }
+            else if (isPauseQueueItem(item)) {
+                yield playPause(item.duration * 1000);
+            }
+            else if (isToneSeriesQueueItem(item)) {
+                let ctx = makeContext();
+                for (const inst of this.sampledInstruments) {
+                    if (inst && !this.sampledInstrumentSources[inst]) {
+                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_c = this.config.options) === null || _c === void 0 ? void 0 : _c.baseUrl);
+                    }
+                }
+                if (item.continued) {
+                    config.instrument_type = item.instrument_type;
+                    yield playAbsoluteContinuousTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+                }
+                else if (!item.relative) {
+                    yield playAbsoluteDiscreteTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+                }
+                else {
+                    yield playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
+                }
+                ctx.close();
+            }
+            else if (isToneSpeechSeriesQueueItem(item)) {
+                let ctx = makeContext();
+                for (const inst of this.sampledInstruments) {
+                    if (inst && !this.sampledInstrumentSources[inst]) {
+                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_d = this.config.options) === null || _d === void 0 ? void 0 : _d.baseUrl);
+                    }
+                }
+                yield playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
+                ctx.close();
+            }
+            else if (isToneOverlaySeriesQueueItem(item)) {
+                let promises = [];
+                let ctx = makeContext();
+                for (const inst of this.sampledInstruments) {
+                    if (inst && !this.sampledInstrumentSources[inst]) {
+                        this.sampledInstrumentSources[inst] = yield loadSamples(ctx, inst, this.samplings, (_e = this.config.options) === null || _e === void 0 ? void 0 : _e.baseUrl);
+                    }
+                }
+                for (let stream of item.overlays) {
+                    if (stream.continued) {
+                        config.instrument_type = stream.instrument_type;
+                        promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
+                    }
+                    else if (!stream.relative) {
+                        promises.push(playAbsoluteDiscreteTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
+                    }
+                    else {
+                        promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve, ttsFetchFunction));
+                    }
+                }
+                yield Promise.all(promises);
+                ctx.close();
+            }
+            if (bufferPrimitve) {
+                let currBuffer = yield (bufferPrimitve === null || bufferPrimitve === void 0 ? void 0 : bufferPrimitve.compile());
+                this.buffers.push(currBuffer);
+                return bufferPrimitve;
+            }
+            return;
+        });
+    }
+    stop() {
+        // button-based stop
+        // for event stop ==> audio-graph-player-proto.js
+        if (this.state === Playing) {
+            closeErieGlobalControl();
+            // @ts-ignore
+            // this can be changed over time!
+            if (this.state !== Stopped) {
+                this.state = Stopped;
+                notifyStop(this.config);
+                this.fireStopEvent();
+                clearPlayerEvents();
+                this.playAt = undefined;
+            }
+        }
+    }
+    pause() {
+        this.state = Paused;
+        notifyPause(this.config);
+    }
+    resume() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield notifyResume(this.config);
+            return this.play(this.playAt);
+        });
+    }
+    fireStartEvent() {
+        this.playId = genRid();
+        sendQueueStartEvent({ pid: this.playId });
+    }
+    fireStopEvent() {
+        sendQueueFinishEvent({ pid: this.playId });
+    }
+    destroy() {
+        this.state = Finished;
+        this.queue = [];
+        clearPlayerEvents();
+    }
+    getFullAudio(ttsFetchFunction) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let output = [];
+            let ctx = new AudioContext();
+            let options = { pcm: true, ttsFetchFunction };
+            for (let i = 0; i < this.queue.length; i++) {
+                let buffers = yield this.play(i, i + 1, options);
+                if (buffers) {
+                    for (const b of buffers) {
+                        if ((b === null || b === void 0 ? void 0 : b.constructor.name) === (AudioPrimitiveBuffer === null || AudioPrimitiveBuffer === void 0 ? void 0 : AudioPrimitiveBuffer.name)) {
+                            output.push(b.compiledBuffer);
+                        }
+                        else {
+                            output.push(yield ctx.decodeAudioData(b));
+                        }
+                    }
+                }
+            }
+            let merged = concatenateBuffers(output);
+            let blob = yield makeWaveFromBuffer(merged, "mp3");
+            // @ts-ignore
+            return window.URL.createObjectURL(blob);
+        });
+    }
+}
+function makeSingleStreamQueueValues(sounds) {
+    var _a, _b;
+    let queue_values = [];
+    for (const sound of sounds) {
+        let start = sound.start;
+        let dur = sound.duration !== undefined ? sound.duration : (((_a = sound.end) !== null && _a !== void 0 ? _a : 0) - getStartTime1({ start }));
+        let tap = mergeTapPattern(sound.tapCount, sound.tapSpeed);
+        if (sound.tapCount || sound.tapSpeed) {
+            if ((tap === null || tap === void 0 ? void 0 : tap.totalLength) !== undefined)
+                dur = tap.totalLength;
+        }
+        let ith_q = {
+            pitch: sound.pitch,
+            detune: sound.detune,
+            loudness: sound.loudness,
+            start,
+            duration: dur,
+            pan: sound.pan,
+            panX: sound.panX,
+            panY: sound.panY,
+            panZ: sound.panZ,
+            speech: sound.speech,
+            language: sound.language,
+            postReverb: (Math.round(((_b = sound.postReverb) !== null && _b !== void 0 ? _b : 0) * 100) / 100),
+            timbre: sound.timbre,
+            tap,
+            modulation: sound.modulation || 0,
+            harmonicity: sound.harmonicity || 0,
+            __datum: sound.__datum,
+            others: {}
+        };
+        if (sound.speech) {
+            ith_q.duration = undefined;
+            queue_values.hasSpeech = true;
+        }
+        // custom channels;
+        Object.keys(sound || {}).forEach((chn) => {
+            if (ith_q.others && !DefaultChannels.includes(chn) && chn !== '__datum') {
+                ith_q.others[chn] = sound[chn];
+            }
+        });
+        if (ith_q.others && sound.others) {
+            Object.assign(ith_q.others, sound.others);
+        }
+        queue_values.push(ith_q);
+    }
+    queue_values = queue_values.sort((a, b) => (getStartTime1(a) - getStartTime1(b)));
+    return queue_values;
+}
+function isAudioGraphQueue(o) {
     var _a;
-    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === UnitStream.name;
+    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioGraphQueue.name;
 }
 
 class OverlayStream {
@@ -12317,52 +12317,6 @@ function compileAudioGraph(audio_spec, options) {
     });
 }
 
-class Boxplot {
-    constructor(c, extent, invalid) {
-        this._boxplot = c;
-        this._extent = extent;
-        this._invalid = invalid;
-    }
-    boxplot(c) {
-        this._boxplot = c;
-        return this;
-    }
-    extent(t) {
-        this._extent = t;
-        return this;
-    }
-    invalid(t) {
-        this._invalid = t;
-        return this;
-    }
-    groupby(...args) {
-        // this function resets groupby
-        if (args.length == 1 &&
-            args[0].constructor.name === 'Array' &&
-            args[0].every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args[0]];
-        }
-        else if (args.length >= 1 &&
-            args.every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args];
-        }
-        return this;
-    }
-    get() {
-        return {
-            boxplot: this._boxplot,
-            extent: this._extent,
-            invalid: this._invalid,
-            groupby: deepcopy(this._groupby)
-        };
-    }
-    clone() {
-        let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
-        _c._groupby = this._groupby;
-        return _c;
-    }
-}
-
 class Diffing {
     constructor(c, carryOver, keepFirstAsZero, a) {
         this._diffing = c;
@@ -12411,6 +12365,52 @@ class Diffing {
     }
     clone() {
         let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
+        _c._groupby = this._groupby;
+        return _c;
+    }
+}
+
+class Boxplot {
+    constructor(c, extent, invalid) {
+        this._boxplot = c;
+        this._extent = extent;
+        this._invalid = invalid;
+    }
+    boxplot(c) {
+        this._boxplot = c;
+        return this;
+    }
+    extent(t) {
+        this._extent = t;
+        return this;
+    }
+    invalid(t) {
+        this._invalid = t;
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        if (args.length == 1 &&
+            args[0].constructor.name === 'Array' &&
+            args[0].every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args[0]];
+        }
+        else if (args.length >= 1 &&
+            args.every((a) => a.constructor.name === 'String')) {
+            this._groupby = [...args];
+        }
+        return this;
+    }
+    get() {
+        return {
+            boxplot: this._boxplot,
+            extent: this._extent,
+            invalid: this._invalid,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
         _c._groupby = this._groupby;
         return _c;
     }

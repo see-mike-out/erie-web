@@ -24,37 +24,121 @@
     var aq__namespace = /*#__PURE__*/_interopNamespaceDefault(aq);
     var vega__namespace = /*#__PURE__*/_interopNamespaceDefault(vega);
 
-    /******************************************************************************
-    Copyright (c) Microsoft Corporation.
-
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose with or without fee is hereby granted.
-
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-    AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-    PERFORMANCE OF THIS SOFTWARE.
-    ***************************************************************************** */
-    /* global Reflect, Promise, SuppressedError, Symbol */
-
-
-    function __awaiter(thisArg, _arguments, P, generator) {
-        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-        return new (P || (P = Promise))(function (resolve, reject) {
-            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments || [])).next());
-        });
+    function isBrowserEventPossible() {
+        var _a;
+        return typeof document === 'object' && ((_a = document === null || document === void 0 ? void 0 : document.body) === null || _a === void 0 ? void 0 : _a.dispatchEvent);
+    }
+    function isBrowserWindowPossible() {
+        return typeof window === 'object';
     }
 
-    typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-        var e = new Error(message);
-        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
-    };
+    function unique(arr) {
+        return Array.from(new Set(arr));
+    }
+    function deepcopy(i) {
+        return JSON.parse(JSON.stringify(i));
+    }
+    function round(n, d) {
+        let e = Math.pow(10, -d);
+        return Math.round(n * e) / e;
+    }
+    function floor(n, d) {
+        let e = Math.pow(10, -d);
+        return Math.floor(n * e) / e;
+    }
+    const RidLetters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+    const NRidLetters = RidLetters.length - 1;
+    function genRid(n) {
+        if (!n)
+            n = 6;
+        let rid = [];
+        for (let i = 0; i < n; i++) {
+            let k = Math.round(Math.random() * NRidLetters);
+            rid.push(RidLetters[k]);
+        }
+        return rid.join('');
+    }
+    function getFirstDefined(...args) {
+        for (const arg of args) {
+            if (arg !== undefined)
+                return arg;
+        }
+        return args[args.length - 1];
+    }
+    function asc(a, b) {
+        if (typeof a === 'number' && typeof b === 'number')
+            return a - b;
+        else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
+            return a - b;
+        else if (a === null || a === void 0 ? void 0 : a.localeCompare)
+            return a.localeCompare(b);
+        else
+            return a > b ? 1 : a < b ? -1 : 0;
+    }
+    function desc(a, b) {
+        if (typeof a === 'number' && typeof b === 'number')
+            return b - a;
+        else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
+            return b - a;
+        else if (b === null || b === void 0 ? void 0 : b.localeCompare)
+            return b.localeCompare(a);
+        else
+            return a < b ? 1 : a > b ? -1 : 0;
+    }
+
+    function listString(arr, delim, isAnd, _and) {
+        if (arr.length == 0)
+            return "";
+        else if (arr.length == 1)
+            return arr[0];
+        else if (arr.length == 2 && isAnd)
+            return `${arr[0]} ${_and || 'and'} ${arr[1]}`;
+        else if (arr.length == 2 && !isAnd)
+            return `${arr[0]}${delim || ' '}${arr[1]} `;
+        else if (!isAnd) {
+            return arr.join(delim);
+        }
+        else {
+            let last = arr[arr.length - 1];
+            let rest = arr.slice(0, arr.length - 1);
+            let space_before_and = delim.endsWith(' ');
+            return rest.join(delim) + delim + `${space_before_and ? '' : ' '}${(_and === null || _and === void 0 ? void 0 : _and.trim()) || 'and'} ` + last;
+        }
+    }
+    function toOrdinalNumbers(n) {
+        // upto 23
+        return ["zeroth", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "nineth",
+            "tenth", "eleventh", "twelveth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
+            "twentieth", "twenty-first", "twenty-second", "twenty-third"][n] || n + "th";
+    }
+    /**
+     * convert an array of objects to an dict-like object of objects
+     * @param a
+     * @param k
+     * @param dp
+     * @returns
+     */
+    function toHashedObject(a, k, dp) {
+        let o = {};
+        a.forEach((d) => {
+            let key = d[k];
+            if (dp) {
+                o[key] = deepcopy(d);
+            }
+            else {
+                o[key] = d;
+            }
+        });
+        return o;
+    }
+    function bufferToArrayBuffer(x) {
+        let arrayBuffer = new ArrayBuffer(x.length);
+        let arr = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < x.length; ++i) {
+            arr[i] = x[i];
+        }
+        return arrayBuffer;
+    }
 
     const PlaybackManual = 'manual', PlaybackConditional = 'conditional', PlaybackAuto = 'always';
     const PlaybackTypes = [PlaybackManual, PlaybackConditional, PlaybackAuto];
@@ -630,122 +714,6 @@
         return OscTypes.includes(iType);
     }
 
-    function isBrowserEventPossible() {
-        var _a;
-        return typeof document === 'object' && ((_a = document === null || document === void 0 ? void 0 : document.body) === null || _a === void 0 ? void 0 : _a.dispatchEvent);
-    }
-    function isBrowserWindowPossible() {
-        return typeof window === 'object';
-    }
-
-    function unique(arr) {
-        return Array.from(new Set(arr));
-    }
-    function deepcopy(i) {
-        return JSON.parse(JSON.stringify(i));
-    }
-    function round(n, d) {
-        let e = Math.pow(10, -d);
-        return Math.round(n * e) / e;
-    }
-    function floor(n, d) {
-        let e = Math.pow(10, -d);
-        return Math.floor(n * e) / e;
-    }
-    const RidLetters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
-    const NRidLetters = RidLetters.length - 1;
-    function genRid(n) {
-        if (!n)
-            n = 6;
-        let rid = [];
-        for (let i = 0; i < n; i++) {
-            let k = Math.round(Math.random() * NRidLetters);
-            rid.push(RidLetters[k]);
-        }
-        return rid.join('');
-    }
-    function getFirstDefined(...args) {
-        for (const arg of args) {
-            if (arg !== undefined)
-                return arg;
-        }
-        return args[args.length - 1];
-    }
-    function asc(a, b) {
-        if (typeof a === 'number' && typeof b === 'number')
-            return a - b;
-        else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
-            return a - b;
-        else if (a === null || a === void 0 ? void 0 : a.localeCompare)
-            return a.localeCompare(b);
-        else
-            return a > b ? 1 : a < b ? -1 : 0;
-    }
-    function desc(a, b) {
-        if (typeof a === 'number' && typeof b === 'number')
-            return b - a;
-        else if ((a === null || a === void 0 ? void 0 : a.constructor.name) === Date.name && (b === null || b === void 0 ? void 0 : b.constructor.name) === Date.name)
-            return b - a;
-        else if (b === null || b === void 0 ? void 0 : b.localeCompare)
-            return b.localeCompare(a);
-        else
-            return a < b ? 1 : a > b ? -1 : 0;
-    }
-
-    function listString(arr, delim, isAnd, _and) {
-        if (arr.length == 0)
-            return "";
-        else if (arr.length == 1)
-            return arr[0];
-        else if (arr.length == 2 && isAnd)
-            return `${arr[0]} ${_and || 'and'} ${arr[1]}`;
-        else if (arr.length == 2 && !isAnd)
-            return `${arr[0]}${delim || ' '}${arr[1]} `;
-        else if (!isAnd) {
-            return arr.join(delim);
-        }
-        else {
-            let last = arr[arr.length - 1];
-            let rest = arr.slice(0, arr.length - 1);
-            let space_before_and = delim.endsWith(' ');
-            return rest.join(delim) + delim + `${space_before_and ? '' : ' '}${(_and === null || _and === void 0 ? void 0 : _and.trim()) || 'and'} ` + last;
-        }
-    }
-    function toOrdinalNumbers(n) {
-        // upto 23
-        return ["zeroth", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "nineth",
-            "tenth", "eleventh", "twelveth", "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth",
-            "twentieth", "twenty-first", "twenty-second", "twenty-third"][n] || n + "th";
-    }
-    /**
-     * convert an array of objects to an dict-like object of objects
-     * @param a
-     * @param k
-     * @param dp
-     * @returns
-     */
-    function toHashedObject(a, k, dp) {
-        let o = {};
-        a.forEach((d) => {
-            let key = d[k];
-            if (dp) {
-                o[key] = deepcopy(d);
-            }
-            else {
-                o[key] = d;
-            }
-        });
-        return o;
-    }
-    function bufferToArrayBuffer(x) {
-        let arrayBuffer = new ArrayBuffer(x.length);
-        let arr = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < x.length; ++i) {
-            arr[i] = x[i];
-        }
-        return arrayBuffer;
-    }
-
     function makeParamFilter(expr) {
         if (typeof expr !== 'string')
             return null;
@@ -1116,6 +1084,38 @@
         return Math.cos(degrees * (Math.PI / 180));
     }
 
+    /******************************************************************************
+    Copyright (c) Microsoft Corporation.
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+    PERFORMANCE OF THIS SOFTWARE.
+    ***************************************************************************** */
+    /* global Reflect, Promise, SuppressedError, Symbol */
+
+
+    function __awaiter(thisArg, _arguments, P, generator) {
+        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+        return new (P || (P = Promise))(function (resolve, reject) {
+            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+            step((generator = generator.apply(thisArg, _arguments || [])).next());
+        });
+    }
+
+    typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+        var e = new Error(message);
+        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+    };
+
     function playSystemSpeech(sound, config) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {
@@ -1176,6 +1176,30 @@
             o.push(i);
         }
         return o;
+    }
+
+    const Globals = {
+        ErieGlobalControl: undefined,
+        ErieGlobalState: undefined,
+        ErieGlobalPlayerEvents: new Map(),
+        ErieSampleBaseUrl: 'audio_sample/',
+        ErieGlobalStreamingControl: {}
+    };
+    function setSampleBaseUrl(url) {
+        if (isBrowserWindowPossible()) {
+            window.ErieSampleBaseUrl = url;
+        }
+        else {
+            Globals.ErieSampleBaseUrl = url;
+        }
+    }
+    function getSampleBaseUrl(url) {
+        if (isBrowserWindowPossible()) {
+            return window.ErieSampleBaseUrl;
+        }
+        else {
+            return Globals.ErieSampleBaseUrl;
+        }
     }
 
     class UnitStream {
@@ -1777,30 +1801,6 @@
         }
         else {
             return ctx.createOscillator();
-        }
-    }
-
-    const Globals = {
-        ErieGlobalControl: undefined,
-        ErieGlobalState: undefined,
-        ErieGlobalPlayerEvents: new Map(),
-        ErieSampleBaseUrl: 'audio_sample/',
-        ErieGlobalStreamingControl: {}
-    };
-    function setSampleBaseUrl(url) {
-        if (isBrowserWindowPossible()) {
-            window.ErieSampleBaseUrl = url;
-        }
-        else {
-            Globals.ErieSampleBaseUrl = url;
-        }
-    }
-    function getSampleBaseUrl(url) {
-        if (isBrowserWindowPossible()) {
-            return window.ErieSampleBaseUrl;
-        }
-        else {
-            return Globals.ErieSampleBaseUrl;
         }
     }
 

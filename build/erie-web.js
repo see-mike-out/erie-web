@@ -12313,6 +12313,59 @@
         });
     }
 
+    class Diffing {
+        constructor(c, carryOver, keepFirstAsZero, a) {
+            this._diffing = c;
+            if (a)
+                this._as = a;
+            this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
+            this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
+        }
+        diffing(c) {
+            this._diffing = c;
+            return this;
+        }
+        as(c) {
+            this._as = c;
+            return this;
+        }
+        carryOver(t) {
+            this._carryOver = t;
+            return this;
+        }
+        keepFirstAsZero(t) {
+            this._keepFirstAsZero = t;
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                diffing: deepcopy(this._diffing),
+                as: deepcopy(this._as),
+                carryOver: this._carryOver,
+                keepFirstAsZero: this._keepFirstAsZero,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
     class Boxplot {
         constructor(c, extent, invalid) {
             this._boxplot = c;
@@ -12420,59 +12473,6 @@
         }
         clone() {
             let _c = new Quantile(this._quantile, this._n, this._step, this._as);
-            _c._groupby = this._groupby;
-            return _c;
-        }
-    }
-
-    class Diffing {
-        constructor(c, carryOver, keepFirstAsZero, a) {
-            this._diffing = c;
-            if (a)
-                this._as = a;
-            this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
-            this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
-        }
-        diffing(c) {
-            this._diffing = c;
-            return this;
-        }
-        as(c) {
-            this._as = c;
-            return this;
-        }
-        carryOver(t) {
-            this._carryOver = t;
-            return this;
-        }
-        keepFirstAsZero(t) {
-            this._keepFirstAsZero = t;
-            return this;
-        }
-        groupby(...args) {
-            // this function resets groupby
-            if (args.length == 1 &&
-                args[0].constructor.name === 'Array' &&
-                args[0].every((a) => a.constructor.name === 'String')) {
-                this._groupby = [...args[0]];
-            }
-            else if (args.length >= 1 &&
-                args.every((a) => a.constructor.name === 'String')) {
-                this._groupby = [...args];
-            }
-            return this;
-        }
-        get() {
-            return {
-                diffing: deepcopy(this._diffing),
-                as: deepcopy(this._as),
-                carryOver: this._carryOver,
-                keepFirstAsZero: this._keepFirstAsZero,
-                groupby: deepcopy(this._groupby)
-            };
-        }
-        clone() {
-            let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
             _c._groupby = this._groupby;
             return _c;
         }
