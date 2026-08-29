@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest';
 import { normalizeSpecification } from '../src/normalize';
 import type { StreamingSpec } from '../src';
-import type { NormalizedSingleStreamItem } from '../src'; 
+import type { NormalizedSingleStreamItem } from '../src';
 
 test('normalize single sonification stream', async () => {
   const singleStreamSpec = {
@@ -27,18 +27,18 @@ test('normalize single sonification stream', async () => {
 
   const { normalized, datasets } = await normalizeSpecification(singleStreamSpec);
 
-const streamItem = normalized[0] as NormalizedSingleStreamItem;
-const stream = streamItem.stream;
-if (stream.data.stream === true) {
-  // streaming data case: 'test' is a key inside the streaming data containing actual data
-  const streamingDatasetKey = Object.keys(stream.data).find(k => k !== 'stream');
-  const streamingDataset = streamingDatasetKey ? stream.data[streamingDatasetKey] : undefined;
+  const streamItem = normalized[0] as NormalizedSingleStreamItem;
+  const stream = streamItem.stream;
+  if ('stream' in stream.data && stream.data.stream === true) {
+    // streaming data case: 'test' is a key inside the streaming data containing actual data
+    const streamingDatasetKey = Object.keys(stream.data).find(k => k !== 'stream');
+    const streamingDataset = (streamingDatasetKey && streamingDatasetKey in stream.data) ? stream.data[streamingDatasetKey] : undefined;
 
-  expect(streamingDataset).toBeDefined();
-  expect(streamingDataset.values.length).toBe(2);
-} 
-else {
-  // inline data without name or streaming
-  expect(stream.data.values.length).toBe(2);
-}
+    expect(streamingDataset).toBeDefined();
+    expect(streamingDataset.values.length).toBe(2);
+  }
+  else {
+    // inline data without name or streaming
+    expect(stream.data.values.length).toBe(2);
+  }
 });

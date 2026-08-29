@@ -5189,7 +5189,7 @@
                     finisher(filterNodes[filterName], sound, ct, et);
                 }
             }
-            rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.015);
+            rampBy('setTargetAtTime', gain.gain, 0, ct + (et - ct) * 0.95, 0.05);
             if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
                 panner.pan.setValueAtTime(sound.panX, ct);
             }
@@ -6374,7 +6374,7 @@
                 for (const stream of this.overlays) {
                     overlays.push(yield stream.prerender());
                 }
-                this.queue.add(ToneOverlaySeries, 0, { overlays });
+                this.queue.add(ToneOverlaySeries, 0, { overlays }, Object.assign({}, this.config));
                 this.prerendered = true;
                 return this.queue;
             });
@@ -7682,8 +7682,10 @@
                 p_names.push('q_' + (q).toString());
                 quantile_rollups['q_' + (q).toString()] = `d => op.quantile(d['${field}'], ${q})`;
             }
-            for (const g of groupby) {
-                quantile_rollups[g] = `d => op.mode(d['${g}'])`;
+            if (groupby && groupby.length > 0) {
+                for (const g of groupby || []) {
+                    quantile_rollups[g] = `d => op.mode(d['${g}'])`;
+                }
             }
             if (groupby && groupby.length > 0)
                 table = table.groupby(groupby);
@@ -7693,8 +7695,10 @@
             let records = table.objects();
             let new_records = records.map((d) => {
                 let o = {};
-                for (const g of groupby) {
-                    o[g] = d[g];
+                if (groupby && groupby.length > 0) {
+                    for (const g of groupby || []) {
+                        o[g] = d[g];
+                    }
                 }
                 o[asName[0]] = parseFloat(d.key.split("_")[1]);
                 o[asName[1]] = round(d.value, -5);
@@ -10526,6 +10530,9 @@
                 }
                 // initialize
                 this.queue = new AudioGraphQueue();
+                this.queue.setSampling(this.samplings);
+                this.queue.setSynths(this.synths);
+                this.queue.setWaves(this.waves);
                 let totalStreams = [this.introStream, ...this.streams].filter(d => d !== undefined);
                 let chiime_used = false;
                 // queue registration
@@ -10594,7 +10601,8 @@
                                     }
                                     if (stream instanceof UnitStream) {
                                         let prerenderedUnitStream = yield stream.prerender();
-                                        this.queue.add(ToneSeries, group_id, prerenderedUnitStream, this.config);
+                                        console.log(stream, prerenderedUnitStream);
+                                        this.queue.add(ToneSeries, group_id, prerenderedUnitStream, Object.assign(Object.assign({}, this.config), stream.config));
                                     }
                                     if (((_q = repeatOrderIteam.notify) === null || _q === void 0 ? void 0 : _q.afterPlay) || ((_r = repeatOrderIteam.notify) === null || _r === void 0 ? void 0 : _r.afterPlay) === undefined) {
                                         if (repeatOrderIteam.notify === undefined || ((_s = repeatOrderIteam.notify) === null || _s === void 0 ? void 0 : _s.afterPlay) === undefined || repeatOrderIteam.notify.afterPlay === true) {
@@ -10728,7 +10736,6 @@
                             }
                         }
                         else if (orderItem.type === OrderingTypeSound) {
-                            // todo
                             if (((_t = orderItem.notify) === null || _t === void 0 ? void 0 : _t.beforePlay) || ((_u = orderItem.notify) === null || _u === void 0 ? void 0 : _u.beforePlay) === undefined) {
                                 if (orderItem.notify === undefined || ((_v = orderItem.notify) === null || _v === void 0 ? void 0 : _v.beforePlay) === undefined || orderItem.notify.beforePlay === true) {
                                     chiime_used = true;
@@ -10762,7 +10769,7 @@
                             }
                             if (stream instanceof UnitStream) {
                                 let prerenderedUnitStream = yield stream.prerender();
-                                this.queue.add(ToneSeries, group_id, prerenderedUnitStream, this.config);
+                                this.queue.add(ToneSeries, group_id, prerenderedUnitStream, Object.assign(Object.assign({}, this.config), stream.config));
                             }
                             else if (stream instanceof OverlayStream) {
                                 let prerenderedOverlayStream = yield stream.prerender(true); // only overlays
@@ -10812,9 +10819,6 @@
                 if (chiime_used) {
                     this.synths.chimeSynth = chimeSynth;
                 }
-                this.queue.setSampling(this.samplings);
-                this.queue.setSynths(this.synths);
-                this.queue.setWaves(this.waves);
                 this.prerendered = true;
                 this.queue.setConfig('options', this.config.options);
                 return this.queue;
@@ -12355,8 +12359,74 @@
         }
     }
 
+    class Quantile {
+        constructor(c, n, step, as) {
+            this._quantile = c;
+            this._n = n;
+            this._step = (step && step > 0 && step < 1) ? step : undefined;
+            if (this._n == undefined && this._step == undefined) {
+                console.error("Must specify n or step. ");
+            }
+            if (as && as.length == this._quantile.length)
+                this._as = as;
+        }
+        quantile(c) {
+            this._quantile = c;
+            return this;
+        }
+        as(c) {
+            if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == this._quantile.length) {
+                this._as = c;
+            }
+            else {
+                console.error("Wrong length/type for qunatile 'as'.");
+            }
+            return this;
+        }
+        n(t) {
+            this._n = t;
+            return this;
+        }
+        step(t) {
+            if (t > 0 && t < 1) {
+                this._step = t;
+            }
+            else {
+                console.error("Step value must be between 0 and 1 (exclusive).");
+            }
+            return this;
+        }
+        groupby(...args) {
+            // this function resets groupby
+            if (args.length == 1 &&
+                args[0].constructor.name === 'Array' &&
+                args[0].every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args[0]];
+            }
+            else if (args.length >= 1 &&
+                args.every((a) => a.constructor.name === 'String')) {
+                this._groupby = [...args];
+            }
+            return this;
+        }
+        get() {
+            return {
+                quantile: this._quantile,
+                as: deepcopy(this._as),
+                n: this._n,
+                step: this._step,
+                groupby: deepcopy(this._groupby)
+            };
+        }
+        clone() {
+            let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+            _c._groupby = this._groupby;
+            return _c;
+        }
+    }
+
     class Diffing {
-        constructor(c, a, carryOver, keepFirstAsZero) {
+        constructor(c, carryOver, keepFirstAsZero, a) {
             this._diffing = c;
             if (a)
                 this._as = a;
@@ -12402,65 +12472,7 @@
             };
         }
         clone() {
-            let _c = new Diffing(this._diffing, this._as, this._carryOver, this._keepFirstAsZero);
-            _c._groupby = this._groupby;
-            return _c;
-        }
-    }
-
-    class Quantile {
-        constructor(c, n, step, as) {
-            this._quantile = c;
-            this._n = n;
-            this._step = step;
-            if (as)
-                this._as = as;
-        }
-        quantile(c) {
-            this._quantile = c;
-            return this;
-        }
-        as(c) {
-            if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
-                this._as = c;
-            }
-            else {
-                console.error("Wrong length/type for qunatile 'as'.");
-            }
-            return this;
-        }
-        n(t) {
-            this._n = t;
-            return this;
-        }
-        step(t) {
-            this._step = t;
-            return this;
-        }
-        groupby(...args) {
-            // this function resets groupby
-            if (args.length == 1 &&
-                args[0].constructor.name === 'Array' &&
-                args[0].every((a) => a.constructor.name === 'String')) {
-                this._groupby = [...args[0]];
-            }
-            else if (args.length >= 1 &&
-                args.every((a) => a.constructor.name === 'String')) {
-                this._groupby = [...args];
-            }
-            return this;
-        }
-        get() {
-            return {
-                quantile: this._quantile,
-                as: deepcopy(this._as),
-                n: this._n,
-                step: this._step,
-                groupby: deepcopy(this._groupby)
-            };
-        }
-        clone() {
-            let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+            let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
             _c._groupby = this._groupby;
             return _c;
         }
