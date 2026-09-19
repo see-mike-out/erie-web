@@ -1,6 +1,6 @@
 {
   "name": "erie-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A declarative grammar for data sonification for web",
   "main": "dist/index.js",
   "module": "src/index.ts",
@@ -42,7 +42,6 @@
   "dependencies": {
     "arquero": "^5.2.0",
     "d3": "^7.8.4",
-    "erie-web": "file:",
     "esm-wallaby": "^3.2.29",
     "grpc-web": "^1.5.0",
     "moment": "^2.29.4",
