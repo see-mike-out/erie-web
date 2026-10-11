@@ -34,6 +34,7 @@ describe("Data", () => {
   });
 
   it("set(string) references a dataset by name", () => {
+    // @ts-ignore
     expect(new Data().set("cars").toSpec()).toEqual({ name: "cars" });
   });
 
