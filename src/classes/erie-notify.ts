@@ -16,6 +16,7 @@ export class Notify {
   _speechRate?: number;
   _chime?: keyof typeof Chimes;
   _sample?: string;
+  _pause?: number;
 
   constructor(t?: string) {
     this._type = Unset;
@@ -54,6 +55,15 @@ export class Notify {
     return this;
   }
 
+  pause(n: number) {
+    if (typeof n == 'number' && n > 0) {
+      this._pause = n;
+    } else {
+      throw new RangeError("Notification pause value must be greater than or equal to 0.")
+    }
+    return this;
+  }
+
   speech(t: string) {
     if (this._type == Unset) {
       this._type = Speech
@@ -62,6 +72,18 @@ export class Notify {
       console.warn("Only supported for speech-type cnotifications.")
     } else if (typeof t == 'string') {
       this._speech = t;
+    }
+    return this;
+  }
+
+  speechRate(n: number) {
+    if (this._type == Unset) {
+      this._type = Speech
+    }
+    if (this._type != Speech) {
+      console.warn("Only supported for speech-type cnotifications.")
+    } else if (typeof n == 'number') {
+      this._speechRate = n;
     }
     return this;
   }
@@ -91,8 +113,10 @@ export class Notify {
   detune(n: number) {
     if (this._type != Sampling) {
       console.warn("Only supported for sampling-type cnotifications.")
-    } else if (typeof n == 'number' && n > 0) {
+    } else if (typeof n == 'number' && n >= -1200 && n <= 1200) {
       this._detune = n;
+    } else {
+      throw new RangeError("Wrong detune value.");
     }
     return this;
   }
@@ -137,7 +161,8 @@ export class Notify {
           loudness: this._loudness,
           pitch: this._pitch,
           language: this._language,
-          speechRate: this._speechRate
+          speechRate: this._speechRate,
+          pause: this._pause
         };
       } else {
         return true;
@@ -146,8 +171,10 @@ export class Notify {
     else if (this._type == Sampling) {
       if (this._sample) {
         return {
-          chime: this._sample,
+          sample: this._sample,
           loudness: this._loudness,
+          detune: this._detune,
+          pause: this._pause
         };
       } else {
         console.error("Undefined sampling URL")
@@ -158,6 +185,7 @@ export class Notify {
         return {
           chime: this._chime,
           loudness: this._loudness,
+          pause: this._pause,
         };
       } else {
         console.error("Undefined chime name")
@@ -178,6 +206,7 @@ export class Notify {
       _c._speechRate = this._speechRate;
       _c._chime = this._chime;
       _c._sample = this._sample;
+      _c._pause = this._pause;
     }
     return _c;
   }

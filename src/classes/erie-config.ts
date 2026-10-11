@@ -2,7 +2,7 @@ import {
   isInstanceOf
 } from "./erie-util";
 import { deepcopy } from "../util";
-import { ConfigInterface } from "../types";
+import { ConfigInterface, isTimeUnit } from "../types";
 
 export class Config {
   _config: ConfigInterface = {};
@@ -48,9 +48,10 @@ function configValidator(k: keyof ConfigInterface, v: any) {
   else if (k === 'skipScaleSpeech') return isInstanceOf(v, Boolean);
   else if (k === 'skipDescription') return isInstanceOf(v, Boolean);
   else if (k === 'skipTitle') return isInstanceOf(v, Boolean);
-  else if (k === 'overlayScaleConsistency') return isInstanceOf(v, Boolean);
-  else if (k === 'forceOverlayScaleConsistency') return isInstanceOf(v, Boolean);
-  else if (k === 'sequenceScaleConsistency') return isInstanceOf(v, Boolean);
-  else if (k === 'forceSequenceScaleConsistency') return isInstanceOf(v, Boolean)
+  else if (['overlayScaleConsistency', 'forceOverlayScaleConsistency', 'sequenceScaleConsistency', 'forceSequenceScaleConsistency'].includes(k as string)) {
+    return isInstanceOf(v, Boolean) || (isInstanceOf(v, Object) && Object.values(v).every((d) => typeof d === 'boolean'));
+  } else if (k === 'timeUnit') {
+    return isTimeUnit(v);
+  }
   else return true;
 }

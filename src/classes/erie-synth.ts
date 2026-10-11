@@ -65,11 +65,20 @@ export class SynthTone {
     return this;
   }
 
+  carrierVolume(p: number) {
+    if (p >= 0) {
+      this._carrierVolume = p;
+    } else {
+      throw new TypeError(`The carrier volume of a synth tone must be equal to or greater than 0.`);
+    }
+    return this;
+  }
+
   carrierDetune(p: number) {
     if (p >= -1200 && p <= 1200) {
       this._carrierDetune = p;
     } else {
-      throw new TypeError(`The carreir detune of a synth tone must be between -1200 and 1200.`);
+      throw new TypeError(`The carrier detune of a synth tone must be between -1200 and 1200.`);
     }
     return this;
   }
@@ -99,12 +108,12 @@ export class SynthTone {
 
   modulation(p: number) {
     if (this._type === AM) {
-      console.warn('Moudlation index for an AM synth will be ignored.')
+      console.warn('Modulation index for an AM synth will be ignored.')
     }
     if (p > 0) {
       this._modulation = p;
     } else {
-      throw new TypeError(`The moudlation index of a synth tone must be Number and greater than 0.`);
+      throw new TypeError(`The modulation index of a synth tone must be Number and greater than 0.`);
     }
 
     return this;
@@ -124,7 +133,7 @@ export class SynthTone {
   }
 
   attackTime(p: number) {
-    if (p > 0) {
+    if (p >= 0) {
       this._attackTime = p;
     } else {
       throw new TypeError(`The attack time of a synth tone must be Number and greater than 0.`);
@@ -142,6 +151,27 @@ export class SynthTone {
 
     return this;
   }
+
+  decayTime(p: number) {
+    if (p >= 0) {
+      this._decayTime = p;
+    } else {
+      throw new TypeError(`The decay time of a synth tone must be equal to or greater than 0.`);
+    }
+
+    return this;
+  }
+
+  sustain(p: number) {
+    if (p >= 0 && p <= 1) {
+      this._sustain = p;
+    } else {
+      throw new TypeError(`The sustain value of a synth tone must be within 0 and 1.`);
+    }
+
+    return this;
+  }
+
 
   get(): SynthObject {
     return {

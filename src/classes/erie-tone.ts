@@ -12,6 +12,10 @@ export class Tone {
   _type: string;
   _continued: boolean;
   _filter: any[];
+  _hasBaseTone?: boolean;
+  _sustain?: boolean;
+  _baseToneAsTick?: boolean | string;
+  _tickInterval?: number;
 
   constructor(type?: string, c?: boolean) {
     this._type = 'default';
@@ -49,17 +53,45 @@ export class Tone {
     return this;
   }
 
+  hasBaseTone(h: boolean) {
+    this._hasBaseTone = h;
+    return this;
+  }
+
+  sustain(h: boolean) {
+    this._sustain = h;
+    return this;
+  }
+
+  baseToneAsTick(h: boolean | string) {
+    this._baseToneAsTick = h;
+    return this;
+  }
+
+  tickInterval(i: number) {
+    this._tickInterval = i;
+    return this;
+  }
+
   get(): ToneObject {
     return {
       type: this._type,
       continued: this._continued,
-      filter: [...this._filter]
+      filter: [...this._filter],
+      hasBaseTone: this._hasBaseTone,
+      sustain: this._sustain,
+      baseToneAsTick: this._baseToneAsTick,
+      tickInterval: this._tickInterval
     };
   }
 
   clone(): Tone {
     let _c = new Tone(this._type, this._continued);
     _c.addFilter(this._filter);
+    if (this._hasBaseTone !== undefined) _c.hasBaseTone(this._hasBaseTone);
+    if (this._sustain !== undefined) _c.sustain(this._sustain);
+    if (this._baseToneAsTick !== undefined) _c.baseToneAsTick(this._baseToneAsTick);
+    if (this._tickInterval !== undefined) _c.tickInterval(this._tickInterval);
     return _c;
   }
 }

@@ -1,8 +1,9 @@
 import { DensityObject } from "../types";
+import { parseGroupby } from "./erie-util";
 
 export class Density {
   _density: string;
-  _groupby?: string[];
+  _groupby?: string[] | "auto";
   _cumulative: boolean;
   _counts: boolean;
   _bandwidth?: number;
@@ -31,6 +32,9 @@ export class Density {
 
   extent(a: number[]) {
     if (a.length == 2) {
+      if (a[0] > a[1]) {
+        throw new TypeError("Density 'extent' should have two nubmer in order.");
+      }
       this._extent = [...a];
     } else {
       throw new TypeError("Density 'extent' should be an Array of two Numbers.");
@@ -38,8 +42,10 @@ export class Density {
 
     return this;
   }
-  groupby(g: string[]) {
-    this._groupby = [...g];
+
+  groupby(...args: any) {
+    // this function resets groupby
+    this._groupby = parseGroupby(...args);
     return this;
   }
 

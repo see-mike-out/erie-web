@@ -3,7 +3,8 @@ export function unique(arr: any[]) {
 }
 
 export function deepcopy<T extends any>(i: T): T {
-  return JSON.parse(JSON.stringify(i));
+  if (i === undefined) return i;
+  else return JSON.parse(JSON.stringify(i));
 }
 
 export function round(n: number, d: number): number {
@@ -42,9 +43,21 @@ export function asc(a: any, b: any): number {
   else if (a?.localeCompare) return a.localeCompare(b);
   else return a > b ? 1 : a < b ? -1 : 0;
 }
+
 export function desc(a: any, b: any): number {
   if (typeof a === 'number' && typeof b === 'number') return b - a;
   else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return b - a;
   else if (b?.localeCompare) return b.localeCompare(a);
   else return a < b ? 1 : a > b ? -1 : 0;
+}
+
+export function dropUndefined<T extends object>(o: T): T {
+  for (const k of Object.keys(o) as (keyof T)[]) {
+    if (o[k] === undefined) delete o[k];
+  }
+  return deepcopy(o);
+}
+
+export function isEmptyObject(o: Object) {
+  return Object.keys(o).length == 0;
 }

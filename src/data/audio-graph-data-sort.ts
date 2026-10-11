@@ -6,9 +6,17 @@ import {
 
 export function makeIndexSortFn<T extends RecordObject>(key: string, order: T[]): (a: T, b: T) => number {
   return (a: T, b: T) => {
-    let det = order.indexOf(a[key]) - order.indexOf(b[key]);
-    if (det != 0) return det;
-    return 0;
+    if (order.indexOf(a[key]) < 0 && order.indexOf(b[key]) >= 0) {
+      return 1;
+    } else if (order.indexOf(a[key]) >= 0 && order.indexOf(b[key]) < 0) {
+      return -1;
+    } else if (order.indexOf(a[key]) < 0 && order.indexOf(b[key]) < 0) {
+      return 0;
+    } else {
+      let det = order.indexOf(a[key]) - order.indexOf(b[key]);
+      if (det != 0) return det;
+      return 0;
+    }
   }
 }
 

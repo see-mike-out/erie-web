@@ -37,7 +37,11 @@ export async function _getData(data_spec: DataSpec) {
   if (data_spec && 'values' in data_spec && data_spec?.values) {
     return data_spec.values;
   } else if (data_spec && 'url' in data_spec && data_spec?.url) {
-    let read = await (await fetch(data_spec.url)).text();
+    let res = await fetch(data_spec.url);
+    if (!res.ok) {
+      throw new Error(`Failed to load ${data_spec.url}`);
+    }
+    let read = await res.text();
     if (isJSON(read)) {
       return JSON.parse(read);
     } else if (isCSV(read)) {
@@ -50,11 +54,3 @@ export async function _getData(data_spec: DataSpec) {
     return []
   }
 }
-// not understanding this
-// else if (data_spec?.data?.values) {
-//   return data_spec.data.values;
-// } else if (data_spec?.csv) {
-//   return csvParse(data_spec?.csv);
-// } else if (data_spec?.tsv) {
-//   return tsvParse(data_spec.tsv);
-// }

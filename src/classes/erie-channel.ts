@@ -1,10 +1,8 @@
 import { Tick } from "./erie-tick";
-import { FormatType } from "vega";
-import { deepcopy } from "../util";
+import { deepcopy, isEmptyObject, isInRange } from "../util";
 import {
   isArrayOf,
-  isInstanceOf,
-  isInstanceOfByName
+  isInstanceOf
 } from "./erie-util";
 import {
   REPEAT_chn,
@@ -65,13 +63,32 @@ import {
   VALID,
   VARIANCE,
   VARIANCEP,
-  OscTypes
+  OscTypes,
+  KeyType,
+  SupportedScaleTypes,
+  KeyBase,
+  KeyConstant,
+  KeyExponent,
+  KeyDomainMax,
+  KeyDomainMid,
+  KeyDomainMin,
+  KeyRangeMax,
+  KeyRangeMid,
+  KeyRangeMin,
+  KeySort,
+  SupportedSortValues,
+  FormatType,
+  timeLevelValues,
+  timeUnitDomainDefs,
+  SortValues,
+  ChannelSpec,
+  TickKeyBand
 } from "../types";
 
 export class Channel {
   defined: boolean;
   _channel: string | undefined;
-  _field: string | undefined;
+  _field: string | string[] | undefined;
   _type: EncodingType | undefined;
   _ramp: RampType | undefined;
   _aggregate: AggOpType | undefined;
@@ -84,49 +101,55 @@ export class Channel {
   _speech: boolean | undefined;
   _tick: any;
   _roundToNote?: boolean;
+  _by?: string[] | string;
+  _p?: number | undefined;
+  _sort?: SortValues;
+  _timeUnit?: keyof typeof timeUnitDomainDefs;
+  _timeUnitName?: string | string[] | number[];
+  _timeLevel?: timeLevelValues;
+  _sustain?: boolean;
 
-  constructor(f?: string, t?: EncodingType) {
+  constructor(f?: string | string[], t?: EncodingType, c?: string) {
     this.defined = false;
-    this._channel = undefined;
-    this._field;
-    this._type;
+    this._channel = c;
+    this._field = undefined;
+    this._type = undefined;
     if (f) {
       this.field(f, t);
     }
     this._ramp = 'linear';
-    this._aggregate;
-    this._bin;
+    this._aggregate = undefined;
+    this._bin = undefined;
     this._scale = {};
-    this._condition;
-    this._value;
-    this._format;
-    this._formatType;
+    this._condition = undefined;
+    this._value = undefined;
+    this._format = undefined;
+    this._formatType = undefined;
+    this._speech = undefined;
+    this._by = undefined;
+    this._p = undefined;
+    this._sort = undefined;
+    this._timeUnit = undefined;
+    this._timeUnitName = undefined;
+    this._timeLevel = undefined;
   }
 
   set(c: Channel) {
-    if (isInstanceOfByName(c, `TimeChannel`) ||
-      isInstanceOfByName(c, `Time2Channel`) ||
-      isInstanceOfByName(c, `DurationChannel`) ||
-      isInstanceOfByName(c, `TapSpeedChannel`) ||
-      isInstanceOfByName(c, `TapCountChannel`) ||
-      isInstanceOfByName(c, `PitchChannel`) ||
-      isInstanceOfByName(c, `DetuneChannel`) ||
-      isInstanceOfByName(c, `LoudnessChannel`) ||
-      isInstanceOfByName(c, `PanChannel`) ||
-      isInstanceOfByName(c, `PostReverbChannel`) ||
-      isInstanceOfByName(c, `SpeechBeforeChannel`) ||
-      isInstanceOfByName(c, `SpeechAfterChannel`) ||
-      isInstanceOfByName(c, `RepeatChannel`) ||
-      isInstanceOfByName(c, `ModulationChannel`) ||
-      isInstanceOfByName(c, `HarmonicityChannel`) ||
-      isInstanceOfByName(c, `Channel`)
-    ) {
-      let g = c.get();
-      Object.assign(this, g);
+    if (!(c instanceof Channel)) {
+      throw new TypeError("channel.set expects a Channel object.");
+    }
+    const own = this._channel;
+    this.assignFrom(c.get());
+    this._channel = own;
+    return this;
+  }
+  protected assignFrom(g: ChannelObject) {
+    for (const [k, v] of Object.entries(g)) {
+      const ck = k === 'defined' ? k : '_' + k;
+      (this as any)[ck] = v === undefined ? v : deepcopy(v);
     }
   }
-
-  field(f: string | undefined, t: EncodingType | undefined) {
+  field(f: string | string[] | undefined, t: EncodingType | undefined) {
     if (f === undefined) {
       this._field = undefined;
     } else if (isInstanceOf(f, String)) {
@@ -152,12 +175,14 @@ export class Channel {
     } else {
       this._ramp = r ? 'linear' : 'abrupt';
     }
+    return this;
   }
 
-  aggregate(op: AggOpType) {
+  aggregate(op: AggOpType, p?: number) {
     switch (op) {
       case COUNT:
         if (this._field) {
+          this._field = undefined;
           console.warn('A count aggregate will drop the existing field.');
         }
         this._aggregate = op;
@@ -170,7 +195,6 @@ export class Channel {
       case AVG:
       case MODE:
       case MEDIAN:
-      case QUANTILE:
       case STDEV:
       case STDEVP:
       case VARIANCE:
@@ -182,11 +206,31 @@ export class Channel {
         this._aggregate = op;
         this._type = QUANT;
         this.defined = true;
+        if (p !== undefined) {
+          throw new RangeError(`The ${op} operator does not accept a parameter.`);
+        }
+        break;
+      case QUANTILE:
+        if (p !== undefined && isInstanceOf(p, Number) && isInRange(p, 0, 1)) {
+          this._aggregate = op;
+          this._type = QUANT;
+          this.defined = true;
+          this._p = p;
+        } else if (p !== undefined) {
+          throw new RangeError('Wrong quantile parameter.');
+        } else {
+          this._aggregate = op;
+          this._type = QUANT;
+          this.defined = true;
+          this._p = 0.5;
+        }
         break;
       case CORR:
       case COVARIANCE:
       case COVARIANCEP:
         throw new TypeError('An aggregate operation for two fields cannot be declared here.');
+      default:
+        throw new TypeError('Unknown operation: ' + op);
     }
     return this;
   }
@@ -200,8 +244,10 @@ export class Channel {
       } else if (isArrayOf(args[0], Number)) {
         is_bin = true;
         exact = args[0];
+      } else {
+        throw new TypeError(`Wrong bin value: [${args.join(", ")}]`)
       }
-    } else if (args.length >= 2 && args.length <= 3) {
+    } else if (isInRange(args.length, 2, 3)) {
       is_bin = true;
       [maxbins, nice, step] = args;
     } else {
@@ -271,9 +317,31 @@ export class Channel {
     } else if (this._channel === TIME_chn && p === KeyTiming && TIMINGS.includes(v)) {
       this._scale.timing = v;
     } else if (this._channel === TAPSPD_chn && p === KeySingleTappingPosition && SingleTapPosOptions.includes(v)) {
-      this._scale.timing = v;
+      this._scale.singleTappingPosition = v;
+    } else if (p == KeyType && SupportedScaleTypes.includes(v)) {
+      this._scale.type = v;
+    } else if (p == KeyBase && isInstanceOf(v, Number)) {
+      this._scale.base = v;
+    } else if (p == KeyConstant && isInstanceOf(v, Number)) {
+      this._scale.constant = v;
+    } else if (p == KeyExponent && isInstanceOf(v, Number)) {
+      this._scale.exponent = v;
+    } else if (p == KeyDomainMax && v !== undefined) {
+      this._scale.domainMax = v;
+    } else if (p == KeyDomainMid && v !== undefined) {
+      this._scale.domainMid = v;
+    } else if (p == KeyDomainMin && v !== undefined) {
+      this._scale.domainMin = v;
+    } else if (p == KeyRangeMax && v !== undefined) {
+      this._scale.rangeMax = v;
+    } else if (p == KeyRangeMid && v !== undefined) {
+      this._scale.rangeMid = v;
+    } else if (p == KeyRangeMin && v !== undefined) {
+      this._scale.rangeMin = v;
+    } else if (p == KeySort && SupportedSortValues.includes(v)) {
+      this._scale.sort = v;
     } else {
-      throw new Error('The provide key and value is not a supported scale option.')
+      throw new TypeError('The provide key and value is not a supported scale option.')
     }
     this.defined = true;
 
@@ -304,7 +372,7 @@ export class Channel {
 
   addConditions(c: Condition) {
     for (const cond of c) {
-      if (cond.test && cond.value) this.addCondition(cond.test, cond.value);
+      if (cond.test !== undefined && cond.value !== undefined) this.addCondition(cond.test, cond.value);
     }
     this.defined = true;
 
@@ -319,10 +387,12 @@ export class Channel {
     if (this._condition instanceof Array) {
       this._condition.splice(i, 1);
     }
+    return this;
   }
 
   resetCondition() {
-    return this._condition = undefined;
+    this._condition = undefined;
+    return this;
   }
 
   value(v: any) {
@@ -355,7 +425,7 @@ export class Channel {
     return this;
   }
 
-  tick(k: TickKeys | Tick, v: any) {
+  tick(k: TickKeys | Tick, v?: any) {
     if (this._channel === TIME_chn) {
       if (isInstanceOf(k, String)) {
         if (!this._tick) this._tick = {};
@@ -366,11 +436,15 @@ export class Channel {
         } else if (k === TickKeyPlayAtTime0 && isInstanceOf(v, Boolean)) {
           this._tick.playAtTime0 = v;
         } else if (k === TickKeyOscType && OscTypes.includes(v)) {
-          this._tick.playAtTime0 = v;
+          this._tick.oscType = v;
         } else if (k === TickKeyPitch && isInstanceOf(v, Number)) {
           this._tick.pitch = v;
-        } else if (k === TickKeyLoudness && isInstanceOf(v, Number) && 0 <= v && v <= 1) {
+        } else if (k === TickKeyLoudness && isInstanceOf(v, Number) && isInRange(v, 0, 1)) {
           this._tick.loudness = v;
+        } else if (k === TickKeyBand && isInstanceOf(v, Number)) {
+          this._tick.band = v;
+        } else {
+          throw new TypeError(`Wrong value for the tick ${k} option: ${v}`)
         }
       } else if (isInstanceOf(k, Tick)) {
         this._tick = { name: (<Tick>k)._name };
@@ -385,17 +459,45 @@ export class Channel {
     return this;
   }
 
-  format(f: string, t: FormatType) {
+  format(f: string, t?: FormatType) {
     if (f && t && isInstanceOf(f, String)) {
       this._format = f;
       this._formatType = t;
     } else if (f && isInstanceOf(f, String)) {
       this._format = f;
     }
+    return this;
   }
 
   formatType(t: FormatType) {
     this._formatType = t;
+    return this;
+  }
+
+  by(b: string[] | string) {
+    this._by = b;
+    return this;
+  }
+  sort(s: SortValues) {
+    this._sort = s;
+    return this;
+  }
+  timeUnit(u: keyof typeof timeUnitDomainDefs, n?: string | string[] | number[]) {
+    if (!Object.keys(timeUnitDomainDefs).includes(u)) {
+      throw new TypeError("Wrong time unit: " + u)
+    }
+    this._timeUnit = u;
+    this._timeUnitName = n;
+    return this;
+  }
+  timeLevel(l: timeLevelValues) {
+    this._timeLevel = l;
+    return this;
+  }
+
+  sustain(s: boolean) {
+    this._sustain = s;
+    return this;
   }
 
   get(): ChannelObject {
@@ -410,7 +512,16 @@ export class Channel {
       condition: this._condition ? deepcopy(this._condition) : this._condition,
       ramp: this._ramp,
       defined: this.defined,
-      roundToNote: this._roundToNote
+      roundToNote: this._roundToNote,
+      format: this._format,
+      formatType: this._formatType,
+      by: this._by,
+      p: this._p,
+      sort: this._sort,
+      timeUnit: this._timeUnit,
+      timeUnitName: this._timeUnitName,
+      timeLevel: this._timeLevel,
+      sustain: this._sustain
     };
     if (this._channel === TIME_chn) {
       o.tick = this._tick ? deepcopy(this._tick) : this._tick;
@@ -422,17 +533,24 @@ export class Channel {
     return o;
   }
 
+  toSpec(): ChannelSpec {
+    let s = this.get() as any;
+    delete s.defined;
+    delete s.channel;
+    if (isEmptyObject(s.scale)) {
+      delete s.scale;
+    }
+    return s as ChannelSpec;
+  }
+
   validator(v: any) {
     return true;
   }
 
   clone(): Channel {
-    let _c: Channel = new Channel(undefined, undefined);
+    let _c = new (this.constructor as any)();
     let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
+    _c.assignFrom(_g);
     return _c;
   }
 }

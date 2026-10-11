@@ -32,7 +32,8 @@ export const RampMethods = [true, false, RampAbrupt, RampLinear, RampExp];
 export type RampFunctionName = 'setValueAtTime' | 'linearRampToValueAtTime' | 'exponentialRampToValueAtTime' | 'setTargetAtTime';
 
 // sort
-export type SortValues = 'ascending' | 'asc' | 'descending' | 'desc' | true | false;
+export const SupportedSortValues = ['ascending', 'asc', 'descending', 'desc', true, false];
+export type SortValues = typeof SupportedSortValues[number];
 
 // conditions
 export type Condition1 = any[];
@@ -79,12 +80,11 @@ export const LINEAR = "linear",
   LOG = "log",
   SYMLOG = "symlog";
 
-export type ScaleTransformType = typeof LINEAR
-  | typeof SQRT
-  | typeof POW
-  | typeof LOG
-  | typeof SYMLOG;
+export const SupportedScaleTypes = [
+  LINEAR, SQRT, POW, LOG, SYMLOG
+];
 
+export type ScaleTransformType = typeof SupportedScaleTypes[number];
 
 // sacle object
 export const KeyDomain = 'domain',

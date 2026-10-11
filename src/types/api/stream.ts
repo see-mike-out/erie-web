@@ -9,6 +9,7 @@ import {
   ToneObject,
   WaveObject
 } from "./tone";
+import { Notify } from "classes/erie-notify";
 
 export interface StreamObject {
   name?: string;
@@ -17,6 +18,8 @@ export interface StreamObject {
   data: DataObject;
   datasets?: DatasetObject[];
   transform?: TransformList;
+  skipTitle?: boolean,
+  skipDescription?: boolean,
 
   tone: ToneObject;
   encoding: { [key: string]: ChannelObject },
@@ -26,6 +29,7 @@ export interface StreamObject {
   tick?: TickObject[];
   wave?: WaveObject[];
 
+  notify?: { [key: string]: Notify };
   config?: ConfigInterface;
 }
 
@@ -36,6 +40,9 @@ export interface OverlayObject {
   data: DataObject;
   datasets?: DatasetObject[];
   transform?: TransformList;
+  skipTitle?: boolean;
+  skipDescription?: boolean;
+  skipLength?: boolean;
 
   overlay: StreamObject[];
 
@@ -44,14 +51,19 @@ export interface OverlayObject {
   tick?: TickObject[];
   wave?: WaveObject[];
 
+  notify?: { [key: string]: Notify };
   config?: ConfigInterface;
 }
 
-export interface SequenceObject {
-  name?: string;
-  title?: string;
-  description?: string;
-  data: DataObject;
+export type SequenceObject = {
+  name?: string,
+  title?: string,
+  skipTitle?: boolean,
+  description?: string,
+  skipDescription?: boolean,
+  skipLength?: boolean,
+
+  data?: DataObject;
   datasets?: DatasetObject[];
   transform?: TransformList;
 
@@ -62,5 +74,6 @@ export interface SequenceObject {
   tick?: TickObject[];
   wave?: WaveObject[];
 
+  notify?: { [key: string]: Notify };
   config?: ConfigInterface;
 }

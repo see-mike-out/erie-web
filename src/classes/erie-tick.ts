@@ -10,6 +10,10 @@ export class Tick {
   _oscType: OscType;
   _pitch: number;
   _loudness: number;
+  _band?: number;
+  _description?: string;
+  _sample?: string;
+  _instrument?: string;
 
   constructor(name: string) {
     if (name) this._name = name;
@@ -67,6 +71,26 @@ export class Tick {
     return this;
   }
 
+  band(b: number) {
+    this._band = b;
+    return this;
+  }
+
+  description(s: string) {
+    this._description = s;
+    return this;
+  }
+
+  sample(s: string) {
+    this._sample = s;
+    return this;
+  }
+
+  instrument(s: string) {
+    this._instrument = s;
+    return this;
+  }
+
   get(): TickObject {
     return {
       name: this._name,
@@ -85,6 +109,7 @@ export class Tick {
     _c.oscType(this._oscType);
     _c.pitch(this._pitch);
     _c.loudness(this._loudness);
+    _c.playAtTime0(this._playAtTime0);
     return _c;
   }
 }

@@ -1,8 +1,8 @@
 export const timeUnitDomainDefs = {
-  monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   monthNumber1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   monthShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-  monthLong: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  monthLong: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   dayNumber: [0, 1, 2, 3, 4, 5, 6],
   dayNumber1: [1, 2, 3, 4, 5, 6, 7],
   dayNumberFromMon: [6, 0, 1, 2, 3, 4, 5],
@@ -66,4 +66,33 @@ export interface TimeUnit {
   tempo?: number,
   rounding?: typeof TU_Always | typeof TU_Start | typeof TU_Never;
   roundingBy?: number;
+}
+
+export function isTimeUnit(o: Object): o is TimeUnit {
+  if (!('unit' in o)) {
+    return false;
+  } else {
+    if (o.unit !== TU_SEC && o.unit !== TU_BEAT) {
+      return false;
+    }
+  }
+  if ('tempo' in o) {
+    if (typeof o.tempo !== 'number') {
+      return false;
+    }
+  }
+  if ('rounding' in o) {
+    if (typeof o.rounding !== 'string') {
+      return false;
+    }
+    if (![TU_Always, TU_Start, TU_Never].includes(o.rounding)) {
+      return false;
+    }
+  }
+  if ('roundingBy' in o) {
+    if (typeof o.roundingBy !== 'number') {
+      return false;
+    }
+  }
+  return true;
 }

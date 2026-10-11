@@ -38,7 +38,7 @@ export class Playback {
 
   condition(i: string) {
     if (typeof i === 'string') {
-      this._unit = i;
+      this._condition = i;
     } else {
       console.error("A playback condition must be a string.");
     }

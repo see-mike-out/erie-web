@@ -18,9 +18,15 @@ export function generateQuantiles(
     let n = 25, step = 1 / 25;
     if (_n !== undefined) {
       n = _n;
+      if (n <= 0) {
+        throw new RangeError(`Divided by 0: ${_n}`)
+      }
       step = 1 / n;
     } else if (_step !== undefined && 0 < _step && _step < 1) {
       n = Math.round(1 / _step);
+      if (n <= 0) {
+        throw new RangeError(`Divided by 0: ${_step} => ${Math.round(1 / _step)}`)
+      }
       step = 1 / n;
     }
     let asName: [string, string] = _as ? [_as[0] ?? 'probability', _as[1] ?? 'value'] : ['probability', 'value'];

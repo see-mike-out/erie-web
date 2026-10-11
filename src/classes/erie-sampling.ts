@@ -31,7 +31,9 @@ export class SampledTone {
       } else if (k === "mono") {
         this._sample = { mono: s[k] };
       } else {
-        this._sample = {};
+        if (!this._sample || 'mono' in this._sample) {
+          this._sample = {};
+        }
         let ck = <keyof SamplingItem>k;
         this._sample[ck] = s[ck];
       }

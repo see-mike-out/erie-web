@@ -13,7 +13,7 @@ export class WaveTone {
   constructor(name: string, defs?: WaveItem) {
     this._name = name;
     if (!name) {
-      throw new Error('A sampled tone must have a name.')
+      throw new Error('A wave tone must have a name.')
     }
     this._disableNormalization = false;
     this._real = [];
@@ -40,11 +40,11 @@ export class WaveTone {
   }
 
   wave(w: WaveItem) {
-    if (w.real && w.imag) {
+    if (w.real && w.imag && w.real.length >= 2) {
       this.real(w.real);
       this.imag(w.imag);
     } else {
-      throw new TypeError('The definition a periodic wave must consist of "real" (sine terms) and "imag" (cosine terms) properties.');
+      throw new TypeError('The definition a periodic wave must consist of "real" (cosine terms) and "imag" (sine terms) properties.');
     }
 
     return this;

@@ -77,7 +77,7 @@ export function transformData(
       else if ('calculate' in transform && transform.calculate) {
         let groupby = ('groupby' in transform) ? transform.groupby ?? [] : [];
         if (groupby === GroupbyAuto) {
-          groupby = dimensions;
+          groupby = dimensions.filter((d) => table.columnNames().includes(d));
         }
         table = doCalculate(table, transform, groupby);
       }
@@ -150,14 +150,13 @@ export function orderArray(data: InternalData, orders: DataOrderingItem[]) {
       sortFunctions.push(sortFn);
     }
   }
-  sortFunctions.reverse()
   if (sortFunctions.length > 0) {
     outcome = data.toSorted((a: RecordObject, b: RecordObject) => {
       for (const fn of sortFunctions) {
         if (fn(a, b) > 0) return 1;
         else if (fn(a, b) < 0) return - 1;
       }
-      return 1;
+      return 0;
     });
   }
   return outcome || data;
