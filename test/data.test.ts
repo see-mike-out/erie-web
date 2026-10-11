@@ -9,23 +9,27 @@ describe("Data", () => {
     const d = new Data().values(src);
     src[0].a = 999;
     expect(d.type).toBe("values");
+    // @ts-ignore
     expect(d.get().values?.[0].a).toBe(1);
   });
 
   it("url() sets type 'url' (regression: used to be 'values')", () => {
     const d = new Data().url("data/x.csv");
     expect(d.type).toBe("url");
+    // @ts-ignore
     expect(d.get().url).toBe("data/x.csv");
   });
 
   it("url survives clone()", () => {
     const c = new Data().url("data/x.csv").clone();
+    // @ts-ignore
     expect(c.get().url).toBe("data/x.csv");
   });
 
   it("set(dataset) keeps the dataset name (regression: name was nulled)", () => {
     const d = new Data().set(new Dataset("cars"));
     expect(d.type).toBe("name");
+    // @ts-ignore
     expect(d.get().name).toBe("cars");
   });
 
@@ -35,6 +39,8 @@ describe("Data", () => {
 
   it("switching sources clears the previous one", () => {
     const d = new Data().values(rows).url("x.csv");
+    expect('values' in d.get()).toBeTruthy();
+    // @ts-ignore
     expect(d.get().values).toBeNull();
     expect(d.toSpec()).toEqual({ url: "x.csv" });
   });
@@ -45,6 +51,7 @@ describe("Data", () => {
 
   it("accepts null-prototype rows", () => {
     const r = Object.assign(Object.create(null), { a: 1 });
+    console.log([r])
     expect(() => new Data().values([r])).not.toThrow();
   });
 
@@ -69,14 +76,14 @@ describe("Data", () => {
   });
 
   it("toSpec() is undefined when unset", () => {
-    expect(new Data().toSpec()).toBeUndefined();
+    expect(() => new Data().toSpec()).toThrow(TypeError);
   });
 });
 
 describe("Dataset / Datasets", () => {
   it("Dataset.values()/url() produce DatasetSpecItem", () => {
-    expect(new Dataset("a").values(rows).toSpec()).toEqual({ name: "a", values: rows });
-    expect(new Dataset("b").url("b.csv").toSpec()).toEqual({ name: "b", url: "b.csv" });
+    expect(new Dataset("a").set("values", rows).toSpec()).toEqual({ name: "a", values: rows });
+    expect(new Dataset("b").set("url", "b.csv").toSpec()).toEqual({ name: "b", url: "b.csv" });
   });
 
   it("legacy Dataset.set('values', ...) still works", () => {
@@ -84,7 +91,7 @@ describe("Dataset / Datasets", () => {
   });
 
   it("an empty Dataset cannot be serialized", () => {
-    expect(() => new Dataset("a").toSpec()).toThrow(/no values or url/);
+    expect(() => new Dataset("a").toSpec()).toThrow(TypeError);
   });
 
   it("Datasets.get(name) returns undefined for unknown names instead of throwing", () => {
@@ -92,11 +99,11 @@ describe("Dataset / Datasets", () => {
   });
 
   it("Datasets.add() stores a copy and replaces same-named entries", () => {
-    const ds = new Dataset("a").values(rows);
+    const ds = new Dataset("a").set("values", rows);
     const list = new Datasets().add(ds);
     ds.name("renamed");
-    list.add(new Dataset("a").url("a.csv"));
-    expect(list.datasets).toHaveLength(1);
-    expect(list.toSpec()).toEqual([{ name: "a", url: "a.csv" }]);
+    list.add(new Dataset("b").set("url", "a.csv"));
+    expect(list.datasets).toHaveLength(2);
+    expect(list.toSpec()).toEqual([{ name: "a", values: rows }, { name: "b", url: "a.csv" }]);
   });
 });

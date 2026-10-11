@@ -51,22 +51,25 @@ export class Data {
     this._test = null;
   }
 
-  set(type: Dataset | DataType, v: any) {
+  set(type: Dataset | DataType, v?: any) {
     if (isInstanceOf(type, Dataset)) {
       this.reset();
       this.type = Name;
       this._name = (<Dataset>type)._name;
-    } else if (typeof type === 'string' && [Values, Url, Name, Streaming].includes(type)) {
+    } else if (typeof type === 'string' && [Values, Url, Name, Streaming].includes(type) && v !== undefined) {
       if (type === Values) {
         this.values(v);
       } else if (type === Url) {
-        this.values(v);
+        this.url(v);
       } else if (type === Name) {
         this._name = type;
         this.type = Name;
       } else if (type === Streaming) {
         this.streaming(v);
       }
+    } else if (typeof type === 'string' && !v) {
+      this.type = Name;
+      this._name = type;
     } else {
       throw new TypeError(`Unsupported data type ${type}.`)
     }
@@ -74,10 +77,11 @@ export class Data {
   }
 
   values(v: Datum[]) {
-    if (isArrayOf(v, Object)) {
+    let values = deepcopy(v);
+    if (isArrayOf(values, Object)) {
       this.reset();
       this.type = Values;
-      this._values = deepcopy(v);
+      this._values = values;
     } else {
       throw new TypeError("only tidy data can be provided.")
     }
@@ -96,23 +100,22 @@ export class Data {
   }
 
   streaming(test?: Datum[] | string) {
-    this.reset();
     this.type = Streaming;
-    this._name = null;
     this._streaming = true;
     if (typeof test === 'string') {
       this._test = { url: test };
     } else if (isArrayOf(test, Object)) {
       this._test = { values: deepcopy(test as Datum[]) };
-    } else if (this._url) {
+    } else if (!test && this._url) {
       // get from those already set
       this._test = { url: this._url }
-    } else if (this._values) {
+    } else if (!test && this._values) {
       // get from those already set
       this._test = { values: deepcopy(this._values) }
-    } else {
+    } else if (test !== undefined) {
       throw new TypeError("only string-based url or tidy data can be provided for the test data for streaming spec.")
     }
+    this._name = null;
     this._url = null;
     this._values = null;
     return this;
