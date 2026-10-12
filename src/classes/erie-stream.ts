@@ -55,6 +55,7 @@ import { DatasetObject } from "../types/api/data";
 import { intNotify, Notify } from "./erie-notify";
 import { Playback } from "./erie-playback";
 import { deepcopy, dropUndefined } from "../util";
+import { clearResources } from "./erie-util";
 
 export class Stream {
   _name?: string;
@@ -165,8 +166,16 @@ export class Stream {
     return g;
   }
 
-  toSpec(): SingleStreamSpec | UnitStreamSpec {
-    const data = this.data.toSpec();
+  addChannel(
+    channel_name: string,
+    channel: Channel
+  ) {
+    this.encoding[channel_name] = channel;
+    return this;
+  }
+
+  toSpec(is_part_of?: boolean): SingleStreamSpec | UnitStreamSpec {
+    const data = this.data.toSpec(is_part_of);
     if (data === undefined) throw new Error("Stream data is not set.");
     const o: any = {
       title: this._title,
@@ -184,10 +193,13 @@ export class Stream {
       wave: this.wave?.get(),
       config: this.config?.get()
     };
+    if (Object.keys(o.config).length == 0) {
+      delete o.config;
+    }
     o.encoding = {};
     Object.keys(this.encoding).forEach((chn) => {
       if (this.encoding[chn].defined) {
-        o.encoding[chn] = this.encoding[chn].clone();
+        o.encoding[chn] = this.encoding[chn].toSpec();
       }
     });
     if (this.isStreaming()) {
@@ -197,11 +209,11 @@ export class Stream {
     if (this.notify) {
       Object.keys(this.notify).forEach((key) => {
         if (this.notify?.[key]) {
-          o.notify[key] = this.notify[key].clone();
+          o.notify[key] = this.notify[key].get();
         }
       });
     }
-    return dropUndefined(o);
+    return dropUndefined(clearResources(o));
   }
 
   clone(): Stream {
@@ -218,7 +230,7 @@ export class Stream {
     _c.tone = this.tone.clone();
     _c.playback = this.playback?.clone();
     _c.notify = Object.keys(this.notify ?? {}).reduce((acc, curr) => {
-      if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+      if (this.notify?.[curr]) acc[curr] = this.notify?.[curr].clone();
       return acc;
     }, {} as { [key: string]: Notify });
     _c.encoding = {};

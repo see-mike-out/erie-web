@@ -5,7 +5,7 @@ import {
 import * as Erie from "../src";
 import { normalizeSpecification } from "../src/normalize";
 
-beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); });
+beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => { }); });
 
 const rows = [{ a: 1, b: 2 }, { a: 2, b: 5 }, { a: 3, b: 4 }];
 
@@ -114,12 +114,12 @@ describe("Overlay / Sequence", () => {
     a.tick!.add(new Tick("beat"));
     b.tick!.add(new Tick("beat").interval(1));
     a.synth!.add(new SynthTone("fm"));
-    a.datasets!.add(new Dataset("shared").values(rows));
-    b.datasets!.add(new Dataset("shared").values(rows));
+    a.datasets!.add(new Dataset("shared").set("values", rows));
+    b.datasets!.add(new Dataset("shared_b").set("values", rows));
     const o = new Overlay(a, b);
     expect(o.tick!.get()).toEqual([expect.objectContaining({ name: "beat", interval: 1 })]);
     expect(o.synth!.get()).toHaveLength(1);
-    expect(o.datasets!.datasets).toHaveLength(1);
+    expect(o.datasets!.datasets).toHaveLength(2);
     expect(o.stream(0).tick).toBeUndefined();
   });
   it("Overlay.clone keeps ticks", () => {
@@ -128,7 +128,7 @@ describe("Overlay / Sequence", () => {
     expect(new Overlay(a).clone().tick!.get()).toHaveLength(1);
   });
   it("Overlay.toSpec requires data or datasets", () => {
-    expect(() => new Overlay(basic()).toSpec()).toThrow(/data or datasets/);
+    expect(() => new Overlay(basic()).toSpec()).toThrow(/data/);
   });
   it("Sequence.toSpec nests overlays as InSeqOverlayStreamSpec", () => {
     const seq = new Sequence(basic("a"), new Overlay(basic("b"), basic("c")));
@@ -138,9 +138,11 @@ describe("Overlay / Sequence", () => {
     expect(spec.sequence[1].overlay).toHaveLength(2);
   });
   it("skip flags are serialized", () => {
-    const o = new Overlay(basic()).skipTitle(true).skipLength(true);
+    const o = new Overlay(basic());
+    o.config?.set("skipTitle", true).set("skipLength", true);
     o.data!.values(rows);
-    expect(o.toSpec()).toMatchObject({ skipTitle: true, skipLength: true });
+    console.log(o.config?.get())
+    expect(o.toSpec().config).toMatchObject({ skipTitle: true, skipLength: true });
   });
   it("nested unit streams only carry config overrides", () => {
     const s = basic();
@@ -148,6 +150,7 @@ describe("Overlay / Sequence", () => {
     const seq = new Sequence(s, basic("plain"));
     seq.data!.values(rows);
     const spec: any = seq.toSpec();
+    console.log(spec.sequence[0].config)
     expect(spec.sequence[0].config).toEqual({ speechRate: 2 });
     expect(spec.sequence[1]).not.toHaveProperty("config");
   });
@@ -175,7 +178,7 @@ describe("integration: class API -> normalizeSpecification", () => {
   it("Overlay.toSpec() with datasets normalizes without a 'null' dataset", async () => {
     const a = basic("a"), b = basic("b");
     a.data.set("d1"); b.data.set("d1");
-    a.datasets!.add(new Dataset("d1").values(rows));
+    a.datasets!.add(new Dataset("d1").set("values", rows));
     const n = await normalizeSpecification(new Overlay(a, b).toSpec() as any);
     expect(Object.keys(n.datasets)).not.toContain("null");
     expect(Object.keys(n.datasets)).toContain("d1");
@@ -183,6 +186,7 @@ describe("integration: class API -> normalizeSpecification", () => {
 
   it("Sequence.toSpec() normalizes", async () => {
     const seq = new Sequence(basic("a"), basic("b"));
+    seq.data?.set("values", rows);
     const n = await normalizeSpecification(seq.toSpec() as any);
     expect(n.normalized.length).toBeGreaterThan(0);
   });

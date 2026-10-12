@@ -51,7 +51,7 @@ export class Data {
     this._test = null;
   }
 
-  set(type: Dataset | DataType, v?: any) {
+  set(type: Dataset | DataType | string, v?: any) {
     if (isInstanceOf(type, Dataset)) {
       this.reset();
       this.type = Name;
@@ -140,7 +140,7 @@ export class Data {
     }
   }
 
-  toSpec(): DataSpec | StreamingDataSpec {
+  toSpec(is_part_of?: boolean): DataSpec | StreamingDataSpec | undefined {
     if (this.type === Values && this._values) {
       return {
         values: deepcopy(this._values)
@@ -161,6 +161,8 @@ export class Data {
         o.test = deepcopy(this._test);
       }
       return o;
+    } else if (is_part_of !== undefined) {
+      return undefined
     } else {
       throw new TypeError("The data is unset.")
     }
@@ -225,6 +227,10 @@ export class Datasets {
 
   toSpec(): DatasetSpecItem[] {
     return this.datasets.map(d => d.toSpec());
+  }
+
+  get n_datasets(): number {
+    return this.datasets.length;
   }
 }
 

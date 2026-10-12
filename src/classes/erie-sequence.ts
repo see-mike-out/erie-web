@@ -1,6 +1,7 @@
 import { Stream } from "./erie-stream";
 import { Overlay } from "./erie-overlay";
 import {
+  clearResources,
   isArrayOf,
   isInstanceOf
 } from "./erie-util";
@@ -21,7 +22,7 @@ import {
 } from "../types/api/data";
 import { Notify } from "./erie-notify";
 import { deepcopy, dropUndefined } from "../util";
-import { DataSpec, SequenceStreamSpec, SequenceStreamSpec1, SequenceStreamSpec2 } from "types";
+import { DataSpec, SequenceStreamSpec, SequenceStreamSpec1, SequenceStreamSpec2 } from "../types";
 
 
 export class Sequence {
@@ -62,6 +63,8 @@ export class Sequence {
       this.addStreams(args[0])
     } else if (isArrayOf(args, [Stream, Overlay])) {
       this.addStreams(args)
+    } else {
+      throw new TypeError("Wrong stream types.")
     }
   }
 
@@ -151,6 +154,19 @@ export class Sequence {
         }
       }
       delete clone.wave;
+
+      // config
+      let cloned_config = clone.config?.get() ?? {};
+      if (cloned_config && Object.keys(cloned_config).length > 0) {
+        for (const ckey in cloned_config) {
+          // keey only inconsistent
+          if (this.config?.get(ckey) === cloned_config[ckey]) {
+            clone.config?.set(ckey, undefined);
+          }
+        }
+      }
+
+      // add
       this.sequence.push(clone);
     } else {
       throw new TypeError("Wrong item to add into a sequence.")
@@ -192,8 +208,8 @@ export class Sequence {
   }
 
   toSpec(): SequenceStreamSpec {
-    if (this.datasets?.toSpec()) {
-      const o: SequenceStreamSpec2 = {
+    if (this.datasets?.toSpec() && this.datasets?.n_datasets > 0) {
+      const o: SequenceStreamSpec2 = clearResources({
         name: this._name,
         title: this._title,
         description: this._description,
@@ -206,35 +222,35 @@ export class Sequence {
         synth: this.synth?.get(),
         sampling: this.sampling?.get(),
         wave: this.wave?.get(),
-        sequence: this.sequence.map((d) => d.toSpec()),
+        sequence: this.sequence.map((d) => d.toSpec(true)),
         config: this.config?.get(),
         notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
           if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
           return acc;
         }, {} as { [key: string]: Notify })
-      };
+      });
       return dropUndefined(o);
     } else {
-      const o: SequenceStreamSpec1 = {
+      const o: SequenceStreamSpec1 = clearResources({
         name: this._name,
         title: this._title,
         description: this._description,
         skipTitle: this._skipTitle,
         skipDescription: this._skipDescription,
         skipLength: this._skipLength,
-        data: this.data?.toSpec() as DataSpec,
+        data: this.data?.toSpec() as DataSpec ?? undefined,
         transform: this.transform?.get(),
         tick: this.tick?.get(),
         synth: this.synth?.get(),
         sampling: this.sampling?.get(),
         wave: this.wave?.get(),
-        sequence: this.sequence.map((d) => d.toSpec()),
+        sequence: this.sequence.map((d) => d.toSpec(true && this.data?.toSpec() !== undefined)),
         config: this.config?.get(),
         notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
           if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
           return acc;
         }, {} as { [key: string]: Notify })
-      };
+      });
       return dropUndefined(o);
     }
   }

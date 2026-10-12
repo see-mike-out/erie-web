@@ -1,3 +1,5 @@
+import { TopLevelSpec } from "../types";
+
 export function isInstanceOf(o: any, c: any, strict?: boolean): boolean {
   // @strict: only for objects
   if (o === undefined && c === undefined) {
@@ -37,4 +39,17 @@ export function parseGroupby(...args: any) {
   } else {
     throw new TypeError("Unsupported groupby value.")
   }
+}
+
+// @ts-ignore
+const ResourceKeys: Array<keyof TopLevelSpec> = ["tick", "synth", "sampling", "wave", "transform", "datasets"];
+export function clearResources<T extends TopLevelSpec>(spec: T): T {
+  for (const k of ResourceKeys) {
+    if (k in spec) {
+      if (spec[k]?.length == 0) {
+        delete spec[k];
+      }
+    }
+  }
+  return spec;
 }

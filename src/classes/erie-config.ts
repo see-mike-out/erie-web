@@ -1,26 +1,29 @@
 import {
   isInstanceOf
 } from "./erie-util";
-import { deepcopy } from "../util";
+import { deepcopy, dropUndefined } from "../util";
 import { ConfigInterface, isTimeUnit } from "../types";
 
 export class Config {
   _config: ConfigInterface = {};
   constructor() {
     this._config = {
-      speechRate: 1.75,
-      skipScaleSpeech: false,
-      skipDescription: false,
-      skipTitle: false,
-      overlayScaleConsistency: true,
-      forceOverlayScaleConsistency: false,
-      sequenceScaleConsistency: true,
-      forceSequenceScaleConsistency: false
+      // speechRate: 1.75,
+      // skipScaleSpeech: false,
+      // skipDescription: false,
+      // skipTitle: false,
+      // skipLength: false,
+      // overlayScaleConsistency: true,
+      // forceOverlayScaleConsistency: false,
+      // sequenceScaleConsistency: true,
+      // forceSequenceScaleConsistency: false
     };
   }
 
   set(k: keyof ConfigInterface, v: any) {
-    if (configValidator(k, v)) {
+    if (v === undefined) {
+      delete this._config[k];
+    } else if (configValidator(k, v)) {
       this._config[k] = v;
     } else {
       throw TypeError(`Wrong value type for ${k}.`);
@@ -29,8 +32,12 @@ export class Config {
     return this;
   }
 
-  get() {
-    return deepcopy(this._config);
+  get(k?: keyof ConfigInterface) {
+    if (k) {
+      return this._config[k];
+    } else {
+      return dropUndefined(deepcopy(this._config));
+    }
   }
 
   clone(): Config {

@@ -9,6 +9,7 @@ import { Stream } from "./erie-stream";
 import { TickList } from "./erie-tick";
 import { Transform } from "./erie-transform";
 import {
+  clearResources,
   isArrayOf,
   isInstanceOf
 } from "./erie-util";
@@ -62,6 +63,8 @@ export class Overlay {
       this.addStreams(args[0])
     } else if (isArrayOf(args, Stream)) {
       this.addStreams(args)
+    } else {
+      throw new TypeError("Wrong stream types.")
     }
   }
 
@@ -147,6 +150,18 @@ export class Overlay {
         }
       }
       delete clone.wave;
+
+      // config
+      let cloned_config = clone.config?.get() ?? {};
+      if (cloned_config && Object.keys(cloned_config).length > 0) {
+        for (const ckey in cloned_config) {
+          // keey only inconsistent
+          if (this.config?.get(ckey) === cloned_config[ckey]) {
+            clone.config?.set(ckey, undefined);
+          }
+        }
+      }
+
       this.overlay.push(clone);
     } else {
       throw new TypeError("Wrong item to add into a sequence.")
@@ -189,9 +204,9 @@ export class Overlay {
     return g;
   }
 
-  toSpec(): OverlayStreamSpec {
-    if (this.datasets?.toSpec()) {
-      const o: OverlayStreamSpec2 = {
+  toSpec(is_part_of?: boolean): OverlayStreamSpec {
+    if (this.datasets?.toSpec() && this.datasets?.n_datasets > 0) {
+      const o: OverlayStreamSpec2 = clearResources({
         name: this._name,
         title: this._title,
         description: this._description,
@@ -210,17 +225,17 @@ export class Overlay {
           if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
           return acc;
         }, {} as { [key: string]: Notify })
-      };
+      });
       return dropUndefined(o);
     } else {
-      const o: OverlayStreamSpec1 = {
+      const o: OverlayStreamSpec1 = clearResources({
         name: this._name,
         title: this._title,
         description: this._description,
         skipTitle: this._skipTitle,
         skipDescription: this._skipDescription,
         skipLength: this._skipLength,
-        data: this.data?.toSpec() as DataSpec,
+        data: this.data?.toSpec(is_part_of) as DataSpec ?? undefined,
         transform: this.transform?.get(),
         tick: this.tick?.get(),
         synth: this.synth?.get(),
@@ -232,7 +247,7 @@ export class Overlay {
           if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
           return acc;
         }, {} as { [key: string]: Notify })
-      };
+      });
       return dropUndefined(o);
     }
   }

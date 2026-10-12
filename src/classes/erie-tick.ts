@@ -123,7 +123,12 @@ export class TickList {
   }
 
   add(a: Tick) {
-    this.tick.push(a);
+    let i = this.tick.findIndex(d => d._name === a._name);
+    if (i >= 0) {
+      this.tick[i] = a;
+    } else {
+      this.tick.push(a);
+    }
     return this;
   }
 

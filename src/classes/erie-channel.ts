@@ -149,7 +149,7 @@ export class Channel {
       (this as any)[ck] = v === undefined ? v : deepcopy(v);
     }
   }
-  field(f: string | string[] | undefined, t: EncodingType | undefined) {
+  field(f: string | string[] | undefined, t?: EncodingType | undefined) {
     if (f === undefined) {
       this._field = undefined;
     } else if (isInstanceOf(f, String)) {
