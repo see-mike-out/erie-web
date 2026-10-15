@@ -1,8 +1,5 @@
 import { expect, test } from 'vitest';
-import { normalizeSpecification } from '../src/normalize';
-import type { TopLevelSpec } from '../src/types';
-import { compileAudioGraph } from '../src/audio-graph';
-import { SequenceStream, UnitStream } from 'compile';
+import { compileAudioGraph, type TopLevelSpec, normalizeSpecification, SequenceStream, UnitStream, genRid } from '../src';
 
 
 // Case 1: Basic Loudness Mapping
@@ -18,7 +15,7 @@ test("normalize loudness with basic field and type", async () => {
       }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
+  const { normalized } = await normalizeSpecification(genRid(), spec);
   const sequence = await compileAudioGraph(spec, {}) as SequenceStream;
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
@@ -44,7 +41,7 @@ test("normalize loudness with custom domain and range", async () => {
       }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
+  const { normalized } = await normalizeSpecification(genRid(), spec);
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
     expect(normalized[0].stream.encoding?.loudness?.scale?.domain).toEqual([0, 7000]);
@@ -68,7 +65,7 @@ test("normalize loudness with over-range values", async () => {
       }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
+  const { normalized } = await normalizeSpecification(genRid(), spec);
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
     expect(normalized[0].stream.encoding?.loudness?.scale?.range instanceof Array).toBe(true);
@@ -92,7 +89,7 @@ test("normalize loudness with omitted scale infers defaults", async () => {
     }
   };
   const sequence = await compileAudioGraph(spec, {}) as SequenceStream;
-  const { normalized, scaleDefinitions } = await normalizeSpecification(spec);
+  const { normalized, scaleDefinitions } = await normalizeSpecification(genRid(), spec);
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
     expect((sequence.streams[0] as UnitStream)?.scales?.loudness?.properties?.range).toEqual([0, 1]); // default
@@ -108,7 +105,7 @@ test("normalize loudness with fixed constant value", async () => {
       loudness: { value: 0.75 }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
+  const { normalized } = await normalizeSpecification(genRid(), spec);
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
     expect(normalized[0].stream.encoding?.loudness.value).toBe(0.75);
@@ -131,7 +128,7 @@ test("normalize loudness with zero gain", async () => {
       }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
+  const { normalized } = await normalizeSpecification(genRid(), spec);
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
     expect(normalized[0].stream.encoding?.loudness?.field).toBe("Body Mass (g)");
@@ -150,7 +147,7 @@ test("normalize loudness with minimal spec", async () => {
       }
     }
   };
-  const { normalized } = await normalizeSpecification(spec);
+  const { normalized } = await normalizeSpecification(genRid(), spec);
   expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
   if ('stream' in normalized[0]) {
     expect(normalized[0].stream.encoding?.loudness?.field).toBe("Body Mass (g)");

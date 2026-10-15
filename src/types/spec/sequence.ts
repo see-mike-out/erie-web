@@ -5,7 +5,7 @@ import {
   DataSpec
 } from "./data"
 import { InSeqOverlayStreamSpec } from "./overlay"
-import { UnitStreamSpec } from "./unit-stream"
+import { UnitStreamSpec, UnitStreamSpecPart } from "./unit-stream"
 import {
   SampledToneSpec,
   WaveSpec
@@ -25,7 +25,7 @@ export type SequenceStreamSpec1 = {
 
   data?: DataSpec,
   transform?: TransformListSpec,
-  sequence: Array<UnitStreamSpec | InSeqOverlayStreamSpec>,
+  sequence: Array<UnitStreamSpecPart | InSeqOverlayStreamSpec>,
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
@@ -45,7 +45,7 @@ export type SequenceStreamSpec2 = {
 
   datasets: DatasetSpecItem[]
   transform?: TransformListSpec,
-  sequence: Array<UnitStreamSpec | InSeqOverlayStreamSpec>,
+  sequence: Array<UnitStreamSpecPart | InSeqOverlayStreamSpec>,
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],

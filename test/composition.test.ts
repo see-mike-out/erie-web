@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  Stream, Overlay, Sequence, Dataset, Tick, SynthTone, Bin, Notify
-} from "../src/classes";
+  Stream, Overlay, Sequence, Dataset, Tick, SynthTone, Bin, Notify, normalizeSpecification
+} from "../src";
 import * as Erie from "../src";
-import { normalizeSpecification } from "../src/normalize";
 
 beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => { }); });
 
@@ -156,12 +155,12 @@ describe("Overlay / Sequence", () => {
 
 describe("integration: class API -> normalizeSpecification", () => {
   it("get() output loses the data (documents the original bug)", async () => {
-    const n = await normalizeSpecification(basic().get() as any);
+    const n = await normalizeSpecification(Erie.genRid(), basic().get() as any);
     expect(Object.keys(n.datasets)).toHaveLength(0);
   });
 
   it("Stream.toSpec() keeps the data", async () => {
-    const n = await normalizeSpecification(basic().toSpec() as any);
+    const n = await normalizeSpecification(Erie.genRid(), basic().toSpec() as any);
     const ds = Object.values(n.datasets) as any[];
     expect(ds).toHaveLength(1);
     expect(ds[0].values).toEqual(rows);
@@ -170,14 +169,14 @@ describe("integration: class API -> normalizeSpecification", () => {
   it("Stream.toSpec() with a transform normalizes", async () => {
     const s = basic();
     s.transform!.add(new Bin("b"));
-    await expect(normalizeSpecification(s.toSpec() as any)).resolves.toBeDefined();
+    await expect(normalizeSpecification(Erie.genRid(), s.toSpec() as any)).resolves.toBeDefined();
   });
 
   it("Overlay.toSpec() with datasets normalizes without a 'null' dataset", async () => {
     const a = basic("a"), b = basic("b");
     a.data.set("d1"); b.data.set("d1");
     a.datasets!.add(new Dataset("d1").set("values", rows));
-    const n = await normalizeSpecification(new Overlay(a, b).toSpec() as any);
+    const n = await normalizeSpecification(Erie.genRid(), new Overlay(a, b).toSpec() as any);
     expect(Object.keys(n.datasets)).not.toContain("null");
     expect(Object.keys(n.datasets)).toContain("d1");
   });
@@ -185,7 +184,7 @@ describe("integration: class API -> normalizeSpecification", () => {
   it("Sequence.toSpec() normalizes", async () => {
     const seq = new Sequence(basic("a"), basic("b"));
     seq.data?.set("values", rows);
-    const n = await normalizeSpecification(seq.toSpec() as any);
+    const n = await normalizeSpecification(Erie.genRid(), seq.toSpec() as any);
     expect(n.normalized.length).toBeGreaterThan(0);
   });
 });

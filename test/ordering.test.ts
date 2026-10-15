@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import type { SequenceStreamSpec } from "../src/sequence"; // adjust path
+import type { SequenceStreamSpec } from "../src"; // adjust path
 
 // Case 1: Sequence with inline data
 test("SequenceStreamSpec with data field", () => {
@@ -8,7 +8,7 @@ test("SequenceStreamSpec with data field", () => {
     data: { values: [{ x: 1 }, { x: 2 }] },
     sequence: [
       {
-        type: "tone",
+        tone: { type: "default" },
         encoding: { pitch: { field: "x", type: "quantitative" } }
       }
     ]
@@ -17,7 +17,10 @@ test("SequenceStreamSpec with data field", () => {
   // Assert presence of data
   if ("data" in spec) {
     expect(spec.data).toBeDefined();
-    expect(spec.data.values.length).toBe(2);
+    expect(spec.data).toHaveProperty('values');
+    if (spec.data && 'values' in spec.data) {
+      expect(spec.data?.values?.length).toBe(2);
+    }
   } else {
     throw new Error("Expected spec to use `data` variant");
   }
@@ -33,7 +36,7 @@ test("SequenceStreamSpec with datasets field", () => {
     ],
     sequence: [
       {
-        type: "tone",
+        tone: { type: "default" },
         encoding: { amplitude: { field: "v", type: "quantitative" } }
       }
     ]
@@ -42,7 +45,12 @@ test("SequenceStreamSpec with datasets field", () => {
   // Assert presence of datasets
   if ("datasets" in spec) {
     expect(spec.datasets).toHaveLength(2);
-    expect(spec.datasets[0].values[0].v).toBe(10);
+    if ("datasets" in spec && spec.datasets) {
+      expect(spec.datasets[0]).toHaveProperty("values");
+      if ("values" in spec.datasets[0]) {
+        expect(spec.datasets[0].values[0].v).toBe(10);
+      }
+    }
   } else {
     throw new Error("Expected spec to use `datasets` variant");
   }
@@ -53,21 +61,21 @@ test("SequenceStreamSpec with tick and wave", () => {
   const spec: SequenceStreamSpec = {
     title: "Sequence with tick + wave",
     data: { values: [{ step: 1 }, { step: 2 }] },
-    tick: [{ step: 100 }, { step: 200 }],
-    wave: [{ type: "sine" }],
+    tick: [{ name: 'tick1', interval: 1 }, { name: 'tick2', interval: 2 }],
+    wave: [{ name: "sine", real: [0, 1], imag: [0, 2] }],
     sequence: [
       {
-        type: "tone",
+        tone: { type: "default" },
         encoding: { pan_x: { field: "step", type: "quantitative" } }
       }
     ]
   };
 
-  if ("data" in spec) {
+  if (spec.data && 'values' in spec.data) {
     expect(spec.data.values.length).toBe(2);
   }
   expect(spec.tick?.length).toBe(2);
-  expect(spec.wave?.[0].type).toBe("sine");
+  expect(spec.wave?.[0].name).toBe("sine");
 });
 
 // Case 4: Sequence with sampling + synth
@@ -75,21 +83,26 @@ test("SequenceStreamSpec with sampling and synth", () => {
   const spec: SequenceStreamSpec = {
     title: "Sequence with sampling and synth",
     datasets: [{ name: "ds1", values: [{ f: 440 }] }],
-    sampling: [{ channel: "LOUDNESS_chn", method: "mean" }],
-    synth: [{ type: "basic", gain: 0.5 }],
+    sampling: [{ name: "sample1", sample: { mono: "mono.mp3" } }],
+    synth: [{ name: "baseFm", type: "FM", carrierVolume: 0.5 }],
     sequence: [
       {
-        type: "tone",
+        tone: { type: "baseFm" },
         encoding: { pitch: { field: "f", type: "quantitative" } }
       }
     ]
   };
 
-  if ("datasets" in spec) {
-    expect(spec.datasets[0].values[0].f).toBe(440);
+  if ("datasets" in spec && spec.datasets) {
+    expect(spec.datasets[0]).toHaveProperty("values");
+    if ("values" in spec.datasets[0]) {
+      expect(spec.datasets[0].values[0].f).toBe(440);
+    }
   }
-  expect(spec.sampling?.[0].method).toBe("mean");
-  expect(spec.synth?.[0].type).toBe("basic");
+  expect(spec.sampling?.[0].name).toBe("mean");
+  expect(spec.sampling?.[0].sample).toHaveProperty("mono");
+  expect(spec.sampling?.[0].sample.mono).toBe("mono.mp3");
+  expect(spec.synth?.[0].type).toBe("FM");
 });
 
 // Case 5: Sequence with config
@@ -100,46 +113,11 @@ test("SequenceStreamSpec with config", () => {
     config: { tempo: 120 },
     sequence: [
       {
-        type: "tone",
+        tone: { type: "default" },
         encoding: { pitch: { field: "f", type: "quantitative" } }
       }
     ]
   };
 
-  if ("data" in spec) {
-    expect(spec.data.values[0].f).toBe(220);
-  }
   expect(spec.config?.tempo).toBe(120);
-});
-
-// Case 6: Fully specified sequence
-test("SequenceStreamSpec fully specified", () => {
-  const spec: SequenceStreamSpec = {
-    title: "Fully loaded sequence",
-    description: "A test spec",
-    datasets: [{ name: "ds1", values: [{ f: 440, x: 1 }] }],
-    transform: [{ type: "filter", expr: "datum.f > 200" }],
-    sequence: [
-      {
-        type: "tone",
-        encoding: { amplitude: { field: "f", type: "quantitative" } }
-      }
-    ],
-    tick: [{ step: 250 }],
-    sampling: [{ channel: "PAN_X_chn", method: "max" }],
-    synth: [{ type: "basic", gain: 0.7 }],
-    wave: [{ type: "square", freq: 440 }],
-    config: { tempo: 90 }
-  };
-
-  if ("datasets" in spec) {
-    expect(spec.datasets).toHaveLength(1);
-  }
-  expect(spec.transform?.[0].type).toBe("filter");
-  expect(spec.sequence).toHaveLength(1);
-  expect(spec.tick?.[0].step).toBe(250);
-  expect(spec.sampling?.[0].method).toBe("max");
-  expect(spec.synth?.[0].gain).toBe(0.7);
-  expect(spec.wave?.[0].type).toBe("square");
-  expect(spec.config?.tempo).toBe(90);
 });

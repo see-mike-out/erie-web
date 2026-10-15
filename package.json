@@ -2,7 +2,7 @@
   "name": "erie-web",
   "version": "1.0.1",
   "description": "A declarative grammar for data sonification for web",
-  "main": "dist/index.js",
+  "main": "dist/erie-web-node.js",
   "module": "src/index.ts",
   "types": "dist/src/index.d.ts",
   "unpkg": "build/erie-web.min.js",
@@ -10,9 +10,13 @@
   "browser": {
     "build/erie-web.min.js": "build/erie-web-umd.min.js"
   },
+  "exports": {
+    "node": "./build/erie-web-node.js",
+    "default": "./build/erie-web.js"
+  },
   "scripts": {
     "test": "vitest",
-    "build": "rm -rf dist & tsc  --project tsconfig.build.json && rollup -c && scripts/post_build.sh"
+    "build": "rm -rf dist && tsc  --project tsconfig.build.json && rollup -c && scripts/post_build.sh"
   },
   "repository": {
     "type": "git",
@@ -35,17 +39,12 @@
     "@types/d3": "^7.4.3",
     "@types/node": "^20.0.0",
     "@types/vega": "^0.0.30",
-    "standardized-audio-context": "^25.3.64",
     "typescript": "^5.6.3",
     "vitest": "^4.1.11"
   },
   "dependencies": {
     "arquero": "^5.2.0",
     "d3": "^7.8.4",
-    "esm-wallaby": "^3.2.29",
-    "grpc-web": "^1.5.0",
-    "moment": "^2.29.4",
-    "tone": "^14.7.77",
     "vega": "^6.4.0"
   },
   "esm": {

@@ -1,7 +1,6 @@
 // sum.test.js
-import { expect, test } from 'vitest'
-import { StreamingSpec } from '../src';
-import { normalizeSpecification } from '../src/normalize';
+import { test } from 'vitest'
+import { genRid, StreamingSpec, normalizeSpecification } from '../src';
 
 test('normalize streaming spec', async () => {
   let test_spec: StreamingSpec = {
@@ -35,5 +34,5 @@ test('normalize streaming spec', async () => {
       }
     }
   }
-  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(test_spec);
+  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(genRid(), test_spec);
 })

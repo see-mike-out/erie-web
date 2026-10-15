@@ -1,9 +1,6 @@
 import { test, expect, describe } from 'vitest';
-import { normalizeSpecification } from '../src/normalize';
 import { createPanner } from '../src/player/audio-graph-panner';
-import { compileAudioGraph, type StreamingSpec, type TopLevelSpec } from '../src';
-import type { NormalizedSingleStreamItem, StreamingStream } from '../src';
-import { PannerNode } from 'standardized-audio-context';
+import { normalizeSpecification, NormalizedSingleStreamItem, StreamingStream, compileAudioGraph, type StreamingSpec, type TopLevelSpec, genRid } from '../src';
 
 function makeStreamSpec(encoding: any, values = [
   { year: 2020, revenue: 500, location: 'NY' },
@@ -29,7 +26,7 @@ describe('3D Cartesian Panning', () => {
       panZ: { field: 'location', type: 'ordinal', scale: { domain: ['NY', 'CA', 'TX'], range: [-1, 0, 1] } }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
 
@@ -56,7 +53,7 @@ describe('3D Angular Panning', () => {
       panRadius: { field: 'location', type: 'ordinal', scale: { domain: ['NY', 'CA', 'TX'], range: [0, 0.5, 1] } }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const enc = (normalized[0] as NormalizedSingleStreamItem).stream.encoding;
 
     expect(enc.panAzimuth.scale?.range instanceof Array).toBe(true);
@@ -86,7 +83,7 @@ describe('Coordinate Conflict Resolution', () => {
       panRadius: { field: 'location', type: 'ordinal' }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const enc = (normalized[0] as NormalizedSingleStreamItem).stream.encoding;
 
     expect(enc.panX).toBeDefined();
@@ -109,7 +106,7 @@ describe('Coordinate Range Validation', () => {
 
     spec.tone.continued = true;
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const compiled = await compileAudioGraph(spec, {}) as StreamingStream;
     const enc = (normalized[0] as NormalizedSingleStreamItem).stream.encoding;
 
@@ -174,7 +171,7 @@ describe('3D Panner Settings', () => {
         }
       };
 
-      const { normalized } = await normalizeSpecification(spec);
+      const { normalized } = await normalizeSpecification(genRid(), spec);
       const enc = (normalized[0] as NormalizedSingleStreamItem).stream.encoding;
       expect(enc.panX.field).toBe('x');
       expect(enc.panY.field).toBe('y');

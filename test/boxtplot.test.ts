@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import * as aq from "arquero";
 const fromTidy = aq.from;
 import { makeBoxPlotTable } from "../src/data/audio-graph-transform-boxplot";
-import { Datum } from '../src/types';
+import { Datum } from '../src';
 
 test("Boxplot", async () => {
   let table = fromTidy([

@@ -1,6 +1,6 @@
 // sum.test.js
 import { expect, test } from 'vitest'
-import { makeQuantitativeScaleFunction } from '../src/scale/audio-graph-scale-quant';
+import { makeQuantitativeScaleFunction } from '../src';
 
 test('quantitative scale function', () => {
   let scaleInfo = {

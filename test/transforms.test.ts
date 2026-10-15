@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   Aggregate, Bin, Boxplot, Calculate, Density, Diffing, Filter, Fold, Quantile, Transform
-} from "../src/classes";
+} from "../src";
 
 beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => { }); });
 

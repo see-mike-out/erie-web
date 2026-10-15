@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Data, Dataset, Datasets } from "../src/classes";
+import { Data, Dataset, Datasets } from "../src";
 
 const rows = [{ a: 1, b: 2 }, { a: 2, b: 3 }];
 

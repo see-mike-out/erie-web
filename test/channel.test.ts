@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   Channel, PitchChannel, TimeChannel, TapSpeedChannel, RepeatChannel,
   LoudnessChannel, PanChannel, DetuneChannel, Tick
-} from "../src/classes";
+} from "../src";
 
 beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); });
 

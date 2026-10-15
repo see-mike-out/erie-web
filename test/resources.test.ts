@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   Tick, TickList, SampledTone, Sampling, SynthTone, WaveTone, Tone, Notify, intNotify, Playback, Config
-} from "../src/classes";
+} from "../src";
 
 beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); vi.spyOn(console, "error").mockImplementation(() => {}); });
 

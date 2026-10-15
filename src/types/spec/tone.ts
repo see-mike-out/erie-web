@@ -18,7 +18,7 @@ export interface SampledToneSpec {
 
 export interface WaveSpec {
   name: string
-  disableNormalization: boolean;
+  disableNormalization?: boolean;
   real: number[];
   imag: number[];
 }

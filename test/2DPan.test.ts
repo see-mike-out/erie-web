@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { makeQuantitativeScaleFunction } from '../src/scale/audio-graph-scale-quant';
-import { PAN_X_chn, ParsedScaleDefinition } from '../src/types';
+import { PAN_X_chn, ParsedScaleDefinition } from '../src';
 
 test('Quantitative Scale Function Test', () => {
   const encoding: ParsedScaleDefinition = {

@@ -14,7 +14,7 @@ export interface SynthSpec {
   modulatorPitch?: number;
   modulatorVolume?: number;
   modulation?: number;
-  harmonicity: number;
+  harmonicity?: number;
   attackTime?: number;
   releaseTime?: number;
   sustain?: number;
