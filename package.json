@@ -1,6 +1,6 @@
 {
   "name": "erie-web",
-  "version": "1.0.1",
+  "version": "1.0.2a",
   "description": "A declarative grammar for data sonification for web",
   "main": "dist/erie-web-node.js",
   "module": "src/index.ts",
