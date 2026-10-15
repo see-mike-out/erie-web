@@ -32,6 +32,7 @@ export class OverlayStream {
   synths: HashedObject<SynthNormed>;
   samplings: HashedObject<SampledToneNormed>;
   waves: HashedObject<WaveNormed>;
+  player_id!: string;
 
   constructor(id: string) {
     this.id = id;
@@ -87,8 +88,15 @@ export class OverlayStream {
     });
   }
 
+  setPlayerId(id: string) {
+    this.player_id = id;
+    this.overlays.forEach((s) => {
+      s.setPlayerId(id);
+    })
+  }
+
   async prerender(subpart?: boolean) {
-    this.queue = new AudioGraphQueue();
+    this.queue = new AudioGraphQueue(this.player_id);
 
     this.queue.setSampling(this.samplings);
     this.queue.setSynths(this.synths);
@@ -118,7 +126,7 @@ export class OverlayStream {
         let titles_queues = [], scales_queues = [], scale_count = 0;
         for (const stream of this.overlays) {
 
-          let title_queue = new AudioGraphQueue();
+          let title_queue = new AudioGraphQueue(this.player_id);
 
           if ((stream.title || stream.name) && !stream.config.skipTitle) {
             title_queue.add(TextType, 0, { speech: `The ${toOrdinalNumbers(oi)} overlay stream is about ${(stream.title || stream.name)}. `, speechRate: this.config?.speechRate }, stream.config);
@@ -130,7 +138,7 @@ export class OverlayStream {
 
           let scale_text = stream.make_scale_text().filter((d) => d).map(d => d.description as CompressedPreGraphItem);
           if (!stream.config.skipScaleSpeech && scale_text.length > 0) {
-            let scales_queue = new AudioGraphQueue()
+            let scales_queue = new AudioGraphQueue(this.player_id)
             scales_queue.add(TextType, 0, { speech: `This stream has the following sound mappings. `, speechRate: this.config?.speechRate }, stream.config);
             scales_queue.addMulti(scale_text, { ...stream.config, tick: null });
             scale_count++;
@@ -160,8 +168,8 @@ export class OverlayStream {
     }
 
     this.queue.add(ToneOverlaySeries, 0,
-      { overlays }, 
-      {...this.config}
+      { overlays },
+      { ...this.config }
     );
 
     this.prerendered = true;

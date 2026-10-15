@@ -1,6 +1,5 @@
 import {
   Datum,
-  DataObject,
   DatasetObject,
   DataObject_Typed,
   DatasetSpecItem,
@@ -13,17 +12,16 @@ import {
   isInstanceOf
 } from "./erie-util";
 
-export const Values = 'values',
+const Values = 'values',
   Url = 'url',
   Name = 'name',
   Unset = 'unset',
   Streaming = 'streaming';
-export type DataType = typeof Values
+type DataType = typeof Values
   | typeof Url
   | typeof Name
   | typeof Unset
   | typeof Streaming;
-export const AllowedDataTypes = [Values, Url, Name, Streaming];
 
 export class Data {
   type: DataType;

@@ -40,7 +40,8 @@ import {
   TapChannels,
   TapCountValue,
   TapSpeedValue,
-  TimeChannels
+  TimeChannels,
+  bcp47language
 } from "../types";
 import { roundToNoteScale } from "../player";
 import { detectType } from "../compile/audio-graph-compile-utils";
@@ -51,7 +52,8 @@ export function getAudioScales(
   values: any[] | undefined,
   beat: BeatObject | undefined,
   data: any[] | undefined,
-  is_streamed?: boolean
+  is_streamed?: boolean,
+  locale?: typeof bcp47language[number]
 ): ParsedScaleFunction | null {
   // extract default information
   let polarity = encoding.scale?.polarity || POS;
@@ -77,7 +79,7 @@ export function getAudioScales(
   }
 
   let nice = encoding.scale?.nice;
-  let info: RecordObject = { polarity, maxDistinct, times, zero, domainMax, domainMin, nice };
+  let info: RecordObject = { polarity, maxDistinct, times, zero, domainMax, domainMin, nice, locale };
   // outcome scale function
   let _scale!: ParsedScaleFunction;
   let scaleType = getScaleType(channel, encoding, values);

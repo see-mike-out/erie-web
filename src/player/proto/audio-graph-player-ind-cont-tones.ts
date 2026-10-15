@@ -38,8 +38,7 @@ import {
   WaveNormed,
   AudioFilterPrototype,
   StreamerInstrument,
-  InstrumentNode,
-  RecordObject
+  InstrumentNode
 } from '../../types';
 import {
   makeTick,
@@ -53,6 +52,7 @@ import { NoiseTypes } from '../audio-graph-noise';
 
 // todo -> fix
 export function playIndefininteContinuousTones(
+  player_id: string,
   _ctx: AudioContext,
   base: Glyph,
   config: ConfigInterface,
@@ -63,13 +63,13 @@ export function playIndefininteContinuousTones(
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ): StreamerInstrument {
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   // get the context
   let ctx: AudioContext = _ctx;
 
   // set audio context controls
-  setErieGlobalControl({ type: ToneType, player: ctx });
+  setErieGlobalControl(player_id, { type: ToneType, player: ctx });
 
   // rampers 
   let rampers: RamperCollection = {};
@@ -184,8 +184,13 @@ export function playIndefininteContinuousTones(
   }
 
   const tick = config.tick ? makeTick(ctx, config.tick, 'indefinite', instSamples) as (() => InstrumentNode) : null;
-  let tick_interval_id: any = null
+  let tick_schedule_id: any = null
   if (tick !== null) {
+    function schedule_tick(second_after: number) {
+      tick_schedule_id = setTimeout(() => {
+        play_tick();
+      }, second_after)
+    }
     function play_tick() {
       if (!window.ErieGlobalStreamingControl?.streaming_base_tick_mute) {
         // @ts-ignore
@@ -193,12 +198,12 @@ export function playIndefininteContinuousTones(
         let st = ctx.currentTime
         t.start(st);
         t.stop(st + config.tick.band + config.tick.interval / 2);
+        schedule_tick(st + config.tick.interval * 1000 + 30);
       }
     }
     play_tick();
-    tick_interval_id = setInterval(play_tick, config.tick.interval * 1000 + 30);
     inst.onended = () => {
-      if (tick_interval_id) clearInterval(tick_interval_id);
+      if (tick_schedule_id) clearTimeout(tick_schedule_id);
     };
   }
   inst.start(ct);
@@ -210,7 +215,7 @@ export function playIndefininteContinuousTones(
     filterEncoders,
     filterFinishers,
     tick,
-    tick_interval_id,
+    tick_schedule_id,
     panner,
     isStereo,
     destination,

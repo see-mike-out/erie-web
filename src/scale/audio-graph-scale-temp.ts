@@ -1,4 +1,5 @@
 import { makeOrdinalScaleFunction } from "./audio-graph-scale-ord";
+import { local, timeParse } from "d3";
 import { QuantPreferredRange } from "./audio-graph-palletes";
 import {
   getChannelCaps,
@@ -20,7 +21,9 @@ import {
   ParsedScaleProperties,
   ParsedScaleFunction,
   timeUnitDomainDefs,
-  RecordObject
+  RecordObject,
+  getPresetTimeUnitValues,
+  bcp47language
 } from "../types";
 import { FilterExtraChannelTypes } from "../player";
 
@@ -34,6 +37,7 @@ export function makeTemporalScaleFunction(
 ): ParsedScaleFunction {
   let { polarity, maxDistinct, times, zero, domainMax, domainMin, nice } = info;
   let extraChannelType = FilterExtraChannelTypes[channel as keyof typeof FilterExtraChannelTypes]?.type;
+  let locale: typeof bcp47language[number] | undefined = info.locale;
 
   // thresholds
   const [CHN_MAX, CHN_MIN] = getChannelThresholds(channel, extraChannelType);
@@ -54,11 +58,11 @@ export function makeTemporalScaleFunction(
   let newScaleDef = deepcopy(encoding);
   // [todo: check stability]
   if (scaleDef?.domain) {
-    newScaleDef.scale.domain = timeUnitDomain(scaleDef?.domain, encoding?.timeUnit ?? "date", encoding?.timeUnitName);
+    newScaleDef.scale.domain = timeUnitDomain(scaleDef?.domain, encoding?.timeUnit ?? "date", encoding?.timeUnitName, locale);
   }
   if (encoding?.timeUnit) {
     let ordScale = makeOrdinalScaleFunction(channel, newScaleDef, values, info);
-    let timeUnitFunction = makeTimeUnitFunction(encoding?.timeUnit, encoding?.timeUnitName);
+    let timeUnitFunction = makeTimeUnitFunction(encoding?.timeUnit, encoding?.timeUnitName, locale);
     Object.assign(scaleProperties, ordScale.properties);
     scaleProperties.timeUnit = encoding?.timeUnit;
     scaleProperties.timeUnitName = deepcopy(encoding?.timeUnitName);
@@ -165,98 +169,37 @@ export function makeTimeLevelFunction(timeLevel?: string) {
     if (timeLevel === 'year') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), 0, 0, 0, 0, 0, 0);
+        return new Date(dt.getUTCFullYear(), 0, 0, 0, 0, 0, 0);
       }
     } else if (timeLevel === 'month') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), dt.getMonth(), 0, 0, 0, 0, 0);
+        return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), 0, 0, 0, 0, 0);
       }
     } else if (timeLevel === 'date') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 0, 0, 0, 0);
+        return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), 0, 0, 0, 0);
       }
     } else if (timeLevel === 'hour') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), 0, 0, 0);
+        return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), dt.getUTCHours(), 0, 0, 0);
       }
     } else if (timeLevel === 'minute') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes(), 0, 0);
+        return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), dt.getUTCHours(), dt.getUTCMinutes(), 0, 0);
       }
     } else if (timeLevel === 'second') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes(), dt.getSeconds(), 0);
+        return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), dt.getUTCHours(), dt.getUTCMinutes(), dt.getUTCSeconds(), 0);
       }
     } else if (timeLevel === 'millisecond') {
       return (d: any) => {
         let dt = new Date(d);
-        return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), dt.getHours(), dt.getMinutes(), dt.getSeconds(), dt.getMilliseconds());
-      }
-    } else {
-      return (d: any) => { return new Date(d) };
-    }
-  }
-}
-export function makeTimeUnitFunction(
-  timeUnit: string,
-  _names: string | string[] | number[] | undefined
-) {
-  let names!: string | string[] | number[];
-  if (!timeUnit) return (d: any) => { return new Date(d) };
-  else {
-    if (timeUnit === 'year') {
-      return (d: any) => {
-        return new Date(d).getFullYear();
-      }
-    } else if (timeUnit === 'month') {
-      names = _names || 'number';
-      if (names == "number") names = timeUnitDomainDefs.monthNumber;
-      else if (names == "number1") names = timeUnitDomainDefs.monthNumber1
-      else if (names == "short") names = timeUnitDomainDefs.monthShort;
-      else if (names == "long") names = timeUnitDomainDefs.monthLong;
-      else if (typeof names === 'string') names = timeUnitDomainDefs.monthLong;
-      return (d: any) => {
-        return names[new Date(d).getMonth()];
-      }
-    } else if (timeUnit === 'day') {
-      names = _names || timeUnitDomainDefs.dayLong
-      if (names == "number") names = timeUnitDomainDefs.dayNumber
-      else if (names == "number1") names = timeUnitDomainDefs.dayNumber1;
-      else if (names == "numberFromMon") names = timeUnitDomainDefs.dayNumberFromMon;
-      else if (names == "numberFromMon1") names = timeUnitDomainDefs.dayNumberFromMon1;
-      else if (names == "short") names = timeUnitDomainDefs.dayShort;
-      else if (typeof names === 'string') names = timeUnitDomainDefs.dayLong;
-      return (d: any) => {
-        return names[new Date(d).getDay()];
-      }
-    } else if (timeUnit === 'date') {
-      return (d: any) => {
-        return new Date(d).getDate();
-      }
-    } else if (timeUnit === 'hour') {
-      return (d: any) => {
-        return new Date(d).getHours();
-      }
-    } else if (timeUnit === 'hour12') {
-      return (d: any) => {
-        return new Date(d).getHours() % 12;
-      }
-    } else if (timeUnit === 'minute') {
-      return (d: any) => {
-        return new Date(d).getMinutes();
-      }
-    } else if (timeUnit === 'second') {
-      return (d: any) => {
-        return new Date(d).getSeconds();
-      }
-    } else if (timeUnit === 'millisecond') {
-      return (d: any) => {
-        return new Date(d).getMilliseconds();
+        return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), dt.getUTCHours(), dt.getUTCMinutes(), dt.getUTCSeconds(), dt.getUTCSeconds());
       }
     } else {
       return (d: any) => { return new Date(d) };
@@ -264,37 +207,81 @@ export function makeTimeUnitFunction(
   }
 }
 
+export function makeTimeUnitFunction(
+  timeUnit: string,
+  _names: string | string[] | number[] | undefined,
+  locale?: typeof bcp47language[number]
+) {
+  let names!: string | string[] | number[];
+  if (!timeUnit) return (d: any) => { return new Date(d) };
+  else {
+    if (timeUnit === 'year') {
+      return (d: any) => {
+        return new Date(d).getUTCFullYear();
+      }
+    } else if (timeUnit === 'month') {
+      names = getPresetTimeUnitValues("month", _names, locale);
+      return (d: any) => {
+        return names[new Date(d).getUTCMonth()];
+      }
+    } else if (timeUnit === 'day') {
+      names = getPresetTimeUnitValues("day", _names, locale);
+      return (d: any) => {
+        return names[new Date(d).getUTCDay()];
+      }
+    } else if (timeUnit === 'date') {
+      return (d: any) => {
+        return new Date(d).getUTCDate();
+      }
+    } else if (timeUnit === 'hour') {
+      return (d: any) => {
+        return new Date(d).getUTCHours();
+      }
+    } else if (timeUnit === 'hour12') {
+      return (d: any) => {
+        return new Date(d).getUTCHours() % 12 || 12;
+      }
+    } else if (timeUnit === 'minute') {
+      return (d: any) => {
+        return new Date(d).getUTCMinutes();
+      }
+    } else if (timeUnit === 'second') {
+      return (d: any) => {
+        return new Date(d).getUTCSeconds();
+      }
+    } else if (timeUnit === 'millisecond') {
+      return (d: any) => {
+        return new Date(d).getUTCMilliseconds();
+      }
+    } else {
+      return (d: any) => { return new Date(d) };
+    }
+  }
+}
+
+// todo: make a timezone checker and use that
+
 export function timeUnitDomain(
   orgDomain: any[],
   timeUnit: string,
-  _names: string | string[] | number[] | undefined
+  _names: string | string[] | number[] | undefined,
+  locale?: typeof bcp47language[number]
 ): string[] | number[] | undefined {
   let names!: string | string[] | number[];
   if (timeUnit === 'year') {
-    return [new Date(orgDomain[0]).getDay(), new Date(orgDomain[1]).getDay()]
+    return [new Date(orgDomain[0]).getUTCFullYear(), new Date(orgDomain[1]).getUTCFullYear()]
   } else if (timeUnit === 'month') {
-    names = _names || 'number';
-    if (names == "number") names = timeUnitDomainDefs.monthNumber;
-    else if (names == "number1") names = timeUnitDomainDefs.monthNumber1
-    else if (names == "short") names = timeUnitDomainDefs.monthShort;
-    else if (names == "long") names = timeUnitDomainDefs.monthLong;
-    else if (typeof names === 'string') names = timeUnitDomainDefs.monthLong;
+    names = getPresetTimeUnitValues("month", _names, locale);
     return names;
   } else if (timeUnit === 'day') {
-    names = _names || timeUnitDomainDefs.dayLong
-    if (names == "number") names = timeUnitDomainDefs.dayNumber
-    else if (names == "number1") names = timeUnitDomainDefs.dayNumber1;
-    else if (names == "numberFromMon") names = timeUnitDomainDefs.dayNumberFromMon;
-    else if (names == "numberFromMon1") names = timeUnitDomainDefs.dayNumberFromMon1;
-    else if (names == "short") names = timeUnitDomainDefs.dayShort;
-    else if (typeof names === 'string') names = timeUnitDomainDefs.dayLong;
+    names = getPresetTimeUnitValues("day", _names, locale);
     return names;
   } else if (timeUnit === 'date') {
     return timeUnitDomainDefs.date;
   } else if (timeUnit === 'hour') {
     return timeUnitDomainDefs.hour;
   } else if (timeUnit === 'hour12') {
-    return timeUnitDomainDefs.hour;
+    return timeUnitDomainDefs.hour12;
   } else if (timeUnit === 'minute') {
     return timeUnitDomainDefs.minute;
   } else if (timeUnit === 'second') {

@@ -36,6 +36,7 @@ import {
 } from "./audio-graph-update-scale";
 
 export async function compileStreamingStream(
+  player_id: string,
   audio_spec: StreamingSpec,
   normalized: NormalizedStreamItem[],
   tick: HashedObject<TickNormed>,
@@ -147,6 +148,8 @@ export async function compileStreamingStream(
   }
   if (stream.stream.title) sequence.setTitle(stream.stream.title);
   if (stream.stream.description) sequence.setDescription(stream.stream.description);
+
+  sequence.setPlayerId(player_id);
 
   return sequence;
 }

@@ -27,6 +27,7 @@ import { playSingleSpeech } from './audio-graph-player-single-speech';
 import { playSingleTone } from './audio-graph-player-single-tone';
 
 export async function playRelativeDiscreteTonesAndSpeeches(
+  player_id: string,
   ctx: AudioContext | OfflineAudioContext,
   queue: Glyphs2,
   _config: ConfigInterface,
@@ -38,23 +39,23 @@ export async function playRelativeDiscreteTonesAndSpeeches(
   ttsFetchFunction: any
 ) {
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   let config = deepcopy(_config);
   config.subpart = true;
   for (const sound of queue) {
-    if (isErieGlobalState(Stopped)) break;
+    if (isErieGlobalState(player_id, Stopped)) break;
     let sid = genRid();
     if (sound.speech) {
       sendSpeechStartEvent({ sound, sid });
-      await playSingleSpeech(sound as AudioGraphQueueItemText, config, bufferPrimitve, ttsFetchFunction);
+      await playSingleSpeech(player_id, sound as AudioGraphQueueItemText, config, bufferPrimitve, ttsFetchFunction);
       sendSpeechFinishEvent({ sid });
     } else {
       sendToneStartEvent({ sid });
-      await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+      await playSingleTone(player_id, ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
       sendToneFinishEvent({ sid });
     }
   }
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
   return;
 }

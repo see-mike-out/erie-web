@@ -26,14 +26,18 @@ export function makeTick(
   if (!def) return null;
   else if (typeof duration === 'number') {
     let tickPattern = [];
-    let interval = round(def.interval ?? 0.5, -2);
+    let interval = Math.max(round(def.interval ?? 0.5, -2), 0.01);
     let tickDur = def.band;
     tickDur = round(tickDur ?? 0.1, -2);
     let pause = interval - tickDur;
+    if (pause < 0) {
+      pause = 0;
+      tickDur = interval;
+    }
     let count = Math.floor(duration / interval)
     let totalTime = 0;
-    if (def.playAtTime0 === undefined) def.playAtTime0 = true;
-    if (def.playAtTime0) {
+    let playAtTime0 = def.playAtTime0 ?? true;
+    if (playAtTime0) {
       tickPattern.push({ tick: tickDur });
       totalTime += tickDur;
     }
@@ -66,12 +70,16 @@ export function makeTick(
     return tickInst;
   } else if (duration === 'indefinite') {
     // if indefininte, then return a generator
-    let interval = round(def.interval ?? 0.5, -2);
+    let interval = Math.max(round(def.interval ?? 0.5, -2), 0.01);
     let tickDur = def.band;
     tickDur = round(tickDur ?? 0.1, -2);
     let pause = interval - tickDur;
-    if (def.playAtTime0 === undefined) def.playAtTime0 = true;
-    let tickPattern = def.playAtTime0 ? [{ tick: tickDur }, { pause }] : [{ pause }, { tick: tickDur }];
+    if (pause < 0) {
+      pause = 0;
+      tickDur = interval;
+    }
+    let playAtTime0 = def.playAtTime0 ?? true;
+    let tickPattern = playAtTime0 ? [{ tick: tickDur }, { pause }] : [{ pause }, { tick: tickDur }];
     return () => {
       let tickInst = makeInstrument(ctx, def.instrument ?? 'default', instSamples);
       if ('frequency' in tickInst) tickInst.frequency.value = 150;

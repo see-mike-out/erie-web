@@ -40,7 +40,7 @@ import {
 import { setSampleBaseUrl } from "../base";
 import { addURLtoDataObject } from "./audio-graph-normilze-utils";
 
-export async function normalizeSpecification(_spec: TopLevelSpec, options?: ConfigInterface): Promise<NormalizedStream> {
+export async function normalizeSpecification(player_id: string, _spec: TopLevelSpec, options?: ConfigInterface): Promise<NormalizedStream> {
   let spec = deepcopy(_spec);
   // treat options
   let dataBaseUrl = options?.dataBaseUrl;
@@ -52,7 +52,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
     throw new TypeError("Set sampling base urls to end with '/'.")
   }
   if (sampleBaseUrl) {
-    setSampleBaseUrl(sampleBaseUrl);
+    setSampleBaseUrl(player_id, sampleBaseUrl);
   }
   let streams: NormalizedStreamItem[] = [],
     datasets: DatasetSpecItemNormed[] = 'datasets' in spec ? deepcopy(spec.datasets || []) : [],
@@ -292,7 +292,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
           let overlay_id = 'overlay-' + genRid();
 
           // run a recursion
-          let n = await normalizeSpecification(o as TopLevelSpec, options);
+          let n = await normalizeSpecification(player_id, o as TopLevelSpec, options);
 
           // as it should generate only a single overlay stream
           let over = n.normalized[0] as NormalizedOverlayItem;

@@ -117,7 +117,7 @@ export function determineNoteRange(freq: number, config: ConfigInterface): NoteR
     }
   } else {
     console.warn(
-      'Frequence out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.'
+      'Frequency out of scope. Max possible frequency is 2959.96 and min possible frequency is 16.35.'
     );
     return null;
   }
@@ -126,28 +126,36 @@ export function determineNoteRange(freq: number, config: ConfigInterface): NoteR
 export async function loadSamples(
   ctx: AudioContext,
   instrument_name: string,
-  smaplingDef: HashedObject<SampledToneNormed>,
+  samplingDef: HashedObject<SampledToneNormed>,
   baseUrl: string
 ): Promise<LoadedSample> {
+  // baseUrl != audio_sample
   let samples!: LoadedSample;
   if (MultiNoteInstruments.includes(instrument_name)) {
     samples = { multiNote: true } as LoadedMultiSample;
-    for (const octave of noteFreqRange) {
-      let sampleRes = await fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`);
-      let sampleBuffer = await sampleRes.arrayBuffer();
-      let source = await ctx.decodeAudioData(sampleBuffer)
-      samples[`C${octave.octave}` as OctaveKey] = source;
-    }
+    await Promise.all(
+      noteFreqRange.map((octave) => {
+        fetch(`${baseUrl || ''}audio_sample/${instrument_name}_c${octave.octave}.mp3`).catch((e) => {
+          throw e;
+        }).then((sampleRes) => {
+          sampleRes.arrayBuffer().then((sampleBuffer) => {
+            ctx.decodeAudioData(sampleBuffer).then((source) => {
+              (samples as LoadedMultiSample)[`C${octave.octave}` as OctaveKey] = source;
+            });
+          });
+        })
+      })
+    )
   } else if (SingleNoteInstruments.includes(instrument_name)) {
     samples = await makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
-  } else if (smaplingDef[instrument_name]) {
-    let sample_to_load = smaplingDef[instrument_name]
+  } else if (samplingDef[instrument_name]) {
+    let sample_to_load = samplingDef[instrument_name]
     if (sample_to_load.sample?.mono) {
       // single
       try {
         samples = await makeSingleScaleSamplingNode(ctx, sample_to_load.sample.mono, `${sample_to_load.baseUrl ?? baseUrl ?? ''}`);
       } catch (e) {
-        console.error(e);
+        throw e;
       }
     } else {
       // multi
@@ -155,7 +163,7 @@ export async function loadSamples(
         samples = await makeMultiScaleSamplingNode(ctx, sample_to_load.sample, `${sample_to_load.baseUrl ?? baseUrl ?? ''}`);
         samples.multiNote = true;
       } catch (e) {
-        console.error(e);
+        throw e;
       }
     }
   } else {
@@ -172,11 +180,12 @@ export async function makeMultiScaleSamplingNode(
   let samples: RecordObject = { multiNote: true },
     keys = Object.keys(def) as Array<keyof SamplingItem>;
   if (!keys.every(scaleKeyCheck)) {
-    console.error("A sampling note must be 'C' in octave 0 to 7");
+    throw new Error("A sampling note must be 'C' in octave 0 to 7");
   }
   for (const key of keys) {
     if (def[key]) {
       let sampleRes = await fetch((base ?? "") + def[key]);
+      if (!sampleRes.ok) throw new Error(`Sample not found. Base: ${base}, URL: ${def[key]}`);
       let sampleBuffer = await sampleRes.arrayBuffer();
       let source = await ctx.decodeAudioData(sampleBuffer)
       samples[key as OctaveKey] = source;
@@ -191,6 +200,7 @@ export async function makeSingleScaleSamplingNode(
   base?: string
 ): Promise<LoadedMonoSample> {
   let sampleRes = await fetch((base ?? "") + def);
+  if (!sampleRes.ok) throw new Error(`Sample not found. Base: ${base}, URL: ${def}`);
   let sampleBuffer = await sampleRes.arrayBuffer();
   let source = await ctx.decodeAudioData(sampleBuffer)
   return {

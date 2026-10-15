@@ -32,6 +32,7 @@ import {
 } from "./audio-graph-update-scale";
 
 export async function compileSequenceStream(
+  player_id: string,
   audio_spec: TopLevelSpec,
   normalized: NormalizedStreamItem[],
   datasets: HashedObject<DatasetSpecItemNormed>,
@@ -101,6 +102,7 @@ export async function compileSequenceStream(
           }
         });
       }
+      sStream.setPlayerId(player_id);
       sequence.setIntroStream(sStream);
     } else if ('stream' in stream && stream.stream) {
       let is_repeated = isRepeatedStream(stream.stream);
@@ -168,6 +170,8 @@ export async function compileSequenceStream(
   }
 
   sequence.setOrdering(ordering_normalized);
+
+  sequence.setPlayerId(player_id);
 
   return sequence;
 }

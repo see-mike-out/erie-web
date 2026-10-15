@@ -6,12 +6,21 @@ export function rampBy(
   param: AudioParam | ErieSynthFrequency, // any audio parameter that has ramping methods
   value: any, // the value to set
   time_at: number, // when to set the value
-  speed?: number
+  speed?: number,
+  time_now?: number
 ) {
   switch (ramperType) {
     case 'exponentialRampToValueAtTime':
       // exponential ramping does not allow value 0
-      param.exponentialRampToValueAtTime(value == 0 ? 0.0000000001 : value, time_at);
+      if (value == 0) {
+        param.exponentialRampToValueAtTime(0.0000000001 * Math.sign(param.value), time_at);
+      } else if (Math.sign(param.value) != Math.sign(value) && time_now) {
+        param.exponentialRampToValueAtTime(Math.sign(param.value) * 0.0000000001, (time_now - time_at) / 2 + time_at);
+        param.linearRampToValueAtTime(Math.sign(value) * 0.0000000001, (time_now - time_at) / 2 + time_at + 0.0000000001);
+        param.exponentialRampToValueAtTime(value, time_at);
+      } else {
+        param.exponentialRampToValueAtTime(value, time_at);
+      }
       break;
     case 'linearRampToValueAtTime':
       param.linearRampToValueAtTime(value, time_at);

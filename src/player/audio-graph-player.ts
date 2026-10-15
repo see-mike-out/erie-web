@@ -88,8 +88,9 @@ export class AudioGraphQueue {
   waves: HashedObject<WaveNormed>;
   playId!: string;
   buffers: any[];
+  player_id: string ;
 
-  constructor() {
+  constructor(pid: string) {
     this.queue = [];
     this.state = Finished;
     this.playAt;
@@ -101,6 +102,7 @@ export class AudioGraphQueue {
     this.waves = {};
     this.playId;
     this.buffers = [];
+    this.player_id = pid;
   }
 
   // set
@@ -327,7 +329,7 @@ export class AudioGraphQueue {
         k++;
       }
       this.fireStopEvent();
-      clearPlayerEvents();
+      clearPlayerEvents(this);
       this.state = Stopped;
       this.playAt = undefined;
       return outputs;
@@ -351,7 +353,7 @@ export class AudioGraphQueue {
     }
     let ttsFetchFunction = options?.ttsFetchFunction
     if (isTextQueueItem(item)) {
-      await playSingleSpeech(item, config, bufferPrimitve, ttsFetchFunction);
+      await playSingleSpeech(this.player_id, item, config, bufferPrimitve, ttsFetchFunction);
     } else if (isToneQueueItem(item)) {
       let ctx = makeContext();
       for (const inst of this.sampledInstruments) {
@@ -359,7 +361,7 @@ export class AudioGraphQueue {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
-      await playSingleTone(ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters ?? [], bufferPrimitve);
+      await playSingleTone(this.player_id, ctx, item, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters ?? [], bufferPrimitve);
       ctx.close();
     } else if (isPauseQueueItem(item)) {
       await playPause(item.duration * 1000, config);
@@ -372,11 +374,11 @@ export class AudioGraphQueue {
       }
       if (item.continued) {
         config.instrument_type = item.instrument_type;
-        await playAbsoluteContinuousTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+        await playAbsoluteContinuousTones(this.player_id, ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else if (!item.relative) {
-        await playAbsoluteDiscreteTones(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
+        await playAbsoluteDiscreteTones(this.player_id, ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve);
       } else {
-        await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction)
+        await playRelativeDiscreteTonesAndSpeeches(this.player_id, ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction)
       }
       ctx.close();
     } else if (isToneSpeechSeriesQueueItem(item)) {
@@ -386,7 +388,7 @@ export class AudioGraphQueue {
           this.sampledInstrumentSources[inst] = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl)
         }
       }
-      await playRelativeDiscreteTonesAndSpeeches(ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
+      await playRelativeDiscreteTonesAndSpeeches(this.player_id, ctx, item.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, item.filters, bufferPrimitve, ttsFetchFunction);
       ctx.close();
     } else if (isToneOverlaySeriesQueueItem(item)) {
       let promises = [];
@@ -399,11 +401,11 @@ export class AudioGraphQueue {
       for (let stream of item.overlays) {
         if (stream.continued) {
           config.instrument_type = stream.instrument_type;
-          promises.push(playAbsoluteContinuousTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
+          promises.push(playAbsoluteContinuousTones(this.player_id, ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else if (!stream.relative) {
-          promises.push(playAbsoluteDiscreteTones(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
+          promises.push(playAbsoluteDiscreteTones(this.player_id, ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve));
         } else {
-          promises.push(playRelativeDiscreteTonesAndSpeeches(ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve, ttsFetchFunction));
+          promises.push(playRelativeDiscreteTonesAndSpeeches(this.player_id, ctx, stream.sounds, config, this.sampledInstrumentSources, this.synths, this.waves, stream.filters, bufferPrimitve, ttsFetchFunction));
         }
       }
       await Promise.all(promises);
@@ -421,14 +423,14 @@ export class AudioGraphQueue {
     // button-based stop
     // for event stop ==> audio-graph-player-proto.js
     if (this.state === Playing) {
-      closeErieGlobalControl()
+      closeErieGlobalControl(this.player_id)
       // @ts-ignore
       // this can be changed over time!
       if (this.state !== Stopped) {
         this.state = Stopped;
         notifyStop(this.config);
         this.fireStopEvent();
-        clearPlayerEvents();
+        clearPlayerEvents(this);
         this.playAt = undefined;
       }
     }
@@ -457,7 +459,7 @@ export class AudioGraphQueue {
   destroy() {
     this.state = Finished;
     this.queue = [];
-    clearPlayerEvents();
+    clearPlayerEvents(this);
   }
 
   async getFullAudio(
@@ -482,6 +484,8 @@ export class AudioGraphQueue {
 
     let merged = concatenateBuffers(output);
     let blob = await makeWaveFromBuffer(merged, "mp3");
+    
+    ctx.close();
     // @ts-ignore
     return window.URL.createObjectURL(blob);
   }

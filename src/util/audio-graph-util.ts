@@ -24,7 +24,7 @@ export function genRid(n?: number): string {
   if (!n) n = 6;
   let rid = [];
   for (let i = 0; i < n; i++) {
-    let k = Math.round(Math.random() * NRidLetters);
+    let k = Math.floor(Math.random() * NRidLetters);
     rid.push(RidLetters[k]);
   }
   return rid.join('');
@@ -39,14 +39,14 @@ export function getFirstDefined(...args: any): any {
 
 export function asc(a: any, b: any): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
-  else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return a - b;
+  else if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
   else if (a?.localeCompare) return a.localeCompare(b);
   else return a > b ? 1 : a < b ? -1 : 0;
 }
 
 export function desc(a: any, b: any): number {
   if (typeof a === 'number' && typeof b === 'number') return b - a;
-  else if (a?.constructor.name === Date.name && b?.constructor.name === Date.name) return b - a;
+  else if (a instanceof Date && b instanceof Date) return b.getTime() - a.getTime();
   else if (b?.localeCompare) return b.localeCompare(a);
   else return a < b ? 1 : a > b ? -1 : 0;
 }

@@ -35,8 +35,9 @@ export class AudioPrimitiveBuffer {
       this.sampleRate,
     );
     let lastAt;
+    let sampleRate = this.sampleRate ?? 44100;
     for (const p of this.primitive) {
-      let at: number = p.at === "next" ? (lastAt || 0) : Math.round((p.at || 0) * 44100);
+      let at: number = p.at === "next" ? (lastAt || 0) : Math.round((p.at || 0) * sampleRate);
       for (let i = 0; i < maxChannels; i++) {
         let channelData = this.compiledBuffer.getChannelData(i);
         let currChannelData = p.data.getChannelData(i % p.data.numberOfChannels);
@@ -47,6 +48,7 @@ export class AudioPrimitiveBuffer {
       lastAt = at + p.data.length;
     }
     this.compiled = true;
+    temp_ctx.close();
     return this.compiledBuffer;
   }
 }
@@ -67,5 +69,6 @@ export function concatenateBuffers(buffers: AudioBuffer[]) {
     }
     view += buffer.length;
   }
+  ctx.close();
   return totalBuffer;
 }

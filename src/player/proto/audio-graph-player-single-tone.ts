@@ -49,6 +49,7 @@ import { AudioPrimitiveBuffer } from '../../pulse';
 import { rampBy } from '../audio-graph-ramp';
 
 export async function playSingleTone(
+  player_id: string,
   ctx: AudioContext | OfflineAudioContext,
   sound: Glyph,
   config: ConfigInterface,
@@ -59,16 +60,16 @@ export async function playSingleTone(
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
   // if it is from a discrete series and being stopped, then do nothing
-  if (config?.subpart && isErieGlobalState(Stopped)) return;
+  if (config?.subpart && isErieGlobalState(player_id, Stopped)) return;
 
   // if it is an individual play (not from a discrete series)
-  if (!config?.subpart) setErieGlobalState(undefined);
+  if (!config?.subpart) setErieGlobalState(player_id, undefined);
 
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   // set audio context controls
-  setErieGlobalControl({ type: ToneType, player: ctx });
+  setErieGlobalControl(player_id, { type: ToneType, player: ctx });
 
   let sid;
   // if it is an individual play (not from a discrete series), fire a new tone start event

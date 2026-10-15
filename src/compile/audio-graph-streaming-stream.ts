@@ -53,7 +53,8 @@ import {
 } from '../types';
 import {
   toOrdinalNumbers,
-  deepcopy
+  deepcopy,
+  genRid
 } from '../util';
 import { UnitStream } from './audio-graph-unit-stream';
 
@@ -92,6 +93,7 @@ export class StreamingStream {
   description!: string;
   option: StreamingOption;
   config: ConfigInterface;
+  player_id!: string;
 
   audioFilters!: string[];
   synths: HashedObject<SynthNormed>;
@@ -262,8 +264,10 @@ export class StreamingStream {
     this.samplings = deepcopy(samplings);
     // load them here;
     for (const inst in this.samplings) {
-      let sample = await loadSamples(new AudioContext(), inst, this.samplings, this.config.options?.baseUrl);
+      let ctx = new AudioContext();
+      let sample = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl);
       this.loaded_samples[inst] = sample;
+      ctx.close();
     }
   }
 
@@ -273,6 +277,10 @@ export class StreamingStream {
 
   setWaves(waves: HashedObject<WaveNormed>) {
     this.waves = waves;
+  }
+
+  setPlayerId(id: string) {
+    this.player_id = id;
   }
 
   // references
@@ -341,6 +349,7 @@ export class StreamingStream {
             baseValues.loudness = 0.0001
           }
           this.baseStream = playIndefininteContinuousTones(
+            this.player_id,
             this.baseContext,
             baseValues,
             config,
@@ -467,7 +476,7 @@ export class StreamingStream {
       if (converted.length > 0) {
         if (repeat && repeat.announce) {
           let ann = repeat.order[ci].join(', ')
-          await playSingleSpeech({ type: "text", speech: ann }, this.config, bufferPrimitve, ttsFetchFunction);
+          await playSingleSpeech(this.player_id, { type: "text", speech: ann }, this.config, bufferPrimitve, ttsFetchFunction);
         }
 
         if (this.has_base_tone && !this.baseValues.option?.asTick) {
@@ -511,7 +520,7 @@ export class StreamingStream {
           )
         } else {
           // prerender
-          this.currentQueue = new AudioGraphQueue();
+          this.currentQueue = new AudioGraphQueue(this.player_id);
 
           // overall config
           if (this.config) {
@@ -582,10 +591,10 @@ export class StreamingStream {
   }
 
   muteBaseTick() {
-    setErieGlobalStreamingControl('streaming_base_tick_mute', true);
+    setErieGlobalStreamingControl(this.player_id, 'streaming_base_tick_mute', true);
   }
   unmuteBaseTick() {
-    setErieGlobalStreamingControl('streaming_base_tick_mute', false);
+    setErieGlobalStreamingControl(this.player_id, 'streaming_base_tick_mute', false);
   }
 
   destroy() {
@@ -595,8 +604,8 @@ export class StreamingStream {
       // remove the player
       if (baseStream) {
         baseStream.inst.stop(baseContext.currentTime);
-        if (baseStream.tick_interval_id) {
-          clearInterval(baseStream.tick_interval_id)
+        if (baseStream.tick_schedule_id) {
+          clearTimeout(baseStream.tick_schedule_id);
         }
       }
       if (baseContext) baseContext.close();
@@ -649,6 +658,7 @@ export class StreamingStream {
         if ('speech' in notificationItem && notificationItem.speech) {
           await playPause(pause_time);
           await playSingleSpeech(
+            this.player_id,
             {
               type: TextType,
               speech: notificationItem.speech,
@@ -679,14 +689,14 @@ export class StreamingStream {
             glyphs.hasSpeech = false;
 
             await playPause(pause_time);
-            await playAbsoluteDiscreteTones(ctx, glyphs, this.noitify_samples, {}, {}, {}, [], bufferPrimitve);
+            await playAbsoluteDiscreteTones(this.player_id, ctx, glyphs, this.noitify_samples, {}, {}, {}, [], bufferPrimitve);
             await playPause(pause_time);
           } catch {
             console.warn("Sampling failed")
           }
         } else if ('chime' in notificationItem && notificationItem.chime) {
           await playPause(pause_time);
-          await playChime(undefined, when as keyof typeof Chimes, bufferPrimitve)
+          await playChime(this.player_id, undefined, when as keyof typeof Chimes, bufferPrimitve)
           await playPause(pause_time);
         }
         this.unmuteBaseTone()

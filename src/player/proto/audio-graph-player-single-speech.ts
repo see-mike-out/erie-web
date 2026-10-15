@@ -26,6 +26,7 @@ import { AudioPrimitiveBuffer } from '../../pulse';
 
 
 export async function playSingleSpeech(
+  player_id: string,
   sound: AudioGraphQueueItemText,
   config: ConfigInterface,
   bufferPrimitve: AudioPrimitiveBuffer | undefined,
@@ -33,10 +34,10 @@ export async function playSingleSpeech(
 ) {
 
   // if it is from a discrete series and being stopped, then do nothing
-  if (config?.subpart && isErieGlobalState(Stopped)) return;
+  if (config?.subpart && isErieGlobalState(player_id, Stopped)) return;
 
   // if it is an individual play (not from a discrete series)
-  if (!config?.subpart) setErieGlobalState(undefined);
+  if (!config?.subpart) setErieGlobalState(player_id, undefined);
 
   let sid = genRid();
   if (!config.subpart) {
@@ -47,9 +48,9 @@ export async function playSingleSpeech(
     emitNotePlayEvent(SpeechType, sound);
   }
   let onend = () => {
-    clearPlayerEvents();
-    setErieGlobalControl(undefined);
-    setErieGlobalState(undefined);
+    clearPlayerEvents(player_id);
+    setErieGlobalControl(player_id, undefined);
+    setErieGlobalState(player_id, undefined);
     emitNoteStopEvent(SpeechType, sound);
     if (!config.subpart) {
       sendSpeechFinishEvent({ sid });
@@ -60,6 +61,7 @@ export async function playSingleSpeech(
     let speechRendered = await ttsFetchFunction({ text: sound, config });
     let ctx = new AudioContext()
     bufferPrimitve.add('next', await ctx.decodeAudioData(speechRendered));
+    ctx.close();
   } 
   // else if (typeof window === 'undefined' && config.speechGenerator === "GoogleCloudTTS") {
   //   await GoogleCloudTTSGenerator(sound, config);
@@ -69,7 +71,7 @@ export async function playSingleSpeech(
       console.warn("Google Cloud TTS API can only be used on Node.js Server environment.")
     }
     return new Promise((resolve, reject) => {
-      WebSpeechGenerator(sound, config, onstart, onend, resolve);
+      WebSpeechGenerator(player_id, sound, config, onstart, onend, resolve);
     });
   }
   return;

@@ -55,7 +55,8 @@ export class SequenceStream {
   introStream?: SpeechStream;
   queue!: AudioGraphQueue | void;
   scaleQueue!: AudioGraphQueue;
-  ordering!: OrderSpecNormed
+  ordering!: OrderSpecNormed;
+  player_id!: string;
 
   constructor() {
     this.streams = [];
@@ -108,6 +109,13 @@ export class SequenceStream {
     this.ordering = ordering;
   }
 
+  setPlayerId(id: string) {
+    this.player_id = id;
+    this.streams.forEach((s) => {
+      s.setPlayerId(id);
+    })
+  }
+
   async prerender() {
     // only based on the order
     if (!this.ordering) {
@@ -115,7 +123,7 @@ export class SequenceStream {
     }
 
     // initialize
-    this.queue = new AudioGraphQueue();
+    this.queue = new AudioGraphQueue(this.player_id);
     this.queue.setSampling(this.samplings);
     this.queue.setSynths(this.synths);
     this.queue.setWaves(this.waves);
@@ -411,7 +419,7 @@ export class SequenceStream {
   // needs test
   async prerenderScale(channel: string, i: number) {
     let scaleQueue = (this.make_scale_text(channel, i) || []).map((d) => d.description).flat();
-    this.scaleQueue = new AudioGraphQueue();
+    this.scaleQueue = new AudioGraphQueue(this.player_id);
     this.scaleQueue.addMulti(scaleQueue, { ...this.config, tick: null });
     return this.scaleQueue;
   }

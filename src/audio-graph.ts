@@ -8,6 +8,7 @@ import {
   normalizeOrderSpec,
 } from "./normalize";
 import {
+  genRid,
   toHashedObject
 } from "./util";
 import {
@@ -27,7 +28,8 @@ export function readyRecording() {
 }
 
 export async function compileAudioGraph(audio_spec: TopLevelSpec, options: ConfigInterface) {
-  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(audio_spec, options);
+  let player_id = genRid();
+  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(player_id, audio_spec, options);
   let is_streaming = isStreamingStream(audio_spec);
   sequenceConfig.is_streaming = is_streaming;
 
@@ -40,6 +42,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
   }
 
   let sequence = !is_streaming ? await compileSequenceStream(
+    player_id,
     audio_spec,
     normalized,
     datasets,
@@ -51,6 +54,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
     waves,
     ordering_normalized // todo
   ) : await compileStreamingStream(
+    player_id,
     audio_spec as StreamingSpec,
     normalized,
     tick,

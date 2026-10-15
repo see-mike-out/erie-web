@@ -29,6 +29,7 @@ export class UnitStream {
   description!: string;
   option: RecordObject;
   config: ConfigInterface;
+  player_id!: string;
 
   constructor(
     id: string,
@@ -63,6 +64,9 @@ export class UnitStream {
   }
   setRamp(ramp: { [key: string]: RampType | undefined }) {
     this.ramp = deepcopy(ramp);
+  }
+  setPlayerId(id: string) {
+    this.player_id = id;
   }
 
   make_tone_text(i: number) {

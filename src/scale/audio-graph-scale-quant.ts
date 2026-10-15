@@ -53,7 +53,7 @@ export function makeQuantitativeScaleFunction(
     polarity,
   }
   if (channel === TIMBRE_chn || extraChannelType === TIMBRE_chn) {
-    console.error("Timber channel can't be quantitatively scaled.")
+    throw new RangeError("Timber channel can't be quantitatively scaled.")
   }
 
   // domain
@@ -71,7 +71,7 @@ export function makeQuantitativeScaleFunction(
     }
   } else if (!domain) {
     domain = [domainMin, domainMax];
-    if (zero) domain = [0, domainMax];
+    if (zero) domain = [Math.min(0, domainMin), Math.max(0, domainMax)];
     domainSpecified = false;
   } else {
     domainSpecified = true;
@@ -140,7 +140,7 @@ export function makeQuantitativeScaleFunction(
   let scaleTransformType = scaleDef?.type;
   if (scaleTransformType === LOG) {
     if (scaleDef?.base == 0) {
-      console.warn(`The log base can't be 0. It is converted to 10.`);
+      throw new RangeError(`The log base can't be 0. It is converted to 10.`);
     }
     let base = scaleDef?.base || 10;
     // @ts-ignore
