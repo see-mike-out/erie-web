@@ -99,7 +99,7 @@ test("SequenceStreamSpec with sampling and synth", () => {
       expect(spec.datasets[0].values[0].f).toBe(440);
     }
   }
-  expect(spec.sampling?.[0].name).toBe("mean");
+  expect(spec.sampling?.[0].name).toBe("sample1");
   expect(spec.sampling?.[0].sample).toHaveProperty("mono");
   expect(spec.sampling?.[0].sample.mono).toBe("mono.mp3");
   expect(spec.synth?.[0].type).toBe("FM");

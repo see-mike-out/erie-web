@@ -39,6 +39,7 @@
     "@types/d3": "^7.4.3",
     "@types/node": "^20.0.0",
     "@types/vega": "^0.0.30",
+    "standardized-audio-context": "^25.3.77",
     "typescript": "^5.6.3",
     "vitest": "^4.1.11"
   },

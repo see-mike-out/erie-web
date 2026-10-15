@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'vitest';
-import { createPanner } from '../src/player/audio-graph-panner';
-import { normalizeSpecification, NormalizedSingleStreamItem, StreamingStream, compileAudioGraph, type StreamingSpec, type TopLevelSpec, genRid } from '../src';
+import { PannerNode } from "standardized-audio-context";
+import { createPanner, normalizeSpecification, NormalizedSingleStreamItem, StreamingStream, compileAudioGraph, type StreamingSpec, type TopLevelSpec, genRid } from '../src';
 
 function makeStreamSpec(encoding: any, values = [
   { year: 2020, revenue: 500, location: 'NY' },
