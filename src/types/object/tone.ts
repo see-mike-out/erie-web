@@ -13,6 +13,8 @@ export type SamplingItem = {
   [key in NoteKey]?: string;
 };
 
+export const MONO = 'mono';
+
 export type LoadedMonoSample = {
   mono: AudioBuffer,
   multiNote: false

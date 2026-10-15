@@ -1,4 +1,5 @@
 import {
+  MONO,
   SampledToneObject,
   SamplingItem
 } from "../types";
@@ -25,13 +26,18 @@ export class SampledTone {
   }
 
   setSample(s: SamplingItem) {
+    if (Object.keys(s).length == 0) {
+      throw new TypeError("No sampling key provided.");
+    } else if (MONO in s && Object.keys(s).length > 1) {
+      throw new TypeError("If mono-tone sampling, then there should be only one sample.");
+    }
     Object.keys(s).forEach((k) => {
-      if (!scaleKeyCheck(k) || k === undefined) {
+      if (k !== MONO && (!scaleKeyCheck(k) || k === undefined)) {
         throw new TypeError('The key of a sampling object should be "C" + "0-7".');
-      } else if (k === "mono") {
+      } else if (k === MONO) {
         this._sample = { mono: s[k] };
       } else {
-        if (!this._sample || 'mono' in this._sample) {
+        if (!this._sample || MONO in this._sample) {
           this._sample = {};
         }
         let ck = <keyof SamplingItem>k;

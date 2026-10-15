@@ -141,7 +141,6 @@ describe("Overlay / Sequence", () => {
     const o = new Overlay(basic());
     o.config?.set("skipTitle", true).set("skipLength", true);
     o.data!.values(rows);
-    console.log(o.config?.get())
     expect(o.toSpec().config).toMatchObject({ skipTitle: true, skipLength: true });
   });
   it("nested unit streams only carry config overrides", () => {
@@ -150,7 +149,6 @@ describe("Overlay / Sequence", () => {
     const seq = new Sequence(s, basic("plain"));
     seq.data!.values(rows);
     const spec: any = seq.toSpec();
-    console.log(spec.sequence[0].config)
     expect(spec.sequence[0].config).toEqual({ speechRate: 2 });
     expect(spec.sequence[1]).not.toHaveProperty("config");
   });

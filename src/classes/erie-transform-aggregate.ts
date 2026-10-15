@@ -7,7 +7,7 @@ import {
   SingleOps,
   ZeroOPs
 } from "../types";
-import { deepcopy } from "../util";
+import { deepcopy, dropUndefined } from "../util";
 import { parseGroupby } from "./erie-util";
 
 export class Aggregate {
@@ -19,18 +19,18 @@ export class Aggregate {
     this._groupby = [];
   }
 
-  add(op: AggOpType, field?: string | string[], as?: string, p?: any) {
+  add(op: AggOpType, field?: string | string[], $as?: string, p?: any) {
     if (ZeroOPs.includes(op)) {
-      let _as = <string>field ?? op;
+      let _as = <string>field ?? $as ?? op;
       this.aggregate.push({
         op, as: _as
       });
     } else if (SingleOps.includes(op)) {
       if (field === undefined || field?.constructor.name !== 'String') {
-        throw new Error('"field" is not properly provided.')
+        throw new TypeError('"field" is not properly provided.')
       }
-      if (as === undefined || as?.constructor.name !== 'String') {
-        throw new Error('"as" is not properly provided.')
+      if ($as === undefined || $as?.constructor.name !== 'String') {
+        throw new TypeError('"as" is not properly provided.')
       }
       if (op === QUANTILE) {
         if (p === undefined) {
@@ -40,11 +40,11 @@ export class Aggregate {
           throw new RangeError(`The quantile parameter (p) must be within [0, 1]. Current: ${p}.`)
         }
         this.aggregate.push({
-          op, field, as, p
+          op, field, as: $as, p
         });
       } else {
         this.aggregate.push({
-          op, field, as
+          op, field, as: $as
         });
       }
     } else if (DoubleOps.includes(op)) {
@@ -54,11 +54,11 @@ export class Aggregate {
         !(<Array<any>>field).every(f => f?.constructor.name == 'String')) {
         throw new Error('"field" is not properly provided.')
       }
-      if (as === undefined || as?.constructor.name !== 'String') {
+      if ($as === undefined || $as?.constructor.name !== 'String') {
         throw new Error('"as" is not properly provided.')
       }
       this.aggregate.push({
-        op, field: [...field], as
+        op, field: [...field], as: $as
       });
     } else {
       throw new Error(`Unsupported operation type: ${op}`);
@@ -74,10 +74,10 @@ export class Aggregate {
   }
 
   get(): AggregateObject {
-    return {
-      aggregate: deepcopy(this.aggregate),
+    return dropUndefined({
+      aggregate: deepcopy(this.aggregate.map(d => dropUndefined(d))),
       groupby: deepcopy(this._groupby)
-    };
+    });
   }
 
   clone(): Aggregate {

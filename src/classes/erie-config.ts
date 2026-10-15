@@ -24,7 +24,7 @@ export class Config {
     if (v === undefined) {
       delete this._config[k];
     } else if (configValidator(k, v)) {
-      this._config[k] = v;
+      this._config[k] = deepcopy(v);
     } else {
       throw TypeError(`Wrong value type for ${k}.`);
     }

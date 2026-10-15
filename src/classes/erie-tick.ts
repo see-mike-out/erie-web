@@ -1,5 +1,7 @@
+import { dropUndefined } from "../util";
 import {
   OscType,
+  OscTypes,
   TickObject
 } from "../types";
 
@@ -7,8 +9,8 @@ export class Tick {
   _name: string;
   _interval: number;
   _playAtTime0: boolean;
-  _oscType: OscType;
-  _pitch: number;
+  _oscType?: OscType;
+  _pitch?: number;
   _loudness: number;
   _band?: number;
   _description?: string;
@@ -48,12 +50,16 @@ export class Tick {
   }
 
   oscType(t: OscType) {
-    this._oscType = t;
+    if (OscTypes.includes(t)) {
+      this._oscType = t;
+    } else {
+      throw new TypeError("Unsupported oscillaotr type.")
+    }
     return this;
   }
 
   pitch(t: number) {
-    if (t > 0) {
+    if (t >= 0) {
       this._pitch = t;
     } else {
       throw new TypeError('A tick pitch must be greater than 0.');
@@ -72,7 +78,11 @@ export class Tick {
   }
 
   band(b: number) {
-    this._band = b;
+    if (b > 0) {
+      this._band = b;
+    } else {
+      throw new TypeError('A tick band must be greater than 0.');
+    }
     return this;
   }
 
@@ -83,33 +93,57 @@ export class Tick {
 
   sample(s: string) {
     this._sample = s;
+
+    console.warn("Unset the oscillator type and pitch.")
+    this._oscType = undefined;
+    this._pitch = undefined;
+
     return this;
   }
 
   instrument(s: string) {
     this._instrument = s;
+
+    console.warn("Unset the oscillator type and pitch.")
+    this._oscType = undefined;
+    this._pitch = undefined;
+
     return this;
   }
 
   get(): TickObject {
-    return {
+    return dropUndefined({
       name: this._name,
+      description: this._description,
+
+      oscType: this._oscType,
+      instrument: this._instrument,
+      sample: this._sample,
+
+      band: this._band,
       interval: this._interval,
       playAtTime0: this._playAtTime0,
-      oscType: this._oscType,
+
       pitch: this._pitch,
       loudness: this._loudness
-    }
+    })
   }
 
   clone(): Tick {
     let _c = new Tick(this._name);
+    if (this._description !== undefined) _c.description(this._description);
+
+    if (this._oscType) _c.oscType(this._oscType);
+    if (this._instrument) _c.instrument(this._instrument);
+    if (this._sample) _c.sample(this._sample);
+
+    if (this._band !== undefined) _c.band(this._band);
     _c.interval(this._interval);
-    _c.pitch(this._pitch);
-    _c.oscType(this._oscType);
-    _c.pitch(this._pitch);
-    _c.loudness(this._loudness);
     _c.playAtTime0(this._playAtTime0);
+
+    if (this._pitch !== undefined) _c.pitch(this._pitch);
+    _c.loudness(this._loudness);
+
     return _c;
   }
 }

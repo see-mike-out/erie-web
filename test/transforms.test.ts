@@ -3,7 +3,7 @@ import {
   Aggregate, Bin, Boxplot, Calculate, Density, Diffing, Filter, Fold, Quantile, Transform
 } from "../src/classes";
 
-beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); });
+beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => { }); });
 
 describe("groupby (shared across transforms)", () => {
   const makers = {
@@ -31,7 +31,8 @@ describe("groupby (shared across transforms)", () => {
   }
   it("Density only accepts field names (spec: string[])", () => {
     expect(new Density("v").groupby("g").get().groupby).toEqual(["g"]);
-    expect(() => new Density("v").groupby("auto")).toThrow(TypeError);
+    expect(new Density("v").groupby("auto").get().groupby).toEqual("auto");
+    expect(() => new Density("v").groupby(3)).toThrow(TypeError);
   });
 });
 
@@ -89,10 +90,8 @@ describe("Quantile", () => {
     expect(() => new Quantile("v").step(1)).toThrow(TypeError);
   });
   it("n must be a positive integer", () => { expect(() => new Quantile("v", 2.5)).toThrow(TypeError); });
-  it("warns when neither n nor step is given", () => {
-    const w = vi.spyOn(console, "warn");
-    new Quantile("v");
-    expect(w).toHaveBeenCalled();
+  it("n or step must be given", () => {
+    expect(() => { new Quantile("v") }).toThrow(TypeError);
   });
 });
 

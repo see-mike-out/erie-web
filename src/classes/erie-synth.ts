@@ -3,7 +3,9 @@ import {
   FM,
   OscType,
   SynthType,
-  SynthObject
+  SynthObject,
+  SynthTypes,
+  OscTypes
 } from "../types";
 
 export class SynthTone {
@@ -47,12 +49,20 @@ export class SynthTone {
   }
 
   type(t: SynthType) {
-    this._type = t;
+    if (SynthTypes.includes(t)) {
+      this._type = t;
+    } else {
+      throw TypeError("Unsupported synthesizer type.")
+    }
     return this;
   }
 
   carrierType(t: OscType) {
-    this._carrierType = t;
+    if (OscTypes.includes(t)) {
+      this._carrierType = t;
+    } else {
+      throw TypeError("Unsupported oscillator type for the carrier.")
+    }
     return this;
   }
 
@@ -84,7 +94,11 @@ export class SynthTone {
   }
 
   modulatorType(t: OscType) {
-    this._modulatorType = t;
+    if (OscTypes.includes(t)) {
+      this._modulatorType = t;
+    } else {
+      throw TypeError("Unsupported oscillator type for the modulator.")
+    }
     return this;
   }
 
@@ -92,7 +106,7 @@ export class SynthTone {
     if (p >= 0) {
       this._modulatorPitch = p;
     } else {
-      throw new TypeError(`The modulator volume of a synth tone must be equal to or greater than 0.`);
+      throw new TypeError(`The modulator pitch of a synth tone must be equal to or greater than 0.`);
     }
     return this;
   }

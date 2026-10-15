@@ -52,7 +52,6 @@ describe("Data", () => {
 
   it("accepts null-prototype rows", () => {
     const r = Object.assign(Object.create(null), { a: 1 });
-    console.log([r])
     expect(() => new Data().values([r])).not.toThrow();
   });
 

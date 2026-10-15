@@ -1,4 +1,4 @@
-import { DiffingSpec, QuantileSpec } from "../types";
+import { QuantileSpec } from "../types";
 import { deepcopy } from "../util";
 import { parseGroupby } from "./erie-util";
 
@@ -11,8 +11,8 @@ export class Quantile {
 
   constructor(c: string, n?: number, step?: number, as?: [string, string]) {
     this._quantile = c;
-    this._n = n;
-    this._step = (step && step > 0 && step < 1) ? step : undefined;
+    if (n !== undefined) this.n(n);
+    if (step !== undefined && step > 0 && step < 1) this.step(step);
     if (this._n == undefined && this._step == undefined) {
       throw new TypeError("Must specify n or step. ")
     }
@@ -35,8 +35,8 @@ export class Quantile {
   }
 
   n(t: number) {
-    if (t <= 0) {
-      throw new RangeError("N value must be positive integer.")
+    if (t <= 0 || !Number.isInteger(t)) {
+      throw new TypeError("N value must be positive integer.")
     }
     this._n = t;
     return this;

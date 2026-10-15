@@ -11,7 +11,7 @@ export interface DensitySpec {
   /**
    * group the resulting densities by a field(s)
    */
-  groupby?: string[];
+  groupby?: string[] | "auto";
   /**
    * whether to make cumulative density
    */

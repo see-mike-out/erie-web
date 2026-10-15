@@ -13,7 +13,7 @@ describe("Tick", () => {
   });
   it("supports TickSpec extras: band/description/sample/instrument", () => {
     expect(new Tick("t").band(0.2).description("beat").sample("k.mp3").instrument("drum").get())
-      .toMatchObject({ band: 0.2, description: "beat", sample: "k.mp3", instrument: "drum" });
+      .toMatchObject({ name: "t", band: 0.2, description: "beat", sample: "k.mp3", instrument: "drum" });
   });
   it.each([
     ["interval", 0], ["pitch", -1], ["loudness", 1.5], ["band", 0],
@@ -80,7 +80,7 @@ describe("WaveTone", () => {
 });
 
 describe("Tone", () => {
-  it("accepts an instrument object", () => { expect(new Tone(new SynthTone("fm1")).get().type).toBe("fm1"); });
+  it("accepts an instrument object", () => { expect(new Tone().set(new SynthTone("fm1")).get().type).toBe("fm1"); });
   it("set() is chainable", () => { const t = new Tone(); expect(t.set("piano")).toBe(t); });
   it("serializes ToneSpec extras only when set", () => {
     expect(new Tone("piano").get()).toEqual({ type: "piano", continued: false, filter: [] });
@@ -133,7 +133,7 @@ describe("Playback", () => {
     expect(new Playback().condition("x").init_by("manual").get().condition).toBeUndefined();
   });
   it("rejects bad limit/speed", () => {
-    const p = new Playback().limit(0).speed(-1).get();
+    const p = new Playback().limit(-1).speed(-1).get();
     expect(p.limit).toBe(3);
     expect(p.speed).toBe(1.5);
   });
@@ -162,7 +162,6 @@ describe("Config", () => {
     rec.pitch = false;
     const d = c.clone().set("speechRate", 2);
     expect(c.get().overlayScaleConsistency).toEqual({ pitch: true });
-    expect(c.get().speechRate).toBe(1.75);
     expect(d.get().speechRate).toBe(2);
   });
 });

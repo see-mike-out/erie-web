@@ -32,6 +32,7 @@ export class Tone {
     } else {
       this._type = t._name;
     }
+    return this;
   }
 
   type(t: string) {
@@ -49,6 +50,8 @@ export class Tone {
       this._filter.push(t);
     } else if (isArrayOf(t, String)) {
       this._filter.push(...t);
+    } else {
+      throw new TypeError("Filter name must be a string.")
     }
     return this;
   }

@@ -10,14 +10,14 @@ export class Diffing {
   _groupby?: string[] | "auto";
 
   constructor(c: string[], carryOver?: boolean, keepFirstAsZero?: boolean, a?: string[]) {
-    this._diffing = c;
+    this._diffing = deepcopy(c);
     if (a) this._as = a;
     this._carryOver = carryOver ?? true;
     this._keepFirstAsZero = keepFirstAsZero ?? true;
   }
 
   diffing(c: string[]) {
-    this._diffing = c;
+    this._diffing = deepcopy(c);
     return this;
   }
 

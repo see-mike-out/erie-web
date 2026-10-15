@@ -37,15 +37,15 @@ export class Bin {
     if (Number.isInteger(v) && v > 0) {
       this._maxbins = v;
     } else {
-      throw new RangeError("Bin 'maxbins' should be a positive integer.");
+      throw new TypeError("Bin 'maxbins' should be a positive integer.");
     }
 
     return this;
   }
 
   step(v: number) {
-    if (v < 0) {
-      throw new RangeError("Bin 'step' should be a positive number.");
+    if (!Number.isInteger(v) || v <= 0) {
+      throw new TypeError("Bin 'step' should be a positive number.");
     }
     this._step = v;
     return this;
@@ -55,7 +55,7 @@ export class Bin {
     if (v.length < 2) {
       throw new TypeError("Bin 'exact'  must have at least 2 numbers.");
     }
-    this._exact = v;
+    this._exact = deepcopy(v).toSorted((a, b) => a - b);
 
     return this;
   }

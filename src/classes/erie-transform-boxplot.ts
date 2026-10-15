@@ -24,7 +24,7 @@ export class Boxplot {
     if ((typeof t === "number" && t > 0) || t === "min-max") {
       this._extent = t;
     } else {
-      throw new RangeError(`Unsupported extent value: ${t}`)
+      throw new TypeError(`Unsupported extent value: ${t}`)
     }
 
     return this;

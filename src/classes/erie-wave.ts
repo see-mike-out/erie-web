@@ -1,7 +1,9 @@
+import { deepcopy } from "../util";
 import {
   WaveItem,
   WaveObject
 } from "../types";
+import { isArrayOf } from "./erie-util";
 
 
 export class WaveTone {
@@ -29,20 +31,31 @@ export class WaveTone {
   }
 
   real(r: number[]) {
-    this._real = r;
+    if (isArrayOf(r, Number)) {
+      this._real = deepcopy(r);
+    } else {
+      throw new TypeError("The real coefficients must be numbers.")
+    }
 
     return this;
   }
 
   imag(a: number[]) {
-    this._imag = a;
+    if (isArrayOf(a, Number)) {
+      this._imag = deepcopy(a);
+    } else {
+      throw new TypeError("The imaginary coefficients must be numbers.")
+    }
+
     return this;
   }
 
   wave(w: WaveItem) {
-    if (w.real && w.imag && w.real.length >= 2) {
+    if (w.real && w.imag && w.real.length >= 2 && w.real.length === w.imag.length) {
       this.real(w.real);
       this.imag(w.imag);
+    } else if (w.real && w.imag && w.real.length >= 2 && w.real.length !== w.imag.length) {
+      throw new RangeError('The real and imag terms must have the same lenghts.');
     } else {
       throw new TypeError('The definition a periodic wave must consist of "real" (cosine terms) and "imag" (sine terms) properties.');
     }
