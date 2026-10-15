@@ -21,7 +21,7 @@ import {
   toHashedObject
 } from "../util";
 import { OverlayStream } from "./audio-graph-overlay-stream";
-import { compileSingleLayerAuidoGraph } from "./audio-graph-queue-compile";
+import { compileSingleLayerAudioGraph } from "./audio-graph-queue-compile";
 import { SequenceStream } from "./audio-graph-sequence-stream";
 import { SpeechStream } from "./audio-graph-speech-stream";
 import { UnitStream } from "./audio-graph-unit-stream";
@@ -31,7 +31,7 @@ import {
   tidyUpScaleDefinitions
 } from "./audio-graph-update-scale";
 
-export async function compileSequnceStream(
+export async function compileSequenceStream(
   audio_spec: TopLevelSpec,
   normalized: NormalizedStreamItem[],
   datasets: HashedObject<DatasetSpecItemNormed>,
@@ -41,7 +41,7 @@ export async function compileSequnceStream(
   synths: SynthNormed[],
   samplings: SampledToneNormed[],
   waves: WaveNormed[],
-  ordering_normalized: OrderSpecNormed // todo (here, just pass. do stuff at the prerendering step)
+  ordering_normalized: OrderSpecNormed
 ): Promise<SequenceStream> {
 
   // 1. load datasets first! && filling missing data type
@@ -106,7 +106,7 @@ export async function compileSequnceStream(
       let is_repeated = isRepeatedStream(stream.stream);
       let data = deepcopy(loaded_datasets[(stream.stream.data as DataNormed1).name]);
       // slag = single layer audio graph
-      let slag = await compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales)
+      let slag = await compileSingleLayerAudioGraph(stream.stream, data, audio_spec.config, tick, scales)
 
       if (!is_repeated && slag?.stream) {
         sequence.addStream(slag?.stream as UnitStream);
@@ -142,7 +142,7 @@ export async function compileSequnceStream(
         let config = deepcopy(audio_spec.config as ConfigNormed);
         Object.assign(config, overlay.config);
 
-        let overlayStrm = await compileSingleLayerAuidoGraph(overlay, data, config, tick, scales)
+        let overlayStrm = await compileSingleLayerAudioGraph(overlay, data, config, tick, scales)
 
         if (overlayStrm) {
           if (overlay.name) (overlayStrm.stream as UnitStream).setName(overlay.name);

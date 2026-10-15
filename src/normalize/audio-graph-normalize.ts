@@ -45,13 +45,19 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
   // treat options
   let dataBaseUrl = options?.dataBaseUrl;
   let sampleBaseUrl = options?.sampleBaseUrl;
+  if (dataBaseUrl && !dataBaseUrl.endsWith("/")) {
+    throw new TypeError("Set data base urls to end with '/'.")
+  }
+  if (sampleBaseUrl && !sampleBaseUrl.endsWith("/")) {
+    throw new TypeError("Set sampling base urls to end with '/'.")
+  }
   if (sampleBaseUrl) {
     setSampleBaseUrl(sampleBaseUrl);
   }
   let streams: NormalizedStreamItem[] = [],
     datasets: DatasetSpecItemNormed[] = 'datasets' in spec ? deepcopy(spec.datasets || []) : [],
     synths: SynthNormed[] = deepcopy(spec.synth || []),
-    samplings: SampledToneObject[] = deepcopy(spec.sampling || []),
+    samplings: SampledToneObject[] = deepcopy(spec.sampling || []).map((s) => { s.baseUrl = sampleBaseUrl; return s; }),
     tickDefs: TickObject[] = deepcopy(spec.tick || []),
     waves: WaveObject[] = deepcopy(spec.wave || []),
     scales: ParsedScaleDefinition[] = [],
@@ -62,7 +68,7 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
     if ('data' in spec && spec.data && !isStreamingStream(spec)) {
       // moving to datasets
       if (!('name' in spec.data)) {
-        let new_data_name = "data__" + (datasets.length + 1)
+        let new_data_name = "data__" + genRid()
         datasets.push({
           name: new_data_name,
           ...addURLtoDataObject(spec.data, dataBaseUrl)
@@ -85,36 +91,47 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
     let new_data_name: string | null = null;
     if ('data' in spec && spec.data
       && (!('name' in spec.data) || !spec.data.name)
-      && (!('type' in spec.data) || spec.data.type !== "unset")
-      && 'values' in spec.data && spec.data.values) {
-      new_data_name = "data__" + (datasets.length + 1);
-      datasets.push({
-        name: new_data_name,
-        ...addURLtoDataObject(spec.data, dataBaseUrl)
-      });
+      && (!('type' in spec.data) || spec.data.type !== "unset")) {
+      new_data_name = "data__" + genRid();
+      if ('values' in spec.data && spec.data.values) {
+        datasets.push({
+          name: new_data_name,
+          values: deepcopy(spec.data.values)
+        });
+      } else if ('url' in spec.data && spec.data.url) {
+        datasets.push({
+          name: new_data_name,
+          ...addURLtoDataObject(spec.data, dataBaseUrl)
+        });
+      }
     }
     if (isOverlayStream(spec) && 'overlay' in spec) {
       let overlay: NormalizedSingleStream[] = [];
       // sort out the dataset in use
-      let toplevel_data: DataSpec | null = null, toplevel_data_name: string | null = null;
-      // if the spec has a single dataset with values
-      if ('data' in spec && spec.data
-        && (!('name' in spec.data) || !spec.data.name)
-        && (!('type' in spec.data) || spec.data.type !== "unset")) {
-        // assign dataset name 
-        toplevel_data_name = `data__${((datasets.length ?? 0) + 1)}`;
-        // then pass it as a dataset;
-        toplevel_data = { name: toplevel_data_name } as DataSpec3;
-        datasets.push({ name: toplevel_data_name, ...addURLtoDataObject(spec.data, dataBaseUrl) } as DatasetSpecItemNormed);
-      }
-      // or if the spec's data has a name
-      else if ('data' in spec && spec.data
-        && ('name' in spec.data && spec.data.name)) {
-        toplevel_data = addURLtoDataObject(spec.data, dataBaseUrl);
-        if (!('dataset' in spec) || !spec.dataset) {
-          console.warn("Dataset name can't be used with a specified dataset");
-        }
-      }
+      // let toplevel_data: DataSpec | null = null, toplevel_data_name: string | null = null;
+      // // if the spec has a single dataset with values
+      // if ('data' in spec && spec.data
+      //   && (!('name' in spec.data) || !spec.data.name)
+      //   && (!('type' in spec.data) || spec.data.type !== "unset")) {
+      //   // assign dataset name 
+      //   toplevel_data_name = `data__${genRid()}`;
+      //   // then pass it as a dataset;
+      //   toplevel_data = { name: toplevel_data_name } as DataSpec3;
+      //   if ('values' in spec.data && spec.data.values) {
+      //     datasets.push({ name: toplevel_data_name, values: deepcopy(spec.data.values) } as DatasetSpecItemNormed);
+      //   } else if ('url' in spec.data && spec.data.url) {
+      //     datasets.push({ name: toplevel_data_name, url: spec.data.url } as DatasetSpecItemNormed);
+      //   }
+      // }
+      // // or if the spec's data has a name
+      // else if ('data' in spec && spec.data
+      //   && ('name' in spec.data && spec.data.name)) {
+      //   toplevel_data_name = spec.data.name;
+      //   toplevel_data = { name: spec.data.name } as DataSpec3;
+      //   if (!('dataset' in spec) || !spec.dataset) {
+      //     console.warn("Dataset name can't be used with a specified dataset");
+      //   }
+      // }
 
       for (const _o of spec.overlay) {
         // eligibility check
@@ -123,31 +140,21 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
         // deep-copy to not interrupt the original spec.
         let o = deepcopy(_o) as ExtendedSingleSpec;
 
-        // when the current unit stream of the overlay doesn't dataset
+        // when the current unit stream of the overlay doesn't have a data
         // then pass the top-level dataset by its name
-        if (toplevel_data && !o.data) {
-          // if top-level data is on its own (not set as reference name)
-          if (toplevel_data_name) {
-            o.data = { name: toplevel_data_name } as DataSpec;
-          }
-          // if top-level data is specified as name
-          else if (!o.data) {
-            o.data = toplevel_data as DataSpec;
-          }
+        if (new_data_name && !o.data) {
+          o.data = { name: new_data_name } as DataSpec;
         }
         // when the current unit stream has a data object specified
         else if (o.data) {
           // if the specified data doesn't have the name
           // then assign it to the top-level datasets and refer it by name
           if (!('name' in o.data) || !o.data.name) {
-            let dname = `data__${(datasets.length + 1)}`;
-            datasets.push({ name: dname, ...o.data } as DatasetSpecItem);
+            let dname = `data__${genRid()}`;
+            datasets.push({ name: dname, ...addURLtoDataObject(o.data, dataBaseUrl) } as DatasetSpecItem);
             o.data = { name: dname };
           }
         }
-
-        // if data is not specified, there's toplevel data available, use it
-        if (!o.data && new_data_name) o.data = { name: new_data_name };
 
         // transform
         o.common_transform = deepcopy(spec.transform || []) as TransformList;
@@ -160,9 +167,9 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
           // when it is not specified as name
           // or it is not referring to a top-level tick object
           if (!o.encoding?.time.tick.name
-            || !tickDefs.filter((d: TickObject) => d.name === o.encoding?.time?.tick?.name)) {
+            || tickDefs.filter((d: TickObject) => d.name === o.encoding?.time?.tick?.name).length == 0) {
             // define a new tick object in the top level
-            let new_tick_name = o.encoding?.time.tick.name || ("tick_" + (tickDefs.length + 1));
+            let new_tick_name = o.encoding?.time.tick.name || ("tick_" + (genRid()));
             tickDefs.push({
               ...o.encoding?.time.tick,
               name: new_tick_name,
@@ -238,8 +245,8 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
           // if the time channel has tick -> move it to the top level tick def.
           if (o.encoding?.time?.tick) {
             if (!o.encoding?.time?.tick.name
-              || !tickDefs.filter((d: TickObject) => d.name === o.encoding?.time?.tick?.name)) {
-              let new_tick_name = o.encoding?.time.tick.name || ("tick_" + (tickDefs.length + 1));
+              || tickDefs.filter((d: TickObject) => d.name === o.encoding?.time?.tick?.name).length == 0) {
+              let new_tick_name = o.encoding?.time.tick.name || ("tick_" + (genRid()));
               tickDefs.push({
                 ...o.encoding?.time.tick,
                 name: new_tick_name,
@@ -249,12 +256,21 @@ export async function normalizeSpecification(_spec: TopLevelSpec, options?: Conf
           }
           // if it has no data set, then assign the top level data
           if (!o.data && new_data_name) o.data = { name: new_data_name };
-          // or if it has raw data defined
+          // or if it has raw data defined (as values)
           else if ('values' in o.data && o.data?.values) {
-            let new_data_name_2 = "data__" + (datasets.length + 1);
+            let new_data_name_2 = "data__" + genRid();
             datasets.push({
               name: new_data_name_2,
               values: deepcopy(o.data.values)
+            } as DatasetSpecItemNormed);
+            o.data = { name: new_data_name_2 };
+          }
+          // or if it has raw data defined (as url)
+          else if ('url' in o.data && o.data?.url) {
+            let new_data_name_2 = "data__" + genRid();
+            datasets.push({
+              name: new_data_name_2,
+              ...addURLtoDataObject(o.data, dataBaseUrl)
             } as DatasetSpecItemNormed);
             o.data = { name: new_data_name_2 };
           }

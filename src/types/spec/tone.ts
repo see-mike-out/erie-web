@@ -13,6 +13,7 @@ export interface ToneSpec {
 export interface SampledToneSpec {
   name: string;
   sample: SamplingItem;
+  baseUrl?: string;
 }
 
 export interface WaveSpec {

@@ -25,8 +25,6 @@ import {
   RoleName,
   RoleScaleOverview,
   RoleScaleDescription,
-  PAN_X_chn,
-  PAN_chn,
   RoleLength,
   SpeechNotifyItemSpec,
   ToneType,
@@ -37,7 +35,6 @@ import {
   DescriptionMarkupQueueTextItem,
 } from '../types';
 import {
-  toOrdinalNumbers,
   deepcopy
 } from '../util';
 import { OverlayStream } from './audio-graph-overlay-stream';
@@ -150,7 +147,6 @@ export class SequenceStream {
           for (const repeatOrderIteam of orderItem.repeat) {
             if (repeatOrderIteam.type === OrderingTypeMarkup) {
               if (repeatOrderIteam.specifier.role === RoleRepeatTitle) {
-                // todo
                 // @ts-ignore
                 let scale: ParsedScaleFunction = () => { };
                 scale.properties = { channel: '', encodingType: 'static', title: stream.name, index: ri };
@@ -166,7 +162,6 @@ export class SequenceStream {
                 }, this.config);
               }
             } else if (repeatOrderIteam.type === OrderingTypeSound) {
-              // todo
               if (repeatOrderIteam.notify?.beforePlay || repeatOrderIteam.notify?.beforePlay === undefined) {
                 if (repeatOrderIteam.notify === undefined || repeatOrderIteam.notify?.beforePlay === undefined || repeatOrderIteam.notify.beforePlay === true) {
                   chiime_used = true;
@@ -297,7 +292,6 @@ export class SequenceStream {
             }
           } else if (orderItem.specifier.role === RoleScaleDescription) {
             if (stream && orderItem.specifier.channel) {
-              // todo: provide custom markup? here? or when updating scales? maybe here... is
               let scaleDesc = stream.make_scale_text(orderItem.specifier.channel).filter((d) => d);
               if (scaleDesc[0].description) {
                 for (const descItem of scaleDesc[0].description) {

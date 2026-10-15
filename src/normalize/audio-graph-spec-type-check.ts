@@ -4,10 +4,10 @@ import {
   OVERLAY,
   OverlayStreamSpec,
   SEQUENCE,
+  SequenceStreamSpec,
   SingleStreamSpec,
   StreamingSpec,
-  TopLevelSpec,
-  UnitStreamSpec
+  TopLevelSpec
 } from "../types";
 
 export function isRepeatedStream(spec: TopLevelSpec | NormalizedSingleStream): boolean {
@@ -31,7 +31,7 @@ export function isOverlayStream(spec: TopLevelSpec): spec is OverlayStreamSpec {
   return false;
 }
 
-export function isSequenceStream(spec: any): spec is UnitStreamSpec | InSeqOverlayStreamSpec {
+export function isSequenceStream(spec: any): spec is SequenceStreamSpec | InSeqOverlayStreamSpec {
   if (spec && !('encoding' in spec) && !('tone' in spec) && !(OVERLAY in spec) && (SEQUENCE in spec)) {
     return true;
   }

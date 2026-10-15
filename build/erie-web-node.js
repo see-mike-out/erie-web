@@ -63,10 +63,10 @@ const PlaybackUnitDatum = 'datum', PlaybackUnitTime = 'time', PlaybackUnitInstan
 const PlaybackUnits = [PlaybackUnitDatum, PlaybackUnitTime, PlaybackUnitInstance];
 
 const timeUnitDomainDefs = {
-    monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
     monthNumber1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     monthShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-    monthLong: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    monthLong: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     dayNumber: [0, 1, 2, 3, 4, 5, 6],
     dayNumber1: [1, 2, 3, 4, 5, 6, 7],
     dayNumberFromMon: [6, 0, 1, 2, 3, 4, 5],
@@ -114,6 +114,35 @@ const timeUnitDomainDefs = {
 };
 const TU_SEC = "second", TU_BEAT = "beat";
 const TU_Always = 'always', TU_Start = 'start', TU_Never = 'never';
+function isTimeUnit(o) {
+    if (!('unit' in o)) {
+        return false;
+    }
+    else {
+        if (o.unit !== TU_SEC && o.unit !== TU_BEAT) {
+            return false;
+        }
+    }
+    if ('tempo' in o) {
+        if (typeof o.tempo !== 'number') {
+            return false;
+        }
+    }
+    if ('rounding' in o) {
+        if (typeof o.rounding !== 'string') {
+            return false;
+        }
+        if (![TU_Always, TU_Start, TU_Never].includes(o.rounding)) {
+            return false;
+        }
+    }
+    if ('roundingBy' in o) {
+        if (typeof o.roundingBy !== 'number') {
+            return false;
+        }
+    }
+    return true;
+}
 
 /*----- CHANNEL DEFINITIONS -----*/
 // Channel names
@@ -176,7 +205,7 @@ const DefaultChannels = [
     HARMONICITY_chn
 ];
 /*----- DEFAULT RANGES -----*/
-const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 1, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
+const MIN_TIME = 0, MAX_TIME = 5, MIN_PITCH = 207.65, MAX_PITCH = 1600, MAX_LIMIT_PITCH$1 = 3000, MAX_DETUNE = 1200, MIN_DETUNE = -1200, MIN_LOUD = 0, MAX_LOUD = 1, MIN_PAN = -1, MAX_PAN = 1, MIN_PAN_X = -1, MAX_PAN_X = 1, MIN_PAN_Y = -1, MAX_PAN_Y = 1, MIN_PAN_Z = -1, MAX_PAN_Z = 1, MIN_PAN_RADIUS = 0, MAX_PAN_RADIUS = 1, MIN_PAN_POLAR = 0, MAX_PAN_POLAR = 360, MIN_PAN_AZIMUTH = 0, MAX_PAN_AZIMUTH = 360, MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5, MIN_POST_REVERB = 0, MAX_POST_REVERB = 4, MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25, MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 7, MAX_LIMIT_TAP_SPEED$1 = 7, DEF_SPEECH_RATE = 1.75;
 const ChannelThresholds = {
     [TIME_chn]: { max: null, min: 0 },
     [PITCH_chn]: { max: MAX_PITCH, min: MIN_PITCH },
@@ -209,7 +238,7 @@ const ChannelCaps = {
     [DUR_chn]: { max: Infinity, min: MIN_DUR },
     [POST_REVERB_chn]: { max: Infinity, min: 0 },
     [TAPCNT_chn]: { max: Infinity, min: 0 },
-    [TAPSPD_chn]: { max: MAX_LIMIT_TAP_SPEED$1, min: MIN_TAP_SPEED }
+    [TAPSPD_chn]: { max: Infinity, min: MIN_TAP_SPEED }
 };
 /*----- CHANNEL-SPECIFIC -----*/
 // TIME
@@ -227,6 +256,8 @@ const QUANT = 'quantitative', ORD = 'ordinal', NOM = 'nominal', TMP = 'temporal'
 // ranmping types
 const RampAbrupt = 'abrupt', RampLinear = 'linear', RampExp = 'exponential';
 const RampMethods = [true, false, RampAbrupt, RampLinear, RampExp];
+// sort
+const SupportedSortValues = ['ascending', 'asc', 'descending', 'desc', true, false];
 // format
 const NumberFormat = 'number', DateFormat = 'datetime', TimeFormat = 'time';
 /*----- SCALE -----*/
@@ -235,11 +266,15 @@ const POS = 'positive', NEG = 'negative';
 const SupportedPolarity = [POS, NEG];
 // scale transformations
 const LINEAR = "linear", SQRT = "sqrt", POW = "pow", LOG = "log", SYMLOG = "symlog";
+const SupportedScaleTypes = [
+    LINEAR, SQRT, POW, LOG, SYMLOG
+];
 // sacle object
 const KeyDomain = 'domain', KeyDomainMin = 'domainMin', KeyDomainMax = 'domainMax', KeyDomainMid = 'domainMid', KeyRange = 'range', KeyRangeMin = 'rangeMin', KeyRangeMax = 'rangeMax', KeyRangeMid = 'rangeMid', KeyPolarity = 'polarity', KeyMaxDistinct = 'maxDistinct', KeyTimes = 'times', KeyZero = 'zero', KeyDescription = 'description', KeyTitle = 'title', KeyLength = 'length', KeyBand = 'band', KeyTiming = 'timing', KeyOrder = 'order', KeySort = 'sort', KeyType = 'type', KeyBase = 'base', KeyConstant = 'constant', KeyExponent = 'exponent', KeySingleTappingPosition = 'singleTappingPosition', KeyNice = 'nice', KeyPauseRate = 'pauseRate', KeyPauseLength = 'pauseLength', KeyMaxTappingLength = 'maxTappingLength';
 
 const SINE = 'sine', SQUARE = 'square', SAWTOOTH = 'sawtooth', TRIANGLE = 'triangle';
 const OscTypes = [SINE, SQUARE, SAWTOOTH, TRIANGLE];
+const MONO = 'mono';
 // Synth-related
 const FM = 'FM', AM = 'AM';
 const SynthTypes = [FM, AM];
@@ -643,7 +678,10 @@ function unique(arr) {
     return Array.from(new Set(arr));
 }
 function deepcopy(i) {
-    return JSON.parse(JSON.stringify(i));
+    if (i === undefined)
+        return i;
+    else
+        return JSON.parse(JSON.stringify(i));
 }
 function round(n, d) {
     let e = Math.pow(10, -d);
@@ -691,6 +729,16 @@ function desc(a, b) {
         return b.localeCompare(a);
     else
         return a < b ? 1 : a > b ? -1 : 0;
+}
+function dropUndefined(o) {
+    for (const k of Object.keys(o)) {
+        if (o[k] === undefined)
+            delete o[k];
+    }
+    return deepcopy(o);
+}
+function isEmptyObject(o) {
+    return Object.keys(o).length == 0;
 }
 
 function listString(arr, delim, isAnd, _and) {
@@ -1165,7 +1213,7 @@ const TSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\
 function isTSV(d) {
     return d.match(TSV_format);
 }
-const CSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/gi;
+const CSV_format = /^(?:\r?\n)*(?:[ ]*(?:'(?:[^'\\]|''|\\[\S\s])*'|"(?:[^"\\]|""|\\[\S\s])*"|[^,'"\s\\]*(?:[ ]+[^,'"\s\\]+)*)[ ]*(?:,[ ]*(?:'(?:[^'\\]|''|\\[\S\s])*'|"(?:[^"\\]|""|\\[\S\s])*"|[^,'"\s\\]*(?:[ ]+[^,'"\s\\]+)*)[ ]*)*(?:\r?\n|$))+$/gi;
 function isCSV(d) {
     return d.match(CSV_format);
 }
@@ -1177,6 +1225,42 @@ function aRange(s, e, incl) {
         o.push(i);
     }
     return o;
+}
+function isInRange(a, l, g, option) {
+    if (option === '()') {
+        return l < a && a < g;
+    }
+    else if (option === '[]') {
+        return l <= a && a <= g;
+    }
+    else if (option === '(]') {
+        return l < a && a <= g;
+    }
+    else if (option === '[)') {
+        return l <= a && a < g;
+    }
+    else {
+        // default: []
+        return l <= a && a <= g;
+    }
+}
+function isOutRange(a, l, g, option) {
+    if (option === '()') {
+        return !isInRange(a, l, g, '[]');
+    }
+    else if (option === '[]') {
+        return !isInRange(a, l, g, '()');
+    }
+    else if (option === '(]') {
+        return !isInRange(a, l, g, '[)');
+    }
+    else if (option === '[)') {
+        return !isInRange(a, l, g, '(]');
+    }
+    else {
+        // default: [] --- inclusive
+        return !isInRange(a, l, g, '()');
+    }
 }
 
 class UnitStream {
@@ -1414,7 +1498,7 @@ function determineNoteRange(freq, config) {
 }
 function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
+        var _a, _b, _c, _d, _e;
         let samples;
         if (MultiNoteInstruments.includes(instrument_name)) {
             samples = { multiNote: true };
@@ -1429,10 +1513,11 @@ function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
             samples = yield makeSingleScaleSamplingNode(ctx, `${baseUrl || ''}audio_sample/${instrument_name}.mp3`);
         }
         else if (smaplingDef[instrument_name]) {
-            if ((_a = smaplingDef[instrument_name].sample) === null || _a === void 0 ? void 0 : _a.mono) {
+            let sample_to_load = smaplingDef[instrument_name];
+            if ((_a = sample_to_load.sample) === null || _a === void 0 ? void 0 : _a.mono) {
                 // single
                 try {
-                    samples = yield makeSingleScaleSamplingNode(ctx, smaplingDef[instrument_name].sample.mono, `${baseUrl || ''}`);
+                    samples = yield makeSingleScaleSamplingNode(ctx, sample_to_load.sample.mono, `${(_c = (_b = sample_to_load.baseUrl) !== null && _b !== void 0 ? _b : baseUrl) !== null && _c !== void 0 ? _c : ''}`);
                 }
                 catch (e) {
                     console.error(e);
@@ -1441,7 +1526,7 @@ function loadSamples(ctx, instrument_name, smaplingDef, baseUrl) {
             else {
                 // multi
                 try {
-                    samples = yield makeMultiScaleSamplingNode(ctx, smaplingDef[instrument_name].sample, `${baseUrl || ''}`);
+                    samples = yield makeMultiScaleSamplingNode(ctx, sample_to_load.sample, `${(_e = (_d = sample_to_load.baseUrl) !== null && _d !== void 0 ? _d : baseUrl) !== null && _e !== void 0 ? _e : ''}`);
                     samples.multiNote = true;
                 }
                 catch (e) {
@@ -2353,11 +2438,16 @@ class Tick {
         return this;
     }
     oscType(t) {
-        this._oscType = t;
+        if (OscTypes.includes(t)) {
+            this._oscType = t;
+        }
+        else {
+            throw new TypeError("Unsupported oscillaotr type.");
+        }
         return this;
     }
     pitch(t) {
-        if (t > 0) {
+        if (t >= 0) {
             this._pitch = t;
         }
         else {
@@ -2374,22 +2464,63 @@ class Tick {
         }
         return this;
     }
+    band(b) {
+        if (b > 0) {
+            this._band = b;
+        }
+        else {
+            throw new TypeError('A tick band must be greater than 0.');
+        }
+        return this;
+    }
+    description(s) {
+        this._description = s;
+        return this;
+    }
+    sample(s) {
+        this._sample = s;
+        console.warn("Unset the oscillator type and pitch.");
+        this._oscType = undefined;
+        this._pitch = undefined;
+        return this;
+    }
+    instrument(s) {
+        this._instrument = s;
+        console.warn("Unset the oscillator type and pitch.");
+        this._oscType = undefined;
+        this._pitch = undefined;
+        return this;
+    }
     get() {
-        return {
+        return dropUndefined({
             name: this._name,
+            description: this._description,
+            oscType: this._oscType,
+            instrument: this._instrument,
+            sample: this._sample,
+            band: this._band,
             interval: this._interval,
             playAtTime0: this._playAtTime0,
-            oscType: this._oscType,
             pitch: this._pitch,
             loudness: this._loudness
-        };
+        });
     }
     clone() {
         let _c = new Tick(this._name);
+        if (this._description !== undefined)
+            _c.description(this._description);
+        if (this._oscType)
+            _c.oscType(this._oscType);
+        if (this._instrument)
+            _c.instrument(this._instrument);
+        if (this._sample)
+            _c.sample(this._sample);
+        if (this._band !== undefined)
+            _c.band(this._band);
         _c.interval(this._interval);
-        _c.pitch(this._pitch);
-        _c.oscType(this._oscType);
-        _c.pitch(this._pitch);
+        _c.playAtTime0(this._playAtTime0);
+        if (this._pitch !== undefined)
+            _c.pitch(this._pitch);
         _c.loudness(this._loudness);
         return _c;
     }
@@ -2399,7 +2530,13 @@ class TickList {
         this.tick = [];
     }
     add(a) {
-        this.tick.push(a);
+        let i = this.tick.findIndex(d => d._name === a._name);
+        if (i >= 0) {
+            this.tick[i] = a;
+        }
+        else {
+            this.tick.push(a);
+        }
         return this;
     }
     get() {
@@ -2412,64 +2549,104 @@ class TickList {
     }
 }
 
-function isInstanceOf(o, c) {
-    return (o === null || o === void 0 ? void 0 : o.constructor) == c;
+function isInstanceOf(o, c, strict) {
+    // @strict: only for objects
+    if (o === undefined && c === undefined) {
+        return true;
+    }
+    else if (o === null && c === null) {
+        return true;
+    }
+    else if (!strict && o instanceof Object && !(o instanceof Array)) {
+        return o instanceof c;
+    }
+    else {
+        return (o === null || o === void 0 ? void 0 : o.constructor) === c;
+    }
 }
-function isInstanceOfByName(o, c) {
-    var _a;
-    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === c;
-}
-function isArrayOf(o, c) {
+function isArrayOf(o, c, strict) {
     if (isInstanceOf(o, Array)) {
         if (isInstanceOf(c, Array)) {
             return o.every((d) => c.includes(d.constructor));
         }
         else {
-            return o.every((d) => isInstanceOf(d, c));
+            return o.every((d) => isInstanceOf(d, c, strict));
         }
     }
     else {
         return false;
     }
 }
+function parseGroupby(...args) {
+    // this function resets groupby
+    if (args.length == 1 && args[0] == "auto") {
+        return "auto";
+    }
+    else if (args.length == 1 &&
+        args[0].constructor.name === 'Array' &&
+        args[0].every((a) => a.constructor.name === 'String')) {
+        return [...args[0]];
+    }
+    else if (args.length >= 1 &&
+        args.every((a) => a.constructor.name === 'String')) {
+        return [...args];
+    }
+    else {
+        throw new TypeError("Unsupported groupby value.");
+    }
+}
+// @ts-ignore
+const ResourceKeys = ["tick", "synth", "sampling", "wave", "transform", "datasets"];
+function clearResources(spec) {
+    var _a;
+    for (const k of ResourceKeys) {
+        if (k in spec) {
+            if (((_a = spec[k]) === null || _a === void 0 ? void 0 : _a.length) == 0) {
+                delete spec[k];
+            }
+        }
+    }
+    return spec;
+}
 
 class Channel {
-    constructor(f, t) {
+    constructor(f, t, c) {
         this.defined = false;
-        this._channel = undefined;
-        this._field;
-        this._type;
+        this._channel = c;
+        this._field = undefined;
+        this._type = undefined;
         if (f) {
             this.field(f, t);
         }
         this._ramp = 'linear';
-        this._aggregate;
-        this._bin;
+        this._aggregate = undefined;
+        this._bin = undefined;
         this._scale = {};
-        this._condition;
-        this._value;
-        this._format;
-        this._formatType;
+        this._condition = undefined;
+        this._value = undefined;
+        this._format = undefined;
+        this._formatType = undefined;
+        this._speech = undefined;
+        this._by = undefined;
+        this._p = undefined;
+        this._sort = undefined;
+        this._timeUnit = undefined;
+        this._timeUnitName = undefined;
+        this._timeLevel = undefined;
     }
     set(c) {
-        if (isInstanceOfByName(c, `TimeChannel`) ||
-            isInstanceOfByName(c, `Time2Channel`) ||
-            isInstanceOfByName(c, `DurationChannel`) ||
-            isInstanceOfByName(c, `TapSpeedChannel`) ||
-            isInstanceOfByName(c, `TapCountChannel`) ||
-            isInstanceOfByName(c, `PitchChannel`) ||
-            isInstanceOfByName(c, `DetuneChannel`) ||
-            isInstanceOfByName(c, `LoudnessChannel`) ||
-            isInstanceOfByName(c, `PanChannel`) ||
-            isInstanceOfByName(c, `PostReverbChannel`) ||
-            isInstanceOfByName(c, `SpeechBeforeChannel`) ||
-            isInstanceOfByName(c, `SpeechAfterChannel`) ||
-            isInstanceOfByName(c, `RepeatChannel`) ||
-            isInstanceOfByName(c, `ModulationChannel`) ||
-            isInstanceOfByName(c, `HarmonicityChannel`) ||
-            isInstanceOfByName(c, `Channel`)) {
-            let g = c.get();
-            Object.assign(this, g);
+        if (!(c instanceof Channel)) {
+            throw new TypeError("channel.set expects a Channel object.");
+        }
+        const own = this._channel;
+        this.assignFrom(c.get());
+        this._channel = own;
+        return this;
+    }
+    assignFrom(g) {
+        for (const [k, v] of Object.entries(g)) {
+            const ck = k === 'defined' ? k : '_' + k;
+            this[ck] = v === undefined ? v : deepcopy(v);
         }
     }
     field(f, t) {
@@ -2501,11 +2678,13 @@ class Channel {
         else {
             this._ramp = r ? 'linear' : 'abrupt';
         }
+        return this;
     }
-    aggregate(op) {
+    aggregate(op, p) {
         switch (op) {
             case COUNT:
                 if (this._field) {
+                    this._field = undefined;
                     console.warn('A count aggregate will drop the existing field.');
                 }
                 this._aggregate = op;
@@ -2518,7 +2697,6 @@ class Channel {
             case AVG:
             case MODE:
             case MEDIAN:
-            case QUANTILE:
             case STDEV:
             case STDEVP:
             case VARIANCE:
@@ -2530,11 +2708,33 @@ class Channel {
                 this._aggregate = op;
                 this._type = QUANT;
                 this.defined = true;
+                if (p !== undefined) {
+                    throw new RangeError(`The ${op} operator does not accept a parameter.`);
+                }
+                break;
+            case QUANTILE:
+                if (p !== undefined && isInstanceOf(p, Number) && isInRange(p, 0, 1)) {
+                    this._aggregate = op;
+                    this._type = QUANT;
+                    this.defined = true;
+                    this._p = p;
+                }
+                else if (p !== undefined) {
+                    throw new RangeError('Wrong quantile parameter.');
+                }
+                else {
+                    this._aggregate = op;
+                    this._type = QUANT;
+                    this.defined = true;
+                    this._p = 0.5;
+                }
                 break;
             case CORR:
             case COVARIANCE:
             case COVARIANCEP:
                 throw new TypeError('An aggregate operation for two fields cannot be declared here.');
+            default:
+                throw new TypeError('Unknown operation: ' + op);
         }
         return this;
     }
@@ -2549,8 +2749,11 @@ class Channel {
                 is_bin = true;
                 exact = args[0];
             }
+            else {
+                throw new TypeError(`Wrong bin value: [${args.join(", ")}]`);
+            }
         }
-        else if (args.length >= 2 && args.length <= 3) {
+        else if (isInRange(args.length, 2, 3)) {
             is_bin = true;
             [maxbins, nice, step] = args;
         }
@@ -2633,10 +2836,43 @@ class Channel {
             this._scale.timing = v;
         }
         else if (this._channel === TAPSPD_chn && p === KeySingleTappingPosition && SingleTapPosOptions.includes(v)) {
-            this._scale.timing = v;
+            this._scale.singleTappingPosition = v;
+        }
+        else if (p == KeyType && SupportedScaleTypes.includes(v)) {
+            this._scale.type = v;
+        }
+        else if (p == KeyBase && isInstanceOf(v, Number)) {
+            this._scale.base = v;
+        }
+        else if (p == KeyConstant && isInstanceOf(v, Number)) {
+            this._scale.constant = v;
+        }
+        else if (p == KeyExponent && isInstanceOf(v, Number)) {
+            this._scale.exponent = v;
+        }
+        else if (p == KeyDomainMax && v !== undefined) {
+            this._scale.domainMax = v;
+        }
+        else if (p == KeyDomainMid && v !== undefined) {
+            this._scale.domainMid = v;
+        }
+        else if (p == KeyDomainMin && v !== undefined) {
+            this._scale.domainMin = v;
+        }
+        else if (p == KeyRangeMax && v !== undefined) {
+            this._scale.rangeMax = v;
+        }
+        else if (p == KeyRangeMid && v !== undefined) {
+            this._scale.rangeMid = v;
+        }
+        else if (p == KeyRangeMin && v !== undefined) {
+            this._scale.rangeMin = v;
+        }
+        else if (p == KeySort && SupportedSortValues.includes(v)) {
+            this._scale.sort = v;
         }
         else {
-            throw new Error('The provide key and value is not a supported scale option.');
+            throw new TypeError('The provide key and value is not a supported scale option.');
         }
         this.defined = true;
         return this;
@@ -2666,7 +2902,7 @@ class Channel {
     }
     addConditions(c) {
         for (const cond of c) {
-            if (cond.test && cond.value)
+            if (cond.test !== undefined && cond.value !== undefined)
                 this.addCondition(cond.test, cond.value);
         }
         this.defined = true;
@@ -2679,9 +2915,11 @@ class Channel {
         if (this._condition instanceof Array) {
             this._condition.splice(i, 1);
         }
+        return this;
     }
     resetCondition() {
-        return this._condition = undefined;
+        this._condition = undefined;
+        return this;
     }
     value(v) {
         if (this.validator(v)) {
@@ -2726,13 +2964,19 @@ class Channel {
                     this._tick.playAtTime0 = v;
                 }
                 else if (k === TickKeyOscType && OscTypes.includes(v)) {
-                    this._tick.playAtTime0 = v;
+                    this._tick.oscType = v;
                 }
                 else if (k === TickKeyPitch && isInstanceOf(v, Number)) {
                     this._tick.pitch = v;
                 }
-                else if (k === TickKeyLoudness && isInstanceOf(v, Number) && 0 <= v && v <= 1) {
+                else if (k === TickKeyLoudness && isInstanceOf(v, Number) && isInRange(v, 0, 1)) {
                     this._tick.loudness = v;
+                }
+                else if (k === TickKeyBand && isInstanceOf(v, Number)) {
+                    this._tick.band = v;
+                }
+                else {
+                    throw new TypeError(`Wrong value for the tick ${k} option: ${v}`);
                 }
             }
             else if (isInstanceOf(k, Tick)) {
@@ -2756,9 +3000,35 @@ class Channel {
         else if (f && isInstanceOf(f, String)) {
             this._format = f;
         }
+        return this;
     }
     formatType(t) {
         this._formatType = t;
+        return this;
+    }
+    by(b) {
+        this._by = b;
+        return this;
+    }
+    sort(s) {
+        this._sort = s;
+        return this;
+    }
+    timeUnit(u, n) {
+        if (!Object.keys(timeUnitDomainDefs).includes(u)) {
+            throw new TypeError("Wrong time unit: " + u);
+        }
+        this._timeUnit = u;
+        this._timeUnitName = n;
+        return this;
+    }
+    timeLevel(l) {
+        this._timeLevel = l;
+        return this;
+    }
+    sustain(s) {
+        this._sustain = s;
+        return this;
     }
     get() {
         let o = {
@@ -2772,7 +3042,16 @@ class Channel {
             condition: this._condition ? deepcopy(this._condition) : this._condition,
             ramp: this._ramp,
             defined: this.defined,
-            roundToNote: this._roundToNote
+            roundToNote: this._roundToNote,
+            format: this._format,
+            formatType: this._formatType,
+            by: this._by,
+            p: this._p,
+            sort: this._sort,
+            timeUnit: this._timeUnit,
+            timeUnitName: this._timeUnitName,
+            timeLevel: this._timeLevel,
+            sustain: this._sustain
         };
         if (this._channel === TIME_chn) {
             o.tick = this._tick ? deepcopy(this._tick) : this._tick;
@@ -2782,113 +3061,71 @@ class Channel {
         }
         return o;
     }
+    toSpec() {
+        let s = this.get();
+        delete s.defined;
+        delete s.channel;
+        if (isEmptyObject(s.scale)) {
+            delete s.scale;
+        }
+        return s;
+    }
     validator(v) {
         return true;
     }
     clone() {
-        let _c = new Channel(undefined, undefined);
+        let _c = new this.constructor();
         let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
+        _c.assignFrom(_g);
         return _c;
     }
 }
 
 class TimeChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = TIME_chn;
+        super(f, t, TIME_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v >= 0;
-    }
-    clone() {
-        let _c = new TimeChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
     }
 }
 class Time2Channel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = TIME2_chn;
-    }
-    clone() {
-        let _c = new Time2Channel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
+        super(f, t, TIME2_chn);
     }
 }
 class DurationChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = DUR_chn;
+        super(f, t, DUR_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v >= 0;
-    }
-    clone() {
-        let _c = new DurationChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
     }
 }
 const MAX_LIMIT_TAP_SPEED = 7;
 class TapSpeedChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = TAPSPD_chn;
+        super(f, t, TAPSPD_chn);
     }
     validator(v) {
-        return isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_TAP_SPEED;
-    }
-    clone() {
-        let _c = new TapSpeedChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
+        if (v > MAX_LIMIT_TAP_SPEED) {
+            console.warn(`The value ${v} for the tapSpeed channel may burden audio contexts (recommendation: <= ${MAX_LIMIT_TAP_SPEED}).`);
+        }
+        return isInstanceOf(v, Number) && v >= 0;
     }
 }
 class TapCountChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = TAPCNT_chn;
+        super(f, t, TAPCNT_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v >= 0;
-    }
-    clone() {
-        let _c = new TapCountChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
     }
 }
 const MAX_LIMIT_PITCH = 3000;
 class PitchChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = PITCH_chn;
+        super(f, t, PITCH_chn);
         this._roundToNote = false;
     }
     roundToNote(v) {
@@ -2896,187 +3133,96 @@ class PitchChannel extends Channel {
         return this;
     }
     validator(v) {
-        return (isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_PITCH) || (isInstanceOf(v, String) && v.match(/^[A-F][0-9]$/gi));
-    }
-    clone() {
-        let _c = new PitchChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
+        if (v > MAX_LIMIT_PITCH) {
+            console.warn(`The value ${v} for the pitch channel may burden audio contexts (recommendation: <= ${MAX_LIMIT_PITCH}).`);
+        }
+        return (isInstanceOf(v, Number) && v >= 0) || (isInstanceOf(v, String) && v.match(/^[A-G](#|b)?[0-9]$/i) !== null);
     }
 }
 class DetuneChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = DETUNE_chn;
+        super(f, t, DETUNE_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v >= -1200 && v <= 1200;
     }
-    clone() {
-        let _c = new DetuneChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
-    }
 }
 class LoudnessChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = LOUDNESS_chn;
+        super(f, t, LOUDNESS_chn);
     }
     validator(v) {
+        if (v > 1) {
+            console.warn(`The loudness value greater than 1 (${v}) may result in too loud sound.`);
+        }
         return isInstanceOf(v, Number);
-    }
-    clone() {
-        let _c = new LoudnessChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
     }
 }
 class PanChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = PAN_chn;
+        super(f, t, PAN_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v >= -1 && v <= 1;
     }
-    clone() {
-        let _c = new PanChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
-    }
 }
 class PostReverbChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = POST_REVERB_chn;
+        super(f, t, POST_REVERB_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v >= 0;
     }
-    clone() {
-        let _c = new PostReverbChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
-    }
 }
 class SpeechBeforeChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = SPEECH_BEFORE_chn;
-    }
-    clone() {
-        let _c = new SpeechBeforeChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
+        super(f, t, SPEECH_BEFORE_chn);
     }
 }
 class SpeechAfterChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = SPEECH_AFTER_chn;
-    }
-    clone() {
-        let _c = new SpeechAfterChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
+        super(f, t, SPEECH_AFTER_chn);
     }
 }
 class RepeatChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = REPEAT_chn;
+        super(f, t, REPEAT_chn);
     }
     clone() {
-        let _c = new RepeatChannel(undefined, undefined);
+        let _c = new this.constructor();
         let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
+        _c.assignFrom(_g);
         return _c;
     }
 }
 class ModulationChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = MODULATION_chn;
+        super(f, t, MODULATION_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v > 0;
     }
     clone() {
-        let _c = new ModulationChannel(undefined, undefined);
+        let _c = new this.constructor();
         let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
+        _c.assignFrom(_g);
         return _c;
     }
 }
 class HarmonicityChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = HARMONICITY_chn;
+        super(f, t, HARMONICITY_chn);
     }
     validator(v) {
         return isInstanceOf(v, Number) && v > 0;
     }
-    clone() {
-        let _c = new HarmonicityChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
-    }
 }
 class TimbreChannel extends Channel {
     constructor(f, t) {
-        super(f, t);
-        this._channel = TIMBRE_chn;
+        super(f, t, TIMBRE_chn);
     }
     validator(v) {
         return isInstanceOf(v, String);
-    }
-    clone() {
-        let _c = new TimbreChannel(undefined, undefined);
-        let _g = this.get();
-        Object.keys(_g).forEach(k => {
-            let ck = k === "defined" ? k : "_" + k;
-            _c[ck] = _g[k];
-        });
-        return _c;
     }
 }
 
@@ -3084,27 +3230,36 @@ class Config {
     constructor() {
         this._config = {};
         this._config = {
-            speechRate: 1.75,
-            skipScaleSpeech: false,
-            skipDescription: false,
-            skipTitle: false,
-            overlayScaleConsistency: true,
-            forceOverlayScaleConsistency: false,
-            sequenceScaleConsistency: true,
-            forceSequenceScaleConsistency: false
+        // speechRate: 1.75,
+        // skipScaleSpeech: false,
+        // skipDescription: false,
+        // skipTitle: false,
+        // skipLength: false,
+        // overlayScaleConsistency: true,
+        // forceOverlayScaleConsistency: false,
+        // sequenceScaleConsistency: true,
+        // forceSequenceScaleConsistency: false
         };
     }
     set(k, v) {
-        if (configValidator(k, v)) {
-            this._config[k] = v;
+        if (v === undefined) {
+            delete this._config[k];
+        }
+        else if (configValidator(k, v)) {
+            this._config[k] = deepcopy(v);
         }
         else {
             throw TypeError(`Wrong value type for ${k}.`);
         }
         return this;
     }
-    get() {
-        return deepcopy(this._config);
+    get(k) {
+        if (k) {
+            return this._config[k];
+        }
+        else {
+            return dropUndefined(deepcopy(this._config));
+        }
     }
     clone() {
         let _c = new Config();
@@ -3124,14 +3279,12 @@ function configValidator(k, v) {
         return isInstanceOf(v, Boolean);
     else if (k === 'skipTitle')
         return isInstanceOf(v, Boolean);
-    else if (k === 'overlayScaleConsistency')
-        return isInstanceOf(v, Boolean);
-    else if (k === 'forceOverlayScaleConsistency')
-        return isInstanceOf(v, Boolean);
-    else if (k === 'sequenceScaleConsistency')
-        return isInstanceOf(v, Boolean);
-    else if (k === 'forceSequenceScaleConsistency')
-        return isInstanceOf(v, Boolean);
+    else if (['overlayScaleConsistency', 'forceOverlayScaleConsistency', 'sequenceScaleConsistency', 'forceSequenceScaleConsistency'].includes(k)) {
+        return isInstanceOf(v, Boolean) || (isInstanceOf(v, Object) && Object.values(v).every((d) => typeof d === 'boolean'));
+    }
+    else if (k === 'timeUnit') {
+        return isTimeUnit(v);
+    }
     else
         return true;
 }
@@ -3147,58 +3300,69 @@ class Data {
         this._streaming = false;
         this._test = null;
     }
-    set(type, e) {
+    reset() {
+        this.type = 'unset';
+        this._values = null;
+        this._url = null;
+        this._name = null;
+        this._streaming = false;
+        this._test = null;
+    }
+    set(type, v) {
         if (isInstanceOf(type, Dataset)) {
+            this.reset();
             this.type = Name;
             this._name = type._name;
-            // cancel others
-            this._values = null;
-            this._url = null;
-            this._name = null;
-            this._streaming = false;
-            this._test = null;
+        }
+        else if (typeof type === 'string' && [Values, Url, Name, Streaming].includes(type) && v !== undefined) {
+            if (type === Values) {
+                this.values(v);
+            }
+            else if (type === Url) {
+                this.url(v);
+            }
+            else if (type === Name) {
+                this._name = type;
+                this.type = Name;
+            }
+            else if (type === Streaming) {
+                this.streaming(v);
+            }
+        }
+        else if (typeof type === 'string' && !v) {
+            this.type = Name;
+            this._name = type;
         }
         else {
-            console.warn("data.set method is only for a dataset object.");
+            throw new TypeError(`Unsupported data type ${type}.`);
         }
         return this;
     }
     values(v) {
-        if (isArrayOf(v, Object)) {
+        let values = deepcopy(v);
+        if (isArrayOf(values, Object)) {
+            this.reset();
             this.type = Values;
-            this._values = deepcopy(v);
-            // cancel others
-            this._name = null;
-            this._url = null;
-            this._name = null;
-            this._streaming = false;
-            this._test = null;
+            this._values = values;
         }
         else {
-            console.warn("only tidy data can be provided.");
+            throw new TypeError("only tidy data can be provided.");
         }
         return this;
     }
     url(v) {
         if (typeof v === 'string') {
-            this.type = Values;
+            this.reset();
+            this.type = Url;
             this._url = v;
-            // cancel others
-            this._values = null;
-            this._name = null;
-            this._name = null;
-            this._streaming = false;
-            this._test = null;
         }
         else {
-            console.warn("only string-based url can be provided.");
+            throw new TypeError("only string-based url can be provided.");
         }
         return this;
     }
     streaming(test) {
         this.type = Streaming;
-        this._name = null;
-        this._name = null;
         this._streaming = true;
         if (typeof test === 'string') {
             this._test = { url: test };
@@ -3206,20 +3370,29 @@ class Data {
         else if (isArrayOf(test, Object)) {
             this._test = { values: deepcopy(test) };
         }
-        else if (this._url) {
+        else if (!test && this._url) {
             // get from those already set
             this._test = { url: this._url };
         }
-        else if (this._values) {
+        else if (!test && this._values) {
             // get from those already set
             this._test = { values: deepcopy(this._values) };
         }
-        else {
-            console.warn("only string-based url or tidy data can be provided for the test data for streaming spec.");
+        else if (test !== undefined) {
+            throw new TypeError("only string-based url or tidy data can be provided for the test data for streaming spec.");
         }
+        this._name = null;
         this._url = null;
         this._values = null;
         return this;
+    }
+    set_streaming_test(test) {
+        if (this.type === Streaming) {
+            this.streaming(test);
+        }
+        else {
+            throw new TypeError("Test can only be set for a streaming data. If you want to change the type, then use the `streaming` method instead.");
+        }
     }
     get() {
         return {
@@ -3231,22 +3404,46 @@ class Data {
             test: this._test
         };
     }
+    toSpec(is_part_of) {
+        if (this.type === Values && this._values) {
+            return {
+                values: deepcopy(this._values)
+            };
+        }
+        else if (this.type === Url && this._url) {
+            return {
+                url: this._url
+            };
+        }
+        else if (this.type === Name && this._name) {
+            return {
+                name: this._name
+            };
+        }
+        else if (this.type === Streaming && this._streaming) {
+            let o = {
+                stream: this._streaming,
+            };
+            if (this._test) {
+                o.test = deepcopy(this._test);
+            }
+            return o;
+        }
+        else if (is_part_of !== undefined) {
+            return undefined;
+        }
+        else {
+            throw new TypeError("The data is unset.");
+        }
+    }
     clone() {
         let _c = new Data();
         _c.type = this.type;
-        if (this.type === Values) {
-            _c._values = deepcopy(this._values);
-        }
-        else if (this.type === Url) {
-            _c._url = this._url;
-        }
-        else if (this.type === Name) {
-            _c._name = this._name;
-        }
-        else if (this.type === Streaming) {
-            _c._streaming = this._streaming;
-            _c._test = deepcopy(this._test);
-        }
+        _c._values = deepcopy(this._values);
+        _c._url = this._url;
+        _c._name = this._name;
+        _c._streaming = this._streaming;
+        _c._test = deepcopy(this._test);
         return _c;
     }
 }
@@ -3254,14 +3451,32 @@ class Datasets {
     constructor() {
         this.datasets = [];
     }
+    has(name) {
+        return (this.get(name) !== undefined);
+    }
     add(ds) {
-        this.datasets.push(ds.clone());
+        if (this.has(ds._name)) {
+            throw new RangeError(`The name ${ds._name} already exists. Try a different name.`);
+        }
+        else {
+            this.datasets.push(ds.clone());
+        }
+        return this;
+    }
+    replace(ds) {
+        if (!this.has(ds._name)) {
+            throw new RangeError(`The name ${ds._name} does not exist.`);
+        }
+        else {
+            let i = this.datasets.findIndex(d => d._name == ds._name);
+            this.datasets[i] = ds.clone();
+        }
         return this;
     }
     get(name) {
         var _a, _b, _d;
         if (name) {
-            return (_b = (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.filter(d => d._name === name)) === null || _b === void 0 ? void 0 : _b[0].get();
+            return (_b = (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.find(d => d._name === name)) === null || _b === void 0 ? void 0 : _b.get();
         }
         else {
             return (_d = this.datasets) === null || _d === void 0 ? void 0 : _d.map((d) => d.get());
@@ -3272,6 +3487,12 @@ class Datasets {
         let _c = new Datasets();
         _c.datasets = (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.map((d) => d.clone());
         return _c;
+    }
+    toSpec() {
+        return this.datasets.map(d => d.toSpec());
+    }
+    get n_datasets() {
+        return this.datasets.length;
     }
 }
 class Dataset {
@@ -3292,6 +3513,23 @@ class Dataset {
             name: this._name,
             data: this.data.get()
         };
+    }
+    toSpec() {
+        if (this.data._url && this.data.type === Url) {
+            return {
+                name: this._name,
+                url: this.data._url
+            };
+        }
+        else if (this.data._values && this.data.type === Values) {
+            return {
+                name: this._name,
+                values: this.data._values
+            };
+        }
+        else {
+            throw new TypeError("The data is unset or unsupported");
+        }
     }
     clone() {
         let _c = new Dataset(this._name);
@@ -3324,11 +3562,21 @@ class SynthTone {
         return this;
     }
     type(t) {
-        this._type = t;
+        if (SynthTypes.includes(t)) {
+            this._type = t;
+        }
+        else {
+            throw TypeError("Unsupported synthesizer type.");
+        }
         return this;
     }
     carrierType(t) {
-        this._carrierType = t;
+        if (OscTypes.includes(t)) {
+            this._carrierType = t;
+        }
+        else {
+            throw TypeError("Unsupported oscillator type for the carrier.");
+        }
         return this;
     }
     carrierPitch(p) {
@@ -3340,17 +3588,31 @@ class SynthTone {
         }
         return this;
     }
+    carrierVolume(p) {
+        if (p >= 0) {
+            this._carrierVolume = p;
+        }
+        else {
+            throw new TypeError(`The carrier volume of a synth tone must be equal to or greater than 0.`);
+        }
+        return this;
+    }
     carrierDetune(p) {
         if (p >= -1200 && p <= 1200) {
             this._carrierDetune = p;
         }
         else {
-            throw new TypeError(`The carreir detune of a synth tone must be between -1200 and 1200.`);
+            throw new TypeError(`The carrier detune of a synth tone must be between -1200 and 1200.`);
         }
         return this;
     }
     modulatorType(t) {
-        this._modulatorType = t;
+        if (OscTypes.includes(t)) {
+            this._modulatorType = t;
+        }
+        else {
+            throw TypeError("Unsupported oscillator type for the modulator.");
+        }
         return this;
     }
     modulatorPitch(p) {
@@ -3358,7 +3620,7 @@ class SynthTone {
             this._modulatorPitch = p;
         }
         else {
-            throw new TypeError(`The modulator volume of a synth tone must be equal to or greater than 0.`);
+            throw new TypeError(`The modulator pitch of a synth tone must be equal to or greater than 0.`);
         }
         return this;
     }
@@ -3373,13 +3635,13 @@ class SynthTone {
     }
     modulation(p) {
         if (this._type === AM) {
-            console.warn('Moudlation index for an AM synth will be ignored.');
+            console.warn('Modulation index for an AM synth will be ignored.');
         }
         if (p > 0) {
             this._modulation = p;
         }
         else {
-            throw new TypeError(`The moudlation index of a synth tone must be Number and greater than 0.`);
+            throw new TypeError(`The modulation index of a synth tone must be Number and greater than 0.`);
         }
         return this;
     }
@@ -3396,7 +3658,7 @@ class SynthTone {
         return this;
     }
     attackTime(p) {
-        if (p > 0) {
+        if (p >= 0) {
             this._attackTime = p;
         }
         else {
@@ -3410,6 +3672,24 @@ class SynthTone {
         }
         else {
             throw new TypeError(`The release time of a synth tone must be equal to or greater than 0.`);
+        }
+        return this;
+    }
+    decayTime(p) {
+        if (p >= 0) {
+            this._decayTime = p;
+        }
+        else {
+            throw new TypeError(`The decay time of a synth tone must be equal to or greater than 0.`);
+        }
+        return this;
+    }
+    sustain(p) {
+        if (p >= 0 && p <= 1) {
+            this._sustain = p;
+        }
+        else {
+            throw new TypeError(`The sustain value of a synth tone must be within 0 and 1.`);
         }
         return this;
     }
@@ -3484,15 +3764,23 @@ class SampledTone {
         return this;
     }
     setSample(s) {
+        if (Object.keys(s).length == 0) {
+            throw new TypeError("No sampling key provided.");
+        }
+        else if (MONO in s && Object.keys(s).length > 1) {
+            throw new TypeError("If mono-tone sampling, then there should be only one sample.");
+        }
         Object.keys(s).forEach((k) => {
-            if (!scaleKeyCheck(k) || k === undefined) {
+            if (k !== MONO && (!scaleKeyCheck(k) || k === undefined)) {
                 throw new TypeError('The key of a sampling object should be "C" + "0-7".');
             }
-            else if (k === "mono") {
+            else if (k === MONO) {
                 this._sample = { mono: s[k] };
             }
             else {
-                this._sample = {};
+                if (!this._sample || MONO in this._sample) {
+                    this._sample = {};
+                }
                 let ck = k;
                 this._sample[ck] = s[ck];
             }
@@ -3545,6 +3833,7 @@ class Tone {
         else {
             this._type = t._name;
         }
+        return this;
     }
     type(t) {
         this._type = t;
@@ -3561,18 +3850,49 @@ class Tone {
         else if (isArrayOf(t, String)) {
             this._filter.push(...t);
         }
+        else {
+            throw new TypeError("Filter name must be a string.");
+        }
+        return this;
+    }
+    hasBaseTone(h) {
+        this._hasBaseTone = h;
+        return this;
+    }
+    sustain(h) {
+        this._sustain = h;
+        return this;
+    }
+    baseToneAsTick(h) {
+        this._baseToneAsTick = h;
+        return this;
+    }
+    tickInterval(i) {
+        this._tickInterval = i;
         return this;
     }
     get() {
         return {
             type: this._type,
             continued: this._continued,
-            filter: [...this._filter]
+            filter: [...this._filter],
+            hasBaseTone: this._hasBaseTone,
+            sustain: this._sustain,
+            baseToneAsTick: this._baseToneAsTick,
+            tickInterval: this._tickInterval
         };
     }
     clone() {
         let _c = new Tone(this._type, this._continued);
         _c.addFilter(this._filter);
+        if (this._hasBaseTone !== undefined)
+            _c.hasBaseTone(this._hasBaseTone);
+        if (this._sustain !== undefined)
+            _c.sustain(this._sustain);
+        if (this._baseToneAsTick !== undefined)
+            _c.baseToneAsTick(this._baseToneAsTick);
+        if (this._tickInterval !== undefined)
+            _c.tickInterval(this._tickInterval);
         return _c;
     }
 }
@@ -3599,7 +3919,7 @@ class WaveTone {
     constructor(name, defs) {
         this._name = name;
         if (!name) {
-            throw new Error('A sampled tone must have a name.');
+            throw new Error('A wave tone must have a name.');
         }
         this._disableNormalization = false;
         this._real = [];
@@ -3613,20 +3933,33 @@ class WaveTone {
         return this;
     }
     real(r) {
-        this._real = r;
+        if (isArrayOf(r, Number)) {
+            this._real = deepcopy(r);
+        }
+        else {
+            throw new TypeError("The real coefficients must be numbers.");
+        }
         return this;
     }
     imag(a) {
-        this._imag = a;
+        if (isArrayOf(a, Number)) {
+            this._imag = deepcopy(a);
+        }
+        else {
+            throw new TypeError("The imaginary coefficients must be numbers.");
+        }
         return this;
     }
     wave(w) {
-        if (w.real && w.imag) {
+        if (w.real && w.imag && w.real.length >= 2 && w.real.length === w.imag.length) {
             this.real(w.real);
             this.imag(w.imag);
         }
+        else if (w.real && w.imag && w.real.length >= 2 && w.real.length !== w.imag.length) {
+            throw new RangeError('The real and imag terms must have the same lenghts.');
+        }
         else {
-            throw new TypeError('The definition a periodic wave must consist of "real" (sine terms) and "imag" (cosine terms) properties.');
+            throw new TypeError('The definition a periodic wave must consist of "real" (cosine terms) and "imag" (sine terms) properties.');
         }
         return this;
     }
@@ -3829,6 +4162,15 @@ class Notify {
         }
         return this;
     }
+    pause(n) {
+        if (typeof n == 'number' && n > 0) {
+            this._pause = n;
+        }
+        else {
+            throw new RangeError("Notification pause value must be greater than or equal to 0.");
+        }
+        return this;
+    }
     speech(t) {
         if (this._type == Unset) {
             this._type = Speech;
@@ -3838,6 +4180,18 @@ class Notify {
         }
         else if (typeof t == 'string') {
             this._speech = t;
+        }
+        return this;
+    }
+    speechRate(n) {
+        if (this._type == Unset) {
+            this._type = Speech;
+        }
+        if (this._type != Speech) {
+            console.warn("Only supported for speech-type cnotifications.");
+        }
+        else if (typeof n == 'number') {
+            this._speechRate = n;
         }
         return this;
     }
@@ -3866,8 +4220,11 @@ class Notify {
         if (this._type != Sampling) {
             console.warn("Only supported for sampling-type cnotifications.");
         }
-        else if (typeof n == 'number' && n > 0) {
+        else if (typeof n == 'number' && n >= -1200 && n <= 1200) {
             this._detune = n;
+        }
+        else {
+            throw new RangeError("Wrong detune value.");
         }
         return this;
     }
@@ -3911,7 +4268,8 @@ class Notify {
                     loudness: this._loudness,
                     pitch: this._pitch,
                     language: this._language,
-                    speechRate: this._speechRate
+                    speechRate: this._speechRate,
+                    pause: this._pause
                 };
             }
             else {
@@ -3921,8 +4279,10 @@ class Notify {
         else if (this._type == Sampling) {
             if (this._sample) {
                 return {
-                    chime: this._sample,
+                    sample: this._sample,
                     loudness: this._loudness,
+                    detune: this._detune,
+                    pause: this._pause
                 };
             }
             else {
@@ -3934,6 +4294,7 @@ class Notify {
                 return {
                     chime: this._chime,
                     loudness: this._loudness,
+                    pause: this._pause,
                 };
             }
             else {
@@ -3953,6 +4314,7 @@ class Notify {
             _c._speechRate = this._speechRate;
             _c._chime = this._chime;
             _c._sample = this._sample;
+            _c._pause = this._pause;
         }
         return _c;
     }
@@ -3981,6 +4343,9 @@ class Playback {
     init_by(i) {
         if (PlaybackTypes.includes(i)) {
             this._init_by = i;
+            if (i === PlaybackManual || i === PlaybackAuto) {
+                this._condition = undefined;
+            }
         }
         else {
             console.error("Unsupported playback initiation type.");
@@ -4001,7 +4366,9 @@ class Playback {
     }
     condition(i) {
         if (typeof i === 'string') {
-            this._unit = i;
+            this._condition = i;
+            this._init_by = PlaybackConditional;
+            console.warn("This will change the playback to conditional.");
         }
         else {
             console.error("A playback condition must be a string.");
@@ -4009,8 +4376,11 @@ class Playback {
         return this;
     }
     limit(i) {
-        if (typeof i === 'number') {
+        if (typeof i === 'number' && i >= 0) {
             this._limit = i;
+        }
+        else if (typeof i === 'number' && i < 0) {
+            console.error("Playback limit must be a positive number.");
         }
         else {
             console.error("Playback limit must be a number.");
@@ -4018,8 +4388,11 @@ class Playback {
         return this;
     }
     speed(i) {
-        if (typeof i === 'number') {
+        if (typeof i === 'number' && i >= 0) {
             this._speed = i;
+        }
+        else if (typeof i === 'number' && i < 0) {
+            console.error("Speed must be a positive number.");
         }
         else {
             console.error("Playback speed must be a number.");
@@ -4103,12 +4476,23 @@ class Stream {
         this._title = n;
         return this;
     }
+    skipTitle(b) {
+        this._skipTitle = b;
+        return this;
+    }
     description(n) {
         this._description = n;
         return this;
     }
+    skipDescription(b) {
+        this._skipDescription = b;
+        return this;
+    }
+    isStreaming() {
+        return this.data.type === 'streaming';
+    }
     get() {
-        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k, _l;
         let g = {
             name: this._name,
             title: this._title,
@@ -4122,7 +4506,13 @@ class Stream {
             wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
             tone: (_j = this.tone) === null || _j === void 0 ? void 0 : _j.get(),
             encoding: {},
-            config: (_k = this.config) === null || _k === void 0 ? void 0 : _k.get()
+            config: (_k = this.config) === null || _k === void 0 ? void 0 : _k.get(),
+            notify: Object.keys((_l = this.notify) !== null && _l !== void 0 ? _l : {}).reduce((acc, curr) => {
+                var _a, _b;
+                if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                    acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                return acc;
+            }, {})
         };
         Object.keys(this.encoding).forEach((chn) => {
             if (this.encoding[chn].defined) {
@@ -4131,8 +4521,56 @@ class Stream {
         });
         return g;
     }
-    clone() {
+    addChannel(channel_name, channel) {
+        this.encoding[channel_name] = channel;
+        return this;
+    }
+    toSpec(is_part_of) {
         var _a, _b, _d, _e, _f, _g, _h, _j;
+        const data = this.data.toSpec(is_part_of);
+        if (data === undefined)
+            throw new Error("Stream data is not set.");
+        const o = {
+            title: this._title,
+            description: this._description,
+            name: this._name,
+            skipTitle: this._skipTitle,
+            skipDescription: this._skipDescription,
+            data: data,
+            datasets: (_a = this.datasets) === null || _a === void 0 ? void 0 : _a.toSpec(),
+            transform: (_b = this.transform) === null || _b === void 0 ? void 0 : _b.get(),
+            tone: this.tone.get(),
+            tick: (_d = this.tick) === null || _d === void 0 ? void 0 : _d.get(),
+            synth: (_e = this.synth) === null || _e === void 0 ? void 0 : _e.get(),
+            sampling: (_f = this.sampling) === null || _f === void 0 ? void 0 : _f.get(),
+            wave: (_g = this.wave) === null || _g === void 0 ? void 0 : _g.get(),
+            config: (_h = this.config) === null || _h === void 0 ? void 0 : _h.get()
+        };
+        if (Object.keys(o.config).length == 0) {
+            delete o.config;
+        }
+        o.encoding = {};
+        Object.keys(this.encoding).forEach((chn) => {
+            if (this.encoding[chn].defined) {
+                o.encoding[chn] = this.encoding[chn].toSpec();
+            }
+        });
+        if (this.isStreaming()) {
+            o.playback = (_j = this.playback) === null || _j === void 0 ? void 0 : _j.get();
+        }
+        o.notify = {};
+        if (this.notify) {
+            Object.keys(this.notify).forEach((key) => {
+                var _a;
+                if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[key]) {
+                    o.notify[key] = this.notify[key].get();
+                }
+            });
+        }
+        return dropUndefined(clearResources(o));
+    }
+    clone() {
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         let _c = new Stream();
         _c._name = this._name;
         _c._title = this._title;
@@ -4148,16 +4586,15 @@ class Stream {
         _c.notify = Object.keys((_h = this.notify) !== null && _h !== void 0 ? _h : {}).reduce((acc, curr) => {
             var _a, _b;
             if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
-                acc[curr] = (_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr];
+                acc[curr] = (_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr].clone();
             return acc;
         }, {});
         _c.encoding = {};
         Object.keys(this.encoding).forEach((chn) => {
-            if (this.encoding[chn].defined) {
-                _c.encoding[chn] = this.encoding[chn].clone();
-            }
+            _c.encoding[chn] = this.encoding[chn].clone();
         });
         _c.config = (_j = this.config) === null || _j === void 0 ? void 0 : _j.clone();
+        _c.tick = (_k = this.tick) === null || _k === void 0 ? void 0 : _k.clone();
         return _c;
     }
 }
@@ -4184,6 +4621,9 @@ class Overlay {
         else if (isArrayOf(args, Stream)) {
             this.addStreams(args);
         }
+        else {
+            throw new TypeError("Wrong stream types.");
+        }
     }
     name(n) {
         this._name = n;
@@ -4193,8 +4633,20 @@ class Overlay {
         this._title = n;
         return this;
     }
+    skipTitle(b) {
+        this._skipTitle = b;
+        return this;
+    }
     description(n) {
         this._description = n;
+        return this;
+    }
+    skipDescription(b) {
+        this._skipDescription = b;
+        return this;
+    }
+    skipLength(b) {
+        this._skipDescription = b;
         return this;
     }
     stream(i) {
@@ -4205,7 +4657,7 @@ class Overlay {
         return this;
     }
     add(s) {
-        var _a, _b, _d, _e, _f;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         if (isInstanceOf(s, Stream)) {
             let clone = s.clone();
             // datasets
@@ -4248,7 +4700,20 @@ class Overlay {
                 }
             }
             delete clone.wave;
+            // config
+            let cloned_config = (_h = (_g = clone.config) === null || _g === void 0 ? void 0 : _g.get()) !== null && _h !== void 0 ? _h : {};
+            if (cloned_config && Object.keys(cloned_config).length > 0) {
+                for (const ckey in cloned_config) {
+                    // keey only inconsistent
+                    if (((_j = this.config) === null || _j === void 0 ? void 0 : _j.get(ckey)) === cloned_config[ckey]) {
+                        (_k = clone.config) === null || _k === void 0 ? void 0 : _k.set(ckey, undefined);
+                    }
+                }
+            }
             this.overlay.push(clone);
+        }
+        else {
+            throw new TypeError("Wrong item to add into a sequence.");
         }
         return this;
     }
@@ -4259,11 +4724,14 @@ class Overlay {
         return this;
     }
     get() {
-        var _a, _b, _d, _e, _f, _g, _h, _j;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         let g = {
             name: this._name,
             title: this._title,
             description: this._description,
+            skipTitle: this._skipTitle,
+            skipDescription: this._skipDescription,
+            skipLength: this._skipLength,
             data: (_a = this.data) === null || _a === void 0 ? void 0 : _a.get(),
             datasets: (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.get(),
             transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
@@ -4272,16 +4740,78 @@ class Overlay {
             sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
             wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
             overlay: this.overlay.map((d) => d.get()),
-            config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get()
+            config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get(),
+            notify: Object.keys((_k = this.notify) !== null && _k !== void 0 ? _k : {}).reduce((acc, curr) => {
+                var _a, _b;
+                if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                    acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                return acc;
+            }, {})
         };
         return g;
     }
+    toSpec(is_part_of) {
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+        if (((_a = this.datasets) === null || _a === void 0 ? void 0 : _a.toSpec()) && ((_b = this.datasets) === null || _b === void 0 ? void 0 : _b.n_datasets) > 0) {
+            const o = clearResources({
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                skipTitle: this._skipTitle,
+                skipDescription: this._skipDescription,
+                skipLength: this._skipLength,
+                datasets: this.datasets.toSpec(),
+                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
+                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
+                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
+                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
+                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
+                overlay: this.overlay.map((d) => d.toSpec()),
+                config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get(),
+                notify: Object.keys((_k = this.notify) !== null && _k !== void 0 ? _k : {}).reduce((acc, curr) => {
+                    var _a, _b;
+                    if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                        acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                    return acc;
+                }, {})
+            });
+            return dropUndefined(o);
+        }
+        else {
+            const o = clearResources({
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                skipTitle: this._skipTitle,
+                skipDescription: this._skipDescription,
+                skipLength: this._skipLength,
+                data: (_m = (_l = this.data) === null || _l === void 0 ? void 0 : _l.toSpec(is_part_of)) !== null && _m !== void 0 ? _m : undefined,
+                transform: (_o = this.transform) === null || _o === void 0 ? void 0 : _o.get(),
+                tick: (_p = this.tick) === null || _p === void 0 ? void 0 : _p.get(),
+                synth: (_q = this.synth) === null || _q === void 0 ? void 0 : _q.get(),
+                sampling: (_r = this.sampling) === null || _r === void 0 ? void 0 : _r.get(),
+                wave: (_s = this.wave) === null || _s === void 0 ? void 0 : _s.get(),
+                overlay: this.overlay.map((d) => d.toSpec()),
+                config: (_t = this.config) === null || _t === void 0 ? void 0 : _t.get(),
+                notify: Object.keys((_u = this.notify) !== null && _u !== void 0 ? _u : {}).reduce((acc, curr) => {
+                    var _a, _b;
+                    if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                        acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                    return acc;
+                }, {})
+            });
+            return dropUndefined(o);
+        }
+    }
     clone() {
-        var _a, _b, _d, _e, _f, _g, _h;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         let _c = new Overlay();
         _c._name = this._name;
         _c._title = this._title;
         _c._description = this._description;
+        _c._skipTitle = this._skipTitle;
+        _c._skipDescription = this._skipDescription;
+        _c._skipLength = this._skipLength;
         _c.data = (_a = this.data) === null || _a === void 0 ? void 0 : _a.clone();
         _c.datasets = (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.clone();
         _c.transform = (_d = this.transform) === null || _d === void 0 ? void 0 : _d.clone();
@@ -4290,6 +4820,13 @@ class Overlay {
         _c.wave = (_g = this.wave) === null || _g === void 0 ? void 0 : _g.clone();
         _c.overlay = this.overlay.map((d) => d.clone());
         _c.config = (_h = this.config) === null || _h === void 0 ? void 0 : _h.clone();
+        _c.tick = (_j = this.tick) === null || _j === void 0 ? void 0 : _j.clone();
+        _c.notify = Object.keys((_k = this.notify) !== null && _k !== void 0 ? _k : {}).reduce((acc, curr) => {
+            var _a, _b;
+            if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+            return acc;
+        }, {});
         return _c;
     }
 }
@@ -4316,6 +4853,9 @@ class Sequence {
         else if (isArrayOf(args, [Stream, Overlay])) {
             this.addStreams(args);
         }
+        else {
+            throw new TypeError("Wrong stream types.");
+        }
     }
     name(n) {
         this._name = n;
@@ -4325,8 +4865,20 @@ class Sequence {
         this._title = n;
         return this;
     }
+    skipTitle(b) {
+        this._skipTitle = b;
+        return this;
+    }
     description(n) {
         this._description = n;
+        return this;
+    }
+    skipDescription(b) {
+        this._skipDescription = b;
+        return this;
+    }
+    skipLength(b) {
+        this._skipDescription = b;
         return this;
     }
     stream(i) {
@@ -4337,7 +4889,7 @@ class Sequence {
         return this;
     }
     add(s) {
-        var _a, _b, _d, _e, _f;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         if (isInstanceOf(s, Stream) || isInstanceOf(s, Overlay)) {
             let clone = s.clone();
             // datasets
@@ -4380,7 +4932,21 @@ class Sequence {
                 }
             }
             delete clone.wave;
+            // config
+            let cloned_config = (_h = (_g = clone.config) === null || _g === void 0 ? void 0 : _g.get()) !== null && _h !== void 0 ? _h : {};
+            if (cloned_config && Object.keys(cloned_config).length > 0) {
+                for (const ckey in cloned_config) {
+                    // keey only inconsistent
+                    if (((_j = this.config) === null || _j === void 0 ? void 0 : _j.get(ckey)) === cloned_config[ckey]) {
+                        (_k = clone.config) === null || _k === void 0 ? void 0 : _k.set(ckey, undefined);
+                    }
+                }
+            }
+            // add
             this.sequence.push(clone);
+        }
+        else {
+            throw new TypeError("Wrong item to add into a sequence.");
         }
         return this;
     }
@@ -4391,7 +4957,7 @@ class Sequence {
         return this;
     }
     get() {
-        var _a, _b, _d, _e, _f, _g, _h, _j;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         let g = {
             name: this._name,
             title: this._title,
@@ -4404,16 +4970,78 @@ class Sequence {
             sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
             wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
             sequence: this.sequence.map((d) => d.get()),
-            config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get()
+            config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get(),
+            notify: Object.keys((_k = this.notify) !== null && _k !== void 0 ? _k : {}).reduce((acc, curr) => {
+                var _a, _b;
+                if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                    acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                return acc;
+            }, {})
         };
         return g;
     }
+    toSpec() {
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+        if (((_a = this.datasets) === null || _a === void 0 ? void 0 : _a.toSpec()) && ((_b = this.datasets) === null || _b === void 0 ? void 0 : _b.n_datasets) > 0) {
+            const o = clearResources({
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                skipTitle: this._skipTitle,
+                skipDescription: this._skipDescription,
+                skipLength: this._skipLength,
+                datasets: this.datasets.toSpec(),
+                transform: (_d = this.transform) === null || _d === void 0 ? void 0 : _d.get(),
+                tick: (_e = this.tick) === null || _e === void 0 ? void 0 : _e.get(),
+                synth: (_f = this.synth) === null || _f === void 0 ? void 0 : _f.get(),
+                sampling: (_g = this.sampling) === null || _g === void 0 ? void 0 : _g.get(),
+                wave: (_h = this.wave) === null || _h === void 0 ? void 0 : _h.get(),
+                sequence: this.sequence.map((d) => d.toSpec(true)),
+                config: (_j = this.config) === null || _j === void 0 ? void 0 : _j.get(),
+                notify: Object.keys((_k = this.notify) !== null && _k !== void 0 ? _k : {}).reduce((acc, curr) => {
+                    var _a, _b;
+                    if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                        acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                    return acc;
+                }, {})
+            });
+            return dropUndefined(o);
+        }
+        else {
+            const o = clearResources({
+                name: this._name,
+                title: this._title,
+                description: this._description,
+                skipTitle: this._skipTitle,
+                skipDescription: this._skipDescription,
+                skipLength: this._skipLength,
+                data: (_m = (_l = this.data) === null || _l === void 0 ? void 0 : _l.toSpec()) !== null && _m !== void 0 ? _m : undefined,
+                transform: (_o = this.transform) === null || _o === void 0 ? void 0 : _o.get(),
+                tick: (_p = this.tick) === null || _p === void 0 ? void 0 : _p.get(),
+                synth: (_q = this.synth) === null || _q === void 0 ? void 0 : _q.get(),
+                sampling: (_r = this.sampling) === null || _r === void 0 ? void 0 : _r.get(),
+                wave: (_s = this.wave) === null || _s === void 0 ? void 0 : _s.get(),
+                sequence: this.sequence.map((d) => { var _a; return d.toSpec(((_a = this.data) === null || _a === void 0 ? void 0 : _a.toSpec()) !== undefined); }),
+                config: (_t = this.config) === null || _t === void 0 ? void 0 : _t.get(),
+                notify: Object.keys((_u = this.notify) !== null && _u !== void 0 ? _u : {}).reduce((acc, curr) => {
+                    var _a, _b;
+                    if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                        acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+                    return acc;
+                }, {})
+            });
+            return dropUndefined(o);
+        }
+    }
     clone() {
-        var _a, _b, _d, _e, _f, _g, _h;
+        var _a, _b, _d, _e, _f, _g, _h, _j, _k;
         let _c = new Sequence();
         _c._name = this._name;
         _c._title = this._title;
         _c._description = this._description;
+        _c._skipTitle = this._skipTitle;
+        _c._skipDescription = this._skipDescription;
+        _c._skipLength = this._skipLength;
         _c.data = (_a = this.data) === null || _a === void 0 ? void 0 : _a.clone();
         _c.datasets = (_b = this.datasets) === null || _b === void 0 ? void 0 : _b.clone();
         _c.transform = (_d = this.transform) === null || _d === void 0 ? void 0 : _d.clone();
@@ -4422,6 +5050,14 @@ class Sequence {
         _c.wave = (_g = this.wave) === null || _g === void 0 ? void 0 : _g.clone();
         _c.sequence = this.sequence.map((d) => d.clone());
         _c.config = (_h = this.config) === null || _h === void 0 ? void 0 : _h.clone();
+        _c.tick = (_j = this.tick) === null || _j === void 0 ? void 0 : _j.clone();
+        _c.notify = Object.keys((_k = this.notify) !== null && _k !== void 0 ? _k : {}).reduce((acc, curr) => {
+            var _a, _b;
+            if ((_a = this.notify) === null || _a === void 0 ? void 0 : _a[curr])
+                acc[curr] = deepcopy((_b = this.notify) === null || _b === void 0 ? void 0 : _b[curr]);
+            return acc;
+        }, {});
+        return _c;
     }
 }
 
@@ -4430,34 +5066,36 @@ class Aggregate {
         this.aggregate = [];
         this._groupby = [];
     }
-    add(op, field, as, p) {
+    add(op, field, $as, p) {
+        var _a, _b;
         if (ZeroOPs.includes(op)) {
-            if ((field === null || field === void 0 ? void 0 : field.constructor.name) !== 'String') {
-                throw new Error('"as" is not provided.');
-            }
+            let _as = (_b = (_a = field) !== null && _a !== void 0 ? _a : $as) !== null && _b !== void 0 ? _b : op;
             this.aggregate.push({
-                op, as: field
+                op, as: _as
             });
         }
         else if (SingleOps.includes(op)) {
             if (field === undefined || (field === null || field === void 0 ? void 0 : field.constructor.name) !== 'String') {
-                throw new Error('"field" is not properly provided.');
+                throw new TypeError('"field" is not properly provided.');
             }
-            if (as === undefined || (as === null || as === void 0 ? void 0 : as.constructor.name) !== 'String') {
-                throw new Error('"as" is not properly provided.');
+            if ($as === undefined || ($as === null || $as === void 0 ? void 0 : $as.constructor.name) !== 'String') {
+                throw new TypeError('"as" is not properly provided.');
             }
             if (op === QUANTILE) {
                 if (p === undefined) {
                     console.warn('p is not provided, so is set as 0.5.');
                     p = 0.5;
                 }
+                else if (p < 0 || p > 1) {
+                    throw new RangeError(`The quantile parameter (p) must be within [0, 1]. Current: ${p}.`);
+                }
                 this.aggregate.push({
-                    op, field, as, p
+                    op, field, as: $as, p
                 });
             }
             else {
                 this.aggregate.push({
-                    op, field, as
+                    op, field, as: $as
                 });
             }
         }
@@ -4465,14 +5103,14 @@ class Aggregate {
             if (field === undefined ||
                 (field === null || field === void 0 ? void 0 : field.constructor.name) !== 'Array' ||
                 (field === null || field === void 0 ? void 0 : field.length) != 2 ||
-                !field.every(f => (f === null || f === void 0 ? void 0 : f.constructor.name) !== 'String')) {
+                !field.every(f => (f === null || f === void 0 ? void 0 : f.constructor.name) == 'String')) {
                 throw new Error('"field" is not properly provided.');
             }
-            if (as === undefined || (as === null || as === void 0 ? void 0 : as.constructor.name) !== 'String') {
+            if ($as === undefined || ($as === null || $as === void 0 ? void 0 : $as.constructor.name) !== 'String') {
                 throw new Error('"as" is not properly provided.');
             }
             this.aggregate.push({
-                op, field: [...field], as
+                op, field: [...field], as: $as
             });
         }
         else {
@@ -4482,22 +5120,14 @@ class Aggregate {
     }
     groupby(...args) {
         // this function resets groupby
-        if (args.length == 1 &&
-            args[0].constructor.name === 'Array' &&
-            args[0].every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args[0]];
-        }
-        else if (args.length >= 1 &&
-            args.every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args];
-        }
+        this._groupby = parseGroupby(...args);
         return this;
     }
     get() {
-        return {
-            aggregate: deepcopy(this.aggregate),
+        return dropUndefined({
+            aggregate: deepcopy(this.aggregate.map(d => dropUndefined(d))),
             groupby: deepcopy(this._groupby)
-        };
+        });
     }
     clone() {
         let _c = new Aggregate();
@@ -4527,20 +5157,26 @@ class Bin {
         return this;
     }
     maxbins(v) {
-        if (Math.round(v) == v) {
+        if (Number.isInteger(v) && v > 0) {
             this._maxbins = v;
         }
         else {
-            throw new TypeError("Bin 'maxbins' should be an integer.");
+            throw new TypeError("Bin 'maxbins' should be a positive integer.");
         }
         return this;
     }
     step(v) {
+        if (!Number.isInteger(v) || v <= 0) {
+            throw new TypeError("Bin 'step' should be a positive number.");
+        }
         this._step = v;
         return this;
     }
     exact(v) {
-        this._exact = v;
+        if (v.length < 2) {
+            throw new TypeError("Bin 'exact'  must have at least 2 numbers.");
+        }
+        this._exact = deepcopy(v).toSorted((a, b) => a - b);
         return this;
     }
     get() {
@@ -4566,6 +5202,49 @@ class Bin {
     }
 }
 
+class Boxplot {
+    constructor(c, extent, invalid) {
+        this._boxplot = c;
+        this._extent = extent;
+        this._invalid = invalid;
+    }
+    boxplot(c) {
+        this._boxplot = c;
+        return this;
+    }
+    extent(t) {
+        if ((typeof t === "number" && t > 0) || t === "min-max") {
+            this._extent = t;
+        }
+        else {
+            throw new TypeError(`Unsupported extent value: ${t}`);
+        }
+        return this;
+    }
+    invalid(t) {
+        this._invalid = t;
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        this._groupby = parseGroupby(...args);
+        return this;
+    }
+    get() {
+        return {
+            boxplot: this._boxplot,
+            extent: this._extent,
+            invalid: this._invalid,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
+        _c._groupby = deepcopy(this._groupby);
+        return _c;
+    }
+}
+
 class Calculate {
     constructor(c, a) {
         this._calculate = c;
@@ -4579,14 +5258,21 @@ class Calculate {
         this._as = c;
         return this;
     }
+    groupby(...args) {
+        // this function resets groupby
+        this._groupby = parseGroupby(...args);
+        return this;
+    }
     get() {
         return {
             calculate: this._calculate,
-            as: this._as
+            as: this._as,
+            groupby: deepcopy(this._groupby)
         };
     }
     clone() {
         let _c = new Calculate(this._calculate, this._as);
+        _c._groupby = deepcopy(this._groupby);
         return _c;
     }
 }
@@ -4609,6 +5295,9 @@ class Density {
     }
     extent(a) {
         if (a.length == 2) {
+            if (a[0] > a[1]) {
+                throw new TypeError("Density 'extent' should have two nubmer in order.");
+            }
             this._extent = [...a];
         }
         else {
@@ -4616,8 +5305,9 @@ class Density {
         }
         return this;
     }
-    groupby(g) {
-        this._groupby = [...g];
+    groupby(...args) {
+        // this function resets groupby
+        this._groupby = parseGroupby(...args);
         return this;
     }
     cumulative(v) {
@@ -4656,29 +5346,140 @@ class Density {
     get() {
         return {
             density: this._density,
-            extent: this._extent ? [...this._extent] : undefined,
-            groupby: this._groupby ? [...this._groupby] : undefined,
+            extent: deepcopy(this._extent),
+            groupby: deepcopy(this._groupby),
             cumulative: this._cumulative,
             counts: this._counts,
             bandwidth: this._bandwidth,
             minsteps: this._minsteps,
             maxsteps: this._maxsteps,
             steps: this._steps,
-            as: [...this._as]
+            as: deepcopy(this._as)
         };
     }
     clone() {
         let _c = new Density(this._density);
         _c._density = this._density;
-        _c._extent = this._extent ? [...this._extent] : undefined;
-        _c._groupby = this._groupby ? [...this._groupby] : undefined;
+        _c._extent = deepcopy(this._extent);
+        _c._groupby = deepcopy(this._groupby);
         _c._cumulative = this._cumulative;
         _c._counts = this._counts;
         _c._bandwidth = this._bandwidth;
         _c._minsteps = this._minsteps;
         _c._maxsteps = this._maxsteps;
         _c._steps = this._steps;
-        _c._as = [...this._as];
+        _c._as = deepcopy(this._as);
+        return _c;
+    }
+}
+
+class Diffing {
+    constructor(c, carryOver, keepFirstAsZero, a) {
+        this._diffing = deepcopy(c);
+        if (a)
+            this._as = a;
+        this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
+        this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
+    }
+    diffing(c) {
+        this._diffing = deepcopy(c);
+        return this;
+    }
+    as(c) {
+        if (c.length !== this._diffing.length) {
+            throw new TypeError("The length of `as` must be the same with that of the diffing fields.");
+        }
+        this._as = c;
+        return this;
+    }
+    carryOver(t) {
+        this._carryOver = t;
+        return this;
+    }
+    keepFirstAsZero(t) {
+        this._keepFirstAsZero = t;
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        this._groupby = parseGroupby(...args);
+        return this;
+    }
+    get() {
+        return {
+            diffing: deepcopy(this._diffing),
+            as: deepcopy(this._as),
+            carryOver: this._carryOver,
+            keepFirstAsZero: this._keepFirstAsZero,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
+        _c._groupby = deepcopy(this._groupby);
+        return _c;
+    }
+}
+
+class Quantile {
+    constructor(c, n, step, as) {
+        this._quantile = c;
+        if (n !== undefined)
+            this.n(n);
+        if (step !== undefined && step > 0 && step < 1)
+            this.step(step);
+        if (this._n == undefined && this._step == undefined) {
+            throw new TypeError("Must specify n or step. ");
+        }
+        if (as && as.length == this._quantile.length)
+            this._as = as;
+    }
+    quantile(c) {
+        this._quantile = c;
+        return this;
+    }
+    as(c) {
+        if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
+            this._as = c;
+        }
+        else {
+            throw new TypeError("Wrong length/type for qunatile 'as'.");
+        }
+        return this;
+    }
+    n(t) {
+        if (t <= 0 || !Number.isInteger(t)) {
+            throw new TypeError("N value must be positive integer.");
+        }
+        this._n = t;
+        return this;
+    }
+    step(t) {
+        if (0 < t && t < 1) {
+            this._step = t;
+        }
+        else {
+            throw new RangeError("Step value must be between 0 and 1 (exclusive).");
+        }
+        return this;
+    }
+    groupby(...args) {
+        // this function resets groupby
+        this._groupby = parseGroupby(...args);
+        return this;
+    }
+    get() {
+        return {
+            quantile: this._quantile,
+            as: deepcopy(this._as),
+            n: this._n,
+            step: this._step,
+            groupby: deepcopy(this._groupby)
+        };
+    }
+    clone() {
+        let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+        _c._groupby = deepcopy(this._groupby);
         return _c;
     }
 }
@@ -4726,7 +5527,7 @@ class Fold {
             this._as = [a[0], a[1]];
         }
         else {
-            throw new TypeError("Fold 'fold' should be an Array of two Strings.");
+            throw new TypeError("Fold 'as' should be an Array of two Strings.");
         }
         return this;
     }
@@ -5154,14 +5955,19 @@ function __playSingleTone(_ctx, ct, sound, config, instSamples, synthDefs, waveD
                 inst.modulator.frequency.cancelScheduledValues(ct);
                 rampBy('setValueAtTime', inst.modulator.frequency, sound.pitch, ct);
             }
+            // set envelope
             inst.envelope.gain.cancelScheduledValues(ct);
+            // gain must be 0 at the start point
             rampBy('setValueAtTime', inst.envelope.gain, 0, ct);
+            // raise gain to the top (1) at the attack time
             rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, ct + (inst.attackTime || 0));
-            if (inst.decayTime) {
-                // rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + getStartTime1(sound) + inst.adTime);
-                rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + inst.adTime);
+            // if decay is set, then start moving to the sustain level during that decay time.
+            if (inst.decayTime !== undefined) {
+                rampBy('linearRampToValueAtTime', inst.envelope.gain, (inst.sustain || 1), ct + inst.adTime);
             }
-            rampBy('setValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + ((_h = sound.duration) !== null && _h !== void 0 ? _h : 0));
+            // keep the sustain level throughout the duration
+            rampBy('setValueAtTime', inst.envelope.gain, (inst.sustain || 1), ct + ((_h = sound.duration) !== null && _h !== void 0 ? _h : 0));
+            // turn the volume off after the duration of time including the decay time.
             rampBy('linearRampToValueAtTime', inst.envelope.gain, 0, ct + ((_j = sound.duration) !== null && _j !== void 0 ? _j : 0) + inst.adTime);
         }
         if (sound.detune && 'detune' in inst && inst.detune) {
@@ -6918,9 +7724,14 @@ function normalizeScaleConsistency(config, used_channels) {
 function addURLtoDataObject(data, dataBaseUrl) {
     let d = deepcopy(data);
     if (dataBaseUrl && 'url' in d && d.url) {
-        let n = URL.parse(d.url, dataBaseUrl);
-        if (n)
-            d.url = n.href;
+        try {
+            let n = URL.parse(d.url, dataBaseUrl);
+            if (n)
+                d.url = n.href;
+        }
+        catch (_a) {
+            d.url = new URL(d.url, dataBaseUrl).href;
+        }
     }
     return d;
 }
@@ -6932,17 +7743,23 @@ function normalizeSpecification(_spec, options) {
         // treat options
         let dataBaseUrl = options === null || options === void 0 ? void 0 : options.dataBaseUrl;
         let sampleBaseUrl = options === null || options === void 0 ? void 0 : options.sampleBaseUrl;
+        if (dataBaseUrl && !dataBaseUrl.endsWith("/")) {
+            throw new TypeError("Set data base urls to end with '/'.");
+        }
+        if (sampleBaseUrl && !sampleBaseUrl.endsWith("/")) {
+            throw new TypeError("Set sampling base urls to end with '/'.");
+        }
         if (sampleBaseUrl) {
             setSampleBaseUrl(sampleBaseUrl);
         }
-        let streams = [], datasets = 'datasets' in spec ? deepcopy(spec.datasets || []) : [], synths = deepcopy(spec.synth || []), samplings = deepcopy(spec.sampling || []), tickDefs = deepcopy(spec.tick || []), waves = deepcopy(spec.wave || []), scales = [], config = undefined;
+        let streams = [], datasets = 'datasets' in spec ? deepcopy(spec.datasets || []) : [], synths = deepcopy(spec.synth || []), samplings = deepcopy(spec.sampling || []).map((s) => { s.baseUrl = sampleBaseUrl; return s; }), tickDefs = deepcopy(spec.tick || []), waves = deepcopy(spec.wave || []), scales = [], config = undefined;
         let used_encodings = [];
         let _partial_datasets = {}, _partial_ticks = {};
         if (isSingleStream(spec) || isStreamingStream(spec)) {
             if ('data' in spec && spec.data && !isStreamingStream(spec)) {
                 // moving to datasets
                 if (!('name' in spec.data)) {
-                    let new_data_name = "data__" + (datasets.length + 1);
+                    let new_data_name = "data__" + genRid();
                     datasets.push(Object.assign({ name: new_data_name }, addURLtoDataObject(spec.data, dataBaseUrl)));
                     spec.data = { name: new_data_name };
                 }
@@ -6961,78 +7778,80 @@ function normalizeSpecification(_spec, options) {
             let new_data_name = null;
             if ('data' in spec && spec.data
                 && (!('name' in spec.data) || !spec.data.name)
-                && (!('type' in spec.data) || spec.data.type !== "unset")
-                && 'values' in spec.data && spec.data.values) {
-                new_data_name = "data__" + (datasets.length + 1);
-                datasets.push(Object.assign({ name: new_data_name }, addURLtoDataObject(spec.data, dataBaseUrl)));
+                && (!('type' in spec.data) || spec.data.type !== "unset")) {
+                new_data_name = "data__" + genRid();
+                if ('values' in spec.data && spec.data.values) {
+                    datasets.push({
+                        name: new_data_name,
+                        values: deepcopy(spec.data.values)
+                    });
+                }
+                else if ('url' in spec.data && spec.data.url) {
+                    datasets.push(Object.assign({ name: new_data_name }, addURLtoDataObject(spec.data, dataBaseUrl)));
+                }
             }
             if (isOverlayStream(spec) && 'overlay' in spec) {
                 let overlay = [];
                 // sort out the dataset in use
-                let toplevel_data = null, toplevel_data_name = null;
-                // if the spec has a single dataset with values
-                if ('data' in spec && spec.data
-                    && (!('name' in spec.data) || !spec.data.name)
-                    && (!('type' in spec.data) || spec.data.type !== "unset")) {
-                    // assign dataset name 
-                    toplevel_data_name = `data__${(((_a = datasets.length) !== null && _a !== void 0 ? _a : 0) + 1)}`;
-                    // then pass it as a dataset;
-                    toplevel_data = { name: toplevel_data_name };
-                    datasets.push(Object.assign({ name: toplevel_data_name }, addURLtoDataObject(spec.data, dataBaseUrl)));
-                }
-                // or if the spec's data has a name
-                else if ('data' in spec && spec.data
-                    && ('name' in spec.data && spec.data.name)) {
-                    toplevel_data = addURLtoDataObject(spec.data, dataBaseUrl);
-                    if (!('dataset' in spec) || !spec.dataset) {
-                        console.warn("Dataset name can't be used with a specified dataset");
-                    }
-                }
+                // let toplevel_data: DataSpec | null = null, toplevel_data_name: string | null = null;
+                // // if the spec has a single dataset with values
+                // if ('data' in spec && spec.data
+                //   && (!('name' in spec.data) || !spec.data.name)
+                //   && (!('type' in spec.data) || spec.data.type !== "unset")) {
+                //   // assign dataset name 
+                //   toplevel_data_name = `data__${genRid()}`;
+                //   // then pass it as a dataset;
+                //   toplevel_data = { name: toplevel_data_name } as DataSpec3;
+                //   if ('values' in spec.data && spec.data.values) {
+                //     datasets.push({ name: toplevel_data_name, values: deepcopy(spec.data.values) } as DatasetSpecItemNormed);
+                //   } else if ('url' in spec.data && spec.data.url) {
+                //     datasets.push({ name: toplevel_data_name, url: spec.data.url } as DatasetSpecItemNormed);
+                //   }
+                // }
+                // // or if the spec's data has a name
+                // else if ('data' in spec && spec.data
+                //   && ('name' in spec.data && spec.data.name)) {
+                //   toplevel_data_name = spec.data.name;
+                //   toplevel_data = { name: spec.data.name } as DataSpec3;
+                //   if (!('dataset' in spec) || !spec.dataset) {
+                //     console.warn("Dataset name can't be used with a specified dataset");
+                //   }
+                // }
                 for (const _o of spec.overlay) {
                     // eligibility check
                     if (!isSingleStream(_o))
                         console.error("An overlay of multi-stream sequences is not supported!");
                     // deep-copy to not interrupt the original spec.
                     let o = deepcopy(_o);
-                    // when the current unit stream of the overlay doesn't dataset
+                    // when the current unit stream of the overlay doesn't have a data
                     // then pass the top-level dataset by its name
-                    if (toplevel_data && !o.data) {
-                        // if top-level data is on its own (not set as reference name)
-                        if (toplevel_data_name) {
-                            o.data = { name: toplevel_data_name };
-                        }
-                        // if top-level data is specified as name
-                        else if (!o.data) {
-                            o.data = toplevel_data;
-                        }
+                    if (new_data_name && !o.data) {
+                        o.data = { name: new_data_name };
                     }
                     // when the current unit stream has a data object specified
                     else if (o.data) {
                         // if the specified data doesn't have the name
                         // then assign it to the top-level datasets and refer it by name
                         if (!('name' in o.data) || !o.data.name) {
-                            let dname = `data__${(datasets.length + 1)}`;
-                            datasets.push(Object.assign({ name: dname }, o.data));
+                            let dname = `data__${genRid()}`;
+                            datasets.push(Object.assign({ name: dname }, addURLtoDataObject(o.data, dataBaseUrl)));
                             o.data = { name: dname };
                         }
                     }
-                    // if data is not specified, there's toplevel data available, use it
-                    if (!o.data && new_data_name)
-                        o.data = { name: new_data_name };
                     // transform
                     o.common_transform = deepcopy(spec.transform || []);
                     o.transform = deepcopy(_o.transform || []);
                     // *** Tick ***
                     // when its time encoding has a tick element
                     // making it refer to the corresponding top-level tick object
-                    if (((_c = (_b = o.encoding) === null || _b === void 0 ? void 0 : _b.time) === null || _c === void 0 ? void 0 : _c.tick) !== undefined) {
+                    if (((_b = (_a = o.encoding) === null || _a === void 0 ? void 0 : _a.time) === null || _b === void 0 ? void 0 : _b.tick) !== undefined) {
                         // when it is not specified as name
                         // or it is not referring to a top-level tick object
-                        if (!((_d = o.encoding) === null || _d === void 0 ? void 0 : _d.time.tick.name)
-                            || !tickDefs.filter((d) => { var _a, _b, _c; return d.name === ((_c = (_b = (_a = o.encoding) === null || _a === void 0 ? void 0 : _a.time) === null || _b === void 0 ? void 0 : _b.tick) === null || _c === void 0 ? void 0 : _c.name); })) {
+                        if (!((_c = o.encoding) === null || _c === void 0 ? void 0 : _c.time.tick.name)
+                            || tickDefs.filter((d) => { var _a, _b, _c; return d.name === ((_c = (_b = (_a = o.encoding) === null || _a === void 0 ? void 0 : _a.time) === null || _b === void 0 ? void 0 : _b.tick) === null || _c === void 0 ? void 0 : _c.name); }).length == 0) {
                             // define a new tick object in the top level
-                            let new_tick_name = ((_e = o.encoding) === null || _e === void 0 ? void 0 : _e.time.tick.name) || ("tick_" + (tickDefs.length + 1));
-                            tickDefs.push(Object.assign(Object.assign({}, (_f = o.encoding) === null || _f === void 0 ? void 0 : _f.time.tick), { name: new_tick_name }));
+                            let new_tick_name = ((_d = o.encoding) === null || _d === void 0 ? void 0 : _d.time.tick.name) || ("tick_" + (genRid()));
+                            tickDefs.push(Object.assign(Object.assign({}, (_e = o.encoding) === null || _e === void 0 ? void 0 : _e.time.tick), { name: new_tick_name }));
                             // then replace it by the name
                             o.encoding.time.tick = { name: new_tick_name };
                         }
@@ -7067,9 +7886,9 @@ function normalizeSpecification(_spec, options) {
                     name: spec.name,
                     title: spec.title,
                     description: spec.description,
-                    skipTitle: (_g = spec.skipTitle) !== null && _g !== void 0 ? _g : false,
-                    skipDescription: (_h = spec.skipDescription) !== null && _h !== void 0 ? _h : false,
-                    skipLength: (_j = spec.skipLength) !== null && _j !== void 0 ? _j : false,
+                    skipTitle: (_f = spec.skipTitle) !== null && _f !== void 0 ? _f : false,
+                    skipDescription: (_g = spec.skipDescription) !== null && _g !== void 0 ? _g : false,
+                    skipLength: (_h = spec.skipLength) !== null && _h !== void 0 ? _h : false,
                 });
             }
             else if (!isStreamingStream(spec) && isSequenceStream(spec) && 'sequence' in spec) {
@@ -7084,9 +7903,9 @@ function normalizeSpecification(_spec, options) {
                 if (spec.description)
                     introSeq.description = spec.description;
                 if (Object.keys(introSeq).length > 0) {
-                    introSeq.skipTitle = (_k = spec.skipTitle) !== null && _k !== void 0 ? _k : false;
-                    introSeq.skipDescription = (_l = spec.skipDescription) !== null && _l !== void 0 ? _l : false;
-                    introSeq.skipLength = (_m = spec.skipLength) !== null && _m !== void 0 ? _m : false;
+                    introSeq.skipTitle = (_j = spec.skipTitle) !== null && _j !== void 0 ? _j : false;
+                    introSeq.skipDescription = (_k = spec.skipDescription) !== null && _k !== void 0 ? _k : false;
+                    introSeq.skipLength = (_l = spec.skipLength) !== null && _l !== void 0 ? _l : false;
                     output.push({ intro: introSeq, id: intro_id });
                 }
                 for (const _o of spec.sequence) {
@@ -7099,24 +7918,30 @@ function normalizeSpecification(_spec, options) {
                     if (isSingleStream(o)) {
                         // *** Tick ***
                         // if the time channel has tick -> move it to the top level tick def.
-                        if ((_q = (_p = o.encoding) === null || _p === void 0 ? void 0 : _p.time) === null || _q === void 0 ? void 0 : _q.tick) {
-                            if (!((_s = (_r = o.encoding) === null || _r === void 0 ? void 0 : _r.time) === null || _s === void 0 ? void 0 : _s.tick.name)
-                                || !tickDefs.filter((d) => { var _a, _b, _c; return d.name === ((_c = (_b = (_a = o.encoding) === null || _a === void 0 ? void 0 : _a.time) === null || _b === void 0 ? void 0 : _b.tick) === null || _c === void 0 ? void 0 : _c.name); })) {
-                                let new_tick_name = ((_t = o.encoding) === null || _t === void 0 ? void 0 : _t.time.tick.name) || ("tick_" + (tickDefs.length + 1));
-                                tickDefs.push(Object.assign(Object.assign({}, (_u = o.encoding) === null || _u === void 0 ? void 0 : _u.time.tick), { name: new_tick_name }));
+                        if ((_p = (_m = o.encoding) === null || _m === void 0 ? void 0 : _m.time) === null || _p === void 0 ? void 0 : _p.tick) {
+                            if (!((_r = (_q = o.encoding) === null || _q === void 0 ? void 0 : _q.time) === null || _r === void 0 ? void 0 : _r.tick.name)
+                                || tickDefs.filter((d) => { var _a, _b, _c; return d.name === ((_c = (_b = (_a = o.encoding) === null || _a === void 0 ? void 0 : _a.time) === null || _b === void 0 ? void 0 : _b.tick) === null || _c === void 0 ? void 0 : _c.name); }).length == 0) {
+                                let new_tick_name = ((_s = o.encoding) === null || _s === void 0 ? void 0 : _s.time.tick.name) || ("tick_" + (genRid()));
+                                tickDefs.push(Object.assign(Object.assign({}, (_t = o.encoding) === null || _t === void 0 ? void 0 : _t.time.tick), { name: new_tick_name }));
                                 o.encoding.time.tick = { name: new_tick_name };
                             }
                         }
                         // if it has no data set, then assign the top level data
                         if (!o.data && new_data_name)
                             o.data = { name: new_data_name };
-                        // or if it has raw data defined
-                        else if ('values' in o.data && ((_v = o.data) === null || _v === void 0 ? void 0 : _v.values)) {
-                            let new_data_name_2 = "data__" + (datasets.length + 1);
+                        // or if it has raw data defined (as values)
+                        else if ('values' in o.data && ((_u = o.data) === null || _u === void 0 ? void 0 : _u.values)) {
+                            let new_data_name_2 = "data__" + genRid();
                             datasets.push({
                                 name: new_data_name_2,
                                 values: deepcopy(o.data.values)
                             });
+                            o.data = { name: new_data_name_2 };
+                        }
+                        // or if it has raw data defined (as url)
+                        else if ('url' in o.data && ((_v = o.data) === null || _v === void 0 ? void 0 : _v.url)) {
+                            let new_data_name_2 = "data__" + genRid();
+                            datasets.push(Object.assign({ name: new_data_name_2 }, addURLtoDataObject(o.data, dataBaseUrl)));
                             o.data = { name: new_data_name_2 };
                         }
                         o.common_transform = deepcopy(spec.transform || []);
@@ -7385,10 +8210,21 @@ function matchSpecifiedStream(src, tar) {
 
 function makeIndexSortFn(key, order) {
     return (a, b) => {
-        let det = order.indexOf(a[key]) - order.indexOf(b[key]);
-        if (det != 0)
-            return det;
-        return 0;
+        if (order.indexOf(a[key]) < 0 && order.indexOf(b[key]) >= 0) {
+            return 1;
+        }
+        else if (order.indexOf(a[key]) >= 0 && order.indexOf(b[key]) < 0) {
+            return -1;
+        }
+        else if (order.indexOf(a[key]) < 0 && order.indexOf(b[key]) < 0) {
+            return 0;
+        }
+        else {
+            let det = order.indexOf(a[key]) - order.indexOf(b[key]);
+            if (det != 0)
+                return det;
+            return 0;
+        }
     };
 }
 function makeAscSortFn(key) {
@@ -7403,7 +8239,7 @@ function makeDescSortFn(key) {
 }
 
 function createBin(col, transform) {
-    var _a, _b;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     let is_nice = transform.nice;
     if (is_nice === undefined)
         is_nice = true;
@@ -7411,25 +8247,35 @@ function createBin(col, transform) {
     let step = transform.step;
     let exact = transform.exact;
     let binFunction = d3.bin(), buckets = [], binAssigner, equiBin = true;
-    if (is_nice && maxbins && !step) {
-        binFunction = binFunction.thresholds(maxbins);
-        buckets = binFunction(col);
-        equiBin = true;
-    }
-    else if (step) {
-        maxbins = Math.ceil((((_a = d3.max(col)) !== null && _a !== void 0 ? _a : 0) - ((_b = d3.min(col)) !== null && _b !== void 0 ? _b : 0)) / step);
-        binFunction = binFunction.thresholds(maxbins);
-        buckets = binFunction(col);
-        equiBin = true;
-    }
-    else if (exact) {
+    if (exact) {
         binFunction = binFunction.thresholds(exact);
         buckets = binFunction(col);
         equiBin = false;
     }
+    else if (step) {
+        let bin_sets = d3.range(Math.floor(((_a = d3.min(col)) !== null && _a !== void 0 ? _a : 0) / step) * step, ((_b = d3.max(col)) !== null && _b !== void 0 ? _b : 0) + step, step);
+        binFunction = binFunction.thresholds(bin_sets);
+        buckets = binFunction(col);
+        equiBin = true;
+    }
+    else {
+        binFunction = binFunction.thresholds(maxbins);
+        buckets = binFunction(col);
+        equiBin = true;
+    }
+    if (is_nice) {
+        let nice_buckets = d3.nice((_c = d3.max(col)) !== null && _c !== void 0 ? _c : 0, (_d = d3.min(col)) !== null && _d !== void 0 ? _d : 0, maxbins);
+        binFunction = binFunction.domain([(_e = d3.min(nice_buckets)) !== null && _e !== void 0 ? _e : 0, (_f = d3.max(nice_buckets)) !== null && _f !== void 0 ? _f : 0]);
+        buckets = binFunction(col);
+    }
+    else {
+        binFunction = binFunction.domain([(_g = d3.min(col)) !== null && _g !== void 0 ? _g : 0, (_h = d3.max(col)) !== null && _h !== void 0 ? _h : 0]);
+        buckets = binFunction(col);
+    }
+    let simple_buckets = buckets.map(b => b.x0);
     binAssigner = (d) => {
-        var _a;
-        let ib = (_a = buckets.map(b => (b.includes(d) ? { x0: b.x0, x1: b.x1 } : undefined)).filter(b => b != undefined)) === null || _a === void 0 ? void 0 : _a[0];
+        let ibx = d3.bisectRight(simple_buckets, d);
+        let ib = buckets[ibx - 1];
         return { start: ib === null || ib === void 0 ? void 0 : ib.x0, end: ib === null || ib === void 0 ? void 0 : ib.x1 };
     };
     let binned = col.map(binAssigner);
@@ -7442,66 +8288,67 @@ function doAggregate(table, aggregates, groupby) {
     return table.groupby(groupby).rollup(rollups);
 }
 function getRollUps(aggregates) {
+    var _a;
     let rollups = {};
     for (const agg of aggregates) {
         let name_as = agg.as, field = agg.field, method = agg.op;
         if ((method === "mean" || method === "average") && typeof field === 'string') {
-            rollups[name_as] = `d => op.mean(d['${field}'])`;
+            rollups[name_as] = `op.median('${field}')`;
         }
         else if (method === "valid" && typeof field === 'string') {
-            rollups[name_as] = `d => op.valid(d['${field}'])`;
+            rollups[name_as] = `op.valid('${field}')`;
         }
         else if (method === "invalid" && typeof field === 'string') {
-            rollups[name_as] = `d => op.invalid(d['${field}'])`;
+            rollups[name_as] = `op.invalid('${field}')`;
         }
         else if (method === "max" && typeof field === 'string') {
-            rollups[name_as] = `d => op.max(d['${field}'])`;
+            rollups[name_as] = `op.max('${field}')`;
         }
         else if (method === "min" && typeof field === 'string') {
-            rollups[name_as] = `d => op.min(d['${field}'])`;
+            rollups[name_as] = `op.min('${field}')`;
         }
         else if (method === "distinct" && typeof field === 'string') {
-            rollups[name_as] = `d => op.distinct(d['${field}'])`;
+            rollups[name_as] = `op.distinct('${field}')`;
         }
         else if (method === "sum" && typeof field === 'string') {
-            rollups[name_as] = `d => op.sum(d['${field}'])`;
+            rollups[name_as] = `op.sum('${field}')`;
         }
         else if (method === "product" && typeof field === 'string') {
-            rollups[name_as] = `d => op.product(d['${field}'])`;
+            rollups[name_as] = `op.product('${field}')`;
         }
         else if (method === "mode" && typeof field === 'string') {
-            rollups[name_as] = `d => op.mode(d['${field}'])`;
+            rollups[name_as] = `op.mode('${field}')`;
         }
         else if (method === "median" && typeof field === 'string') {
-            rollups[name_as] = `d => op.median(d['${field}'])`;
+            rollups[name_as] = `op.median('${field}')`;
         }
         else if (method === "quantile" && typeof field === 'string') {
-            let p = agg.p || 0.5;
-            rollups[name_as] = `d => op.quantile(d['${field}'], ${p})`;
+            let p = (_a = agg.p) !== null && _a !== void 0 ? _a : 0.5;
+            rollups[name_as] = `op.quantile('${field}'], ${p})`;
         }
         else if (method === "stdev" && typeof field === 'string') {
-            rollups[name_as] = `d => op.stdev(d['${field}'])`;
+            rollups[name_as] = `op.stdev('${field}')`;
         }
         else if (method === "stdevp" && typeof field === 'string') {
-            rollups[name_as] = `d => op.stdevp(d['${field}'])`;
+            rollups[name_as] = `op.stdevp('${field}')`;
         }
         else if (method === "variance" && typeof field === 'string') {
-            rollups[name_as] = `d => op.variance(d['${field}'])`;
+            rollups[name_as] = `op.variance('${field}')`;
         }
         else if (method === "variancep" && typeof field === 'string') {
-            rollups[name_as] = `d => op.variancep(d['${field}'])`;
+            rollups[name_as] = `op.variancep('${field}')`;
         }
         else if (method === "count") {
-            rollups[name_as] = `d => op.count()`;
+            rollups[name_as] = `op.count()`;
         }
         else if (method === "corr" && field instanceof Array) {
-            rollups[name_as] = `d => op.corr(d['${field[0]}'], d['${field[1]}'])`;
+            rollups[name_as] = `op.corr('${field[0]}'], '${field[1]}')`;
         }
         else if (method === "covariance" && field instanceof Array) {
-            rollups[name_as] = `d => op.covariance(d['${field[0]}'], d['${field[1]}'])`;
+            rollups[name_as] = `op.covariance('${field[0]}'], '${field[1]}')`;
         }
         else if (method === "covariancep" && field instanceof Array) {
-            rollups[name_as] = `d => op.covariancep(d['${field[0]}'], d['${field[1]}'])`;
+            rollups[name_as] = `op.covariancep('${field[0]}'], '${field[1]}')`;
         }
     }
     return rollups;
@@ -7640,14 +8487,13 @@ function makeBoxPlotTable(_table, field, _extent, _invalid, groupby) {
 
 function doCalculate(table, cal, groupby) {
     let eq = cal.calculate, name_as = cal.as;
-    eq = eq.replace(/datum\./gi, 'd.');
     return table.groupby(groupby).derive({
-        [name_as]: eq
+        [name_as]: `datum => ${eq}`
     });
 }
 
 function filterTable(table, filter) {
-    return table.ungroup().filter(`d => ${filter.replace(/datum\./gi, 'd.')}`).reify();
+    return table.ungroup().filter(`datum => ${filter}`).reify();
 }
 
 function foldTable(table, fold_fields, by, exclude, new_names) {
@@ -7671,10 +8517,16 @@ function generateQuantiles(_table, field, _n, _step, groupby, _as) {
         let n = 25, step = 1 / 25;
         if (_n !== undefined) {
             n = _n;
+            if (n <= 0) {
+                throw new RangeError(`Divided by 0: ${_n}`);
+            }
             step = 1 / n;
         }
         else if (_step !== undefined && 0 < _step && _step < 1) {
             n = Math.round(1 / _step);
+            if (n <= 0) {
+                throw new RangeError(`Divided by 0: ${_step} => ${Math.round(1 / _step)}`);
+            }
             step = 1 / n;
         }
         let asName = _as ? [(_a = _as[0]) !== null && _a !== void 0 ? _a : 'probability', (_b = _as[1]) !== null && _b !== void 0 ? _b : 'value'] : ['probability', 'value'];
@@ -7801,28 +8653,72 @@ function diffTable(table, fields, groupby, _as, _keepFirstAsZero) {
         a[c] = new_field_name[i];
         return a;
     }, {});
-    let raw_table = table.objects();
-    let new_table = raw_table.slice(keepFirstAsZero ? 0 : 1).map((curr, i) => {
-        let prev = keepFirstAsZero ? (i > 0 ? raw_table[i - 1] : {}) : raw_table[i];
-        let point = Object.keys(curr).reduce((a, c) => {
-            if (fields.includes(c)) {
-                a[new_field_name_map[c]] = (keepFirstAsZero && i == 0) ? 0 : curr[c] - prev[c];
-                a[c] = curr[c]; //preserving
-            }
-            else {
-                a[c] = curr[c];
-            }
-            return a;
-        }, {});
-        return point;
-    });
+    let raw_tables;
+    if (groupby && groupby.length > 0) {
+        raw_tables = custom_groupby_function(table, groupby);
+    }
+    else {
+        raw_tables = new Map([['none', table.objects()]]);
+    }
+    let new_table = [];
+    for (const tab of raw_tables) {
+        tab[0];
+        let raw_table = tab[1];
+        let new_table_section = raw_table.slice(keepFirstAsZero ? 0 : 1).map((curr, i) => {
+            let prev = keepFirstAsZero ? (i > 0 ? raw_table[i - 1] : {}) : raw_table[i];
+            let point = Object.keys(curr).reduce((a, c) => {
+                if (fields.includes(c)) {
+                    a[new_field_name_map[c]] = (keepFirstAsZero && i == 0) ? 0 : curr[c] - prev[c];
+                    a[c] = curr[c]; //preserving
+                }
+                else {
+                    a[c] = curr[c];
+                }
+                return a;
+            }, {});
+            return point;
+        });
+        new_table = [...new_table, ...new_table_section];
+    }
     table = aq__namespace.from(new_table);
     return table;
+}
+function custom_groupby_function(table, groupby) {
+    let uniques = {};
+    for (const colname of groupby) {
+        let col = table.array(colname);
+        let uniq = unique(col);
+        uniques[colname] = uniq;
+    }
+    let sect_tables = new Map();
+    let raw = table.objects();
+    let colname0 = groupby[0];
+    for (const key of uniques[colname0]) {
+        sect_tables.set(`${colname0}=>${key}`, raw.filter((d) => d[colname0] === key));
+    }
+    if (groupby.length - 1 > 0) {
+        sect_tables = recursive_groupby(sect_tables, groupby.slice(1), uniques);
+    }
+    return sect_tables;
+}
+function recursive_groupby(sect_tables, groupby, uniques) {
+    let new_sect_tables = new Map();
+    let colname0 = groupby[0];
+    for (const item of sect_tables) {
+        let [org_key, org_table] = item;
+        for (const key of uniques[colname0]) {
+            new_sect_tables.set(org_key + `;${colname0}=>${key}`, org_table.filter((d) => d[colname0] === key));
+        }
+    }
+    if (groupby.length - 1 > 0) {
+        new_sect_tables = recursive_groupby(new_sect_tables, groupby.slice(1), uniques);
+    }
+    return new_sect_tables;
 }
 
 const fromTidy = aq__namespace.from, escape = aq__namespace.escape, aqTable = aq__namespace.table;
 function transformData(data, transforms, dimensions) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     let table = fromTidy(data);
     let tableInfo = {};
     if ((transforms === null || transforms === void 0 ? void 0 : transforms.constructor.name) === "Array" && transforms.length > 0) {
@@ -7873,7 +8769,7 @@ function transformData(data, transforms, dimensions) {
             else if ('calculate' in transform && transform.calculate) {
                 let groupby = ('groupby' in transform) ? (_b = transform.groupby) !== null && _b !== void 0 ? _b : [] : [];
                 if (groupby === GroupbyAuto) {
-                    groupby = dimensions;
+                    groupby = dimensions.filter((d) => table.columnNames().includes(d));
                 }
                 table = doCalculate(table, transform, groupby);
             }
@@ -7883,7 +8779,11 @@ function transformData(data, transforms, dimensions) {
             }
             // density
             else if ('density' in transform && transform.density) {
-                table = getKernelDensity(table, transform.density, transform.groupby, transform.cumulative, transform.counts, transform.bandwidth, transform.extent, transform.minsteps, transform.maxsteps, transform.steps, transform.as);
+                let groupby = ('groupby' in transform) ? (_c = transform.groupby) !== null && _c !== void 0 ? _c : [] : [];
+                if (groupby === GroupbyAuto) {
+                    groupby = dimensions.filter((d) => table.columnNames().includes(d));
+                }
+                table = getKernelDensity(table, transform.density, groupby, transform.cumulative, transform.counts, transform.bandwidth, transform.extent, transform.minsteps, transform.maxsteps, transform.steps, transform.as);
             }
             // filter
             else if ('filter' in transform && transform.filter) {
@@ -7891,7 +8791,7 @@ function transformData(data, transforms, dimensions) {
             }
             // boxplot
             else if ('boxplot' in transform && transform.boxplot) {
-                let groupby = ('groupby' in transform) ? (_c = transform.groupby) !== null && _c !== void 0 ? _c : [] : [];
+                let groupby = ('groupby' in transform) ? (_d = transform.groupby) !== null && _d !== void 0 ? _d : [] : [];
                 if (groupby === GroupbyAuto) {
                     groupby = dimensions.filter((d) => table.columnNames().includes(d));
                 }
@@ -7899,7 +8799,7 @@ function transformData(data, transforms, dimensions) {
             }
             // quantiles
             else if ('quantile' in transform && transform.quantile) {
-                let groupby = ('groupby' in transform) ? (_d = transform.groupby) !== null && _d !== void 0 ? _d : [] : [];
+                let groupby = ('groupby' in transform) ? (_e = transform.groupby) !== null && _e !== void 0 ? _e : [] : [];
                 if (groupby === GroupbyAuto) {
                     groupby = dimensions.filter((d) => table.columnNames().includes(d));
                 }
@@ -7907,7 +8807,7 @@ function transformData(data, transforms, dimensions) {
             }
             // diffing
             else if ('diffing' in transform && transform.diffing) {
-                let groupby = ('groupby' in transform) ? (_e = transform.groupby) !== null && _e !== void 0 ? _e : [] : [];
+                let groupby = ('groupby' in transform) ? (_f = transform.groupby) !== null && _f !== void 0 ? _f : [] : [];
                 if (groupby === GroupbyAuto) {
                     groupby = dimensions.filter((d) => table.columnNames().includes(d));
                 }
@@ -7937,7 +8837,6 @@ function orderArray(data, orders) {
             sortFunctions.push(sortFn);
         }
     }
-    sortFunctions.reverse();
     if (sortFunctions.length > 0) {
         outcome = data.toSorted((a, b) => {
             for (const fn of sortFunctions) {
@@ -7946,7 +8845,7 @@ function orderArray(data, orders) {
                 else if (fn(a, b) < 0)
                     return -1;
             }
-            return 1;
+            return 0;
         });
     }
     return outcome || data;
@@ -8005,7 +8904,11 @@ function _getData(data_spec) {
             return data_spec.values;
         }
         else if (data_spec && 'url' in data_spec && (data_spec === null || data_spec === void 0 ? void 0 : data_spec.url)) {
-            let read = yield (yield fetch(data_spec.url)).text();
+            let res = yield fetch(data_spec.url);
+            if (!res.ok) {
+                throw new Error(`Failed to load ${data_spec.url}`);
+            }
+            let read = yield res.text();
             if (isJSON(read)) {
                 return JSON.parse(read);
             }
@@ -8022,14 +8925,6 @@ function _getData(data_spec) {
         }
     });
 }
-// not understanding this
-// else if (data_spec?.data?.values) {
-//   return data_spec.data.values;
-// } else if (data_spec?.csv) {
-//   return csvParse(data_spec?.csv);
-// } else if (data_spec?.tsv) {
-//   return tsvParse(data_spec.tsv);
-// }
 
 // todo: check DescriptionMarkupQueueItem complies with a QueueItem
 // WORKFLOW
@@ -9854,7 +10749,7 @@ function orderData(encoding, data, repeat_options) {
     return data_order;
 }
 
-function compileSingleLayerAuidoGraph(audio_spec, _data, config, tickDef, common_scales) {
+function compileSingleLayerAudioGraph(audio_spec, _data, config, tickDef, common_scales) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g, _h;
         let id = audio_spec.id;
@@ -11210,14 +12105,15 @@ class StreamingStream {
         this.ramp = deepcopy(ramp);
     }
     setSampling(samplings) {
-        var _a;
-        this.samplings = deepcopy(samplings);
-        // load them here;
-        for (const inst in this.samplings) {
-            loadSamples(new AudioContext(), inst, this.samplings, (_a = this.config.options) === null || _a === void 0 ? void 0 : _a.baseUrl).then((sample) => {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            this.samplings = deepcopy(samplings);
+            // load them here;
+            for (const inst in this.samplings) {
+                let sample = yield loadSamples(new AudioContext(), inst, this.samplings, (_a = this.config.options) === null || _a === void 0 ? void 0 : _a.baseUrl);
                 this.loaded_samples[inst] = sample;
-            });
-        }
+            }
+        });
     }
     setSynths(synths) {
         this.synths = synths;
@@ -11262,20 +12158,19 @@ class StreamingStream {
                 yield this.play(this.option.test_data.test, true);
             }
             else {
-                console.warn("No test data is provoded.");
+                console.warn("No test data is provided.");
             }
             this.unmuteBaseTick();
         });
     }
     start() {
-        var _a, _b, _d, _e, _f;
+        var _a, _b, _d, _e, _f, _g;
         if (this.is_started) {
             console.warn("This stream is already started. If you want to re-initiate, then destroy and restart the stream.");
-            return;
         }
         if (!this.is_started) {
             if (this.is_destroyed) {
-                console.warn("This stream is destroyed. Crreating a new stream.");
+                console.warn("This stream is destroyed. Creating a new stream.");
             }
             this.baseContext = new AudioContext();
             if (this.has_base_tone) {
@@ -11287,8 +12182,8 @@ class StreamingStream {
                     if (this.baseValues.option.asTick) {
                         config.tick = {
                             interval: (_d = this.baseValues.option.tickInterval) !== null && _d !== void 0 ? _d : 5,
-                            band: 0.2,
-                            instrument: (_f = (_e = this.baseToneSampled) !== null && _e !== void 0 ? _e : config.instrument_type) !== null && _f !== void 0 ? _f : 'default'
+                            band: (_e = this.baseValues.option.tickBand) !== null && _e !== void 0 ? _e : 0.2,
+                            instrument: (_g = (_f = this.baseToneSampled) !== null && _f !== void 0 ? _f : config.instrument_type) !== null && _g !== void 0 ? _g : 'default'
                         };
                         if (baseValues.pitch)
                             config.tick.pitch = baseValues.pitch;
@@ -11447,7 +12342,7 @@ class StreamingStream {
                             });
                         }
                         // registration
-                        this.currentQueue.setSampling(this.samplings);
+                        yield this.currentQueue.setSampling(this.samplings);
                         this.currentQueue.setSynths(this.synths);
                         this.currentQueue.setWaves(this.waves);
                         // setting queue
@@ -11516,16 +12411,17 @@ class StreamingStream {
     }
     destroy() {
         // for the entirety
+        let baseStream = this.baseStream, baseContext = this.baseContext;
         this.cancel().then(() => {
             // remove the player
-            if (this.baseStream) {
-                this.baseStream.inst.stop(this.baseContext.currentTime);
-                if (this.baseStream.tick_interval_id) {
-                    clearInterval(this.baseStream.tick_interval_id);
+            if (baseStream) {
+                baseStream.inst.stop(baseContext.currentTime);
+                if (baseStream.tick_interval_id) {
+                    clearInterval(baseStream.tick_interval_id);
                 }
             }
-            if (this.baseContext)
-                this.baseContext.close();
+            if (baseContext)
+                baseContext.close();
         });
         this.status = Stopped;
         this.is_destroyed = true;
@@ -11697,7 +12593,7 @@ function isStreamingStreamObject(o) {
     return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === StreamingStream.name;
 }
 
-function compileSequnceStream(audio_spec, normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves, ordering_normalized // todo (here, just pass. do stuff at the prerendering step)
+function compileSequenceStream(audio_spec, normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves, ordering_normalized // todo (here, just pass. do stuff at the prerendering step)
 ) {
     return __awaiter(this, void 0, void 0, function* () {
         // 1. load datasets first! && filling missing data type
@@ -11761,7 +12657,7 @@ function compileSequnceStream(audio_spec, normalized, datasets, tick, scaleDefin
                 let is_repeated = isRepeatedStream(stream.stream);
                 let data = deepcopy(loaded_datasets[stream.stream.data.name]);
                 // slag = single layer audio graph
-                let slag = yield compileSingleLayerAuidoGraph(stream.stream, data, audio_spec.config, tick, scales);
+                let slag = yield compileSingleLayerAudioGraph(stream.stream, data, audio_spec.config, tick, scales);
                 if (!is_repeated && (slag === null || slag === void 0 ? void 0 : slag.stream)) {
                     sequence.addStream(slag === null || slag === void 0 ? void 0 : slag.stream);
                 }
@@ -11797,7 +12693,7 @@ function compileSequnceStream(audio_spec, normalized, datasets, tick, scaleDefin
                     let data = deepcopy(loaded_datasets[overlay.data.name]);
                     let config = deepcopy(audio_spec.config);
                     Object.assign(config, overlay.config);
-                    let overlayStrm = yield compileSingleLayerAuidoGraph(overlay, data, config, tick, scales);
+                    let overlayStrm = yield compileSingleLayerAudioGraph(overlay, data, config, tick, scales);
                     if (overlayStrm) {
                         if (overlay.name)
                             overlayStrm.stream.setName(overlay.name);
@@ -11891,7 +12787,7 @@ function compileStreamingStream(audio_spec, normalized, tick, scaleDefinitions, 
             delete stream.stream.encoding.repeat;
             sequence.setRepeat(repeat);
         }
-        let slag = yield compileSingleLayerAuidoGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales);
+        let slag = yield compileSingleLayerAudioGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales);
         if (slag === null || slag === void 0 ? void 0 : slag.stream)
             sequence.setStream(slag === null || slag === void 0 ? void 0 : slag.stream);
         if (slag === null || slag === void 0 ? void 0 : slag.transformer)
@@ -11939,33 +12835,37 @@ function compileStreamingStream(audio_spec, normalized, tick, scaleDefinitions, 
 }
 function checkStreamingSpec(spec) {
     var _a, _b, _c;
+    let problems = [];
     if ('overlay' in spec) {
-        console.error('A streaming audio graph cannot have overlaid streams.');
+        problems.push('A streaming audio graph cannot have overlaid streams.');
     }
     if ('stream' in spec) {
         let is_continued = (_a = spec.stream.tone.continued) !== null && _a !== void 0 ? _a : false, has_base_tone = (_b = spec.stream.tone.hasBaseTone) !== null && _b !== void 0 ? _b : false, base_tone_as_tick = (_c = spec.stream.tone.baseToneAsTick) !== null && _c !== void 0 ? _c : false;
         if (!is_continued && has_base_tone && !base_tone_as_tick) {
-            console.error('A streaming audio graph with a non-tick base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
+            problems.push('A streaming audio graph with a non-tick base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
         }
         if (is_continued && (TAPCNT_chn in spec.stream.encoding || TAPSPD_chn in spec.stream.encoding)) {
-            console.error('A continuous streaming audio graph cannot have a tapping channel.');
+            problems.push('A continuous streaming audio graph cannot have a tapping channel.');
         }
         for (const channel of Object.keys(spec.stream.encoding)) {
             const encoding = spec.stream.encoding[channel];
             if (!('value' in encoding)) {
                 if (!('type' in encoding)) {
-                    console.error(`A streaming audio graph must have a "typed" encoding channel. See ${channel} channel.`);
+                    problems.push(`A streaming audio graph must have a "typed" encoding channel. See ${channel} channel.`);
                 }
                 if (!('scale' in encoding)) {
-                    console.error(`A streaming audio graph must have a "well-scaled" encoding channel. See ${channel} channel.`);
+                    problems.push(`A streaming audio graph must have a "well-scaled" encoding channel. See ${channel} channel.`);
                 }
                 else if ('scale' in encoding && encoding.scale !== undefined) {
                     if (!('domain' in encoding.scale)) {
-                        console.error(`A streaming audio graph must specify the domain for each encoding channel. See ${channel} channel.`);
+                        problems.push(`A streaming audio graph must specify the domain for each encoding channel. See ${channel} channel.`);
                     }
                 }
             }
         }
+    }
+    if (problems.length > 0) {
+        throw new Error(problems.join("\n"));
     }
 }
 
@@ -12281,7 +13181,7 @@ function compileAudioGraph(audio_spec, options) {
         else {
             ordering_normalized = generateBaseOrderSpec(normalized, sequenceConfig);
         }
-        let sequence = !is_streaming ? yield compileSequnceStream(audio_spec, normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves, ordering_normalized // todo
+        let sequence = !is_streaming ? yield compileSequenceStream(audio_spec, normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves, ordering_normalized // todo
         ) : yield compileStreamingStream(audio_spec, normalized, tick, scaleDefinitions, sequenceConfig, {
             playback: audio_spec.playback,
             notify: audio_spec.notify,
@@ -12315,171 +13215,6 @@ function compileAudioGraph(audio_spec, options) {
         sequence.setConfig('options', options);
         return sequence;
     });
-}
-
-class Boxplot {
-    constructor(c, extent, invalid) {
-        this._boxplot = c;
-        this._extent = extent;
-        this._invalid = invalid;
-    }
-    boxplot(c) {
-        this._boxplot = c;
-        return this;
-    }
-    extent(t) {
-        this._extent = t;
-        return this;
-    }
-    invalid(t) {
-        this._invalid = t;
-        return this;
-    }
-    groupby(...args) {
-        // this function resets groupby
-        if (args.length == 1 &&
-            args[0].constructor.name === 'Array' &&
-            args[0].every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args[0]];
-        }
-        else if (args.length >= 1 &&
-            args.every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args];
-        }
-        return this;
-    }
-    get() {
-        return {
-            boxplot: this._boxplot,
-            extent: this._extent,
-            invalid: this._invalid,
-            groupby: deepcopy(this._groupby)
-        };
-    }
-    clone() {
-        let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
-        _c._groupby = this._groupby;
-        return _c;
-    }
-}
-
-class Diffing {
-    constructor(c, carryOver, keepFirstAsZero, a) {
-        this._diffing = c;
-        if (a)
-            this._as = a;
-        this._carryOver = carryOver !== null && carryOver !== void 0 ? carryOver : true;
-        this._keepFirstAsZero = keepFirstAsZero !== null && keepFirstAsZero !== void 0 ? keepFirstAsZero : true;
-    }
-    diffing(c) {
-        this._diffing = c;
-        return this;
-    }
-    as(c) {
-        this._as = c;
-        return this;
-    }
-    carryOver(t) {
-        this._carryOver = t;
-        return this;
-    }
-    keepFirstAsZero(t) {
-        this._keepFirstAsZero = t;
-        return this;
-    }
-    groupby(...args) {
-        // this function resets groupby
-        if (args.length == 1 &&
-            args[0].constructor.name === 'Array' &&
-            args[0].every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args[0]];
-        }
-        else if (args.length >= 1 &&
-            args.every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args];
-        }
-        return this;
-    }
-    get() {
-        return {
-            diffing: deepcopy(this._diffing),
-            as: deepcopy(this._as),
-            carryOver: this._carryOver,
-            keepFirstAsZero: this._keepFirstAsZero,
-            groupby: deepcopy(this._groupby)
-        };
-    }
-    clone() {
-        let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
-        _c._groupby = this._groupby;
-        return _c;
-    }
-}
-
-class Quantile {
-    constructor(c, n, step, as) {
-        this._quantile = c;
-        this._n = n;
-        this._step = (step && step > 0 && step < 1) ? step : undefined;
-        if (this._n == undefined && this._step == undefined) {
-            console.error("Must specify n or step. ");
-        }
-        if (as && as.length == this._quantile.length)
-            this._as = as;
-    }
-    quantile(c) {
-        this._quantile = c;
-        return this;
-    }
-    as(c) {
-        if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == this._quantile.length) {
-            this._as = c;
-        }
-        else {
-            console.error("Wrong length/type for qunatile 'as'.");
-        }
-        return this;
-    }
-    n(t) {
-        this._n = t;
-        return this;
-    }
-    step(t) {
-        if (t > 0 && t < 1) {
-            this._step = t;
-        }
-        else {
-            console.error("Step value must be between 0 and 1 (exclusive).");
-        }
-        return this;
-    }
-    groupby(...args) {
-        // this function resets groupby
-        if (args.length == 1 &&
-            args[0].constructor.name === 'Array' &&
-            args[0].every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args[0]];
-        }
-        else if (args.length >= 1 &&
-            args.every((a) => a.constructor.name === 'String')) {
-            this._groupby = [...args];
-        }
-        return this;
-    }
-    get() {
-        return {
-            quantile: this._quantile,
-            as: deepcopy(this._as),
-            n: this._n,
-            step: this._step,
-            groupby: deepcopy(this._groupby)
-        };
-    }
-    clone() {
-        let _c = new Quantile(this._quantile, this._n, this._step, this._as);
-        _c._groupby = this._groupby;
-        return _c;
-    }
 }
 
 function make3DScaleFunction(encoding) {
@@ -12706,6 +13441,7 @@ exports.MIN_TAP_SPEED = MIN_TAP_SPEED;
 exports.MIN_TIME = MIN_TIME;
 exports.MODE = MODE;
 exports.MODULATION_chn = MODULATION_chn;
+exports.MONO = MONO;
 exports.M_Sound = M_Sound;
 exports.M_Text = M_Text;
 exports.ModulationChannel = ModulationChannel;
@@ -12833,6 +13569,8 @@ exports.Streaming = Streaming;
 exports.StreamingStream = StreamingStream;
 exports.SupportedInstruments = SupportedInstruments;
 exports.SupportedPolarity = SupportedPolarity;
+exports.SupportedScaleTypes = SupportedScaleTypes;
+exports.SupportedSortValues = SupportedSortValues;
 exports.Synth = Synth;
 exports.SynthTone = SynthTone;
 exports.SynthTypes = SynthTypes;
@@ -12896,11 +13634,12 @@ exports.bin_ending = bin_ending;
 exports.bufferToArrayBuffer = bufferToArrayBuffer;
 exports.chimeSynth = chimeSynth;
 exports.clearPlayerEvents = clearPlayerEvents;
+exports.clearResources = clearResources;
 exports.closeErieGlobalControl = closeErieGlobalControl;
 exports.compileAudioGraph = compileAudioGraph;
 exports.compileDescriptionMarkup = compileDescriptionMarkup;
-exports.compileSequnceStream = compileSequnceStream;
-exports.compileSingleLayerAuidoGraph = compileSingleLayerAuidoGraph;
+exports.compileSequenceStream = compileSequenceStream;
+exports.compileSingleLayerAudioGraph = compileSingleLayerAudioGraph;
 exports.compileStreamingStream = compileStreamingStream;
 exports.concatenateBuffers = concatenateBuffers;
 exports.cosDeg = cosDeg;
@@ -12917,6 +13656,7 @@ exports.detuneAmmount = detuneAmmount;
 exports.diffTable = diffTable;
 exports.doAggregate = doAggregate;
 exports.doCalculate = doCalculate;
+exports.dropUndefined = dropUndefined;
 exports.emitNotePlayEvent = emitNotePlayEvent;
 exports.emitNoteStopEvent = emitNoteStopEvent;
 exports.filterTable = filterTable;
@@ -12948,15 +13688,17 @@ exports.isBrowserEventPossible = isBrowserEventPossible;
 exports.isBrowserWindowPossible = isBrowserWindowPossible;
 exports.isCSV = isCSV;
 exports.isDefaultGlyphFeature = isDefaultGlyphFeature;
+exports.isEmptyObject = isEmptyObject;
 exports.isErieGlobalControlAudioContext = isErieGlobalControlAudioContext;
 exports.isErieGlobalControlSpeechSynthesis = isErieGlobalControlSpeechSynthesis;
 exports.isErieGlobalControlType = isErieGlobalControlType;
 exports.isErieGlobalState = isErieGlobalState;
 exports.isGlyphInfo = isGlyphInfo;
+exports.isInRange = isInRange;
 exports.isInstanceOf = isInstanceOf;
-exports.isInstanceOfByName = isInstanceOfByName;
 exports.isJSON = isJSON;
 exports.isOscType = isOscType;
+exports.isOutRange = isOutRange;
 exports.isOverlayStream = isOverlayStream;
 exports.isOverlayStreamObject = isOverlayStreamObject;
 exports.isPauseInfo = isPauseInfo;
@@ -12972,6 +13714,7 @@ exports.isStreamingStreamObject = isStreamingStreamObject;
 exports.isTSV = isTSV;
 exports.isTextInfo = isTextInfo;
 exports.isTextQueueItem = isTextQueueItem;
+exports.isTimeUnit = isTimeUnit;
 exports.isToneOverlayInfo = isToneOverlayInfo;
 exports.isToneOverlaySeriesQueueItem = isToneOverlaySeriesQueueItem;
 exports.isToneQueueItem = isToneQueueItem;
@@ -13028,6 +13771,7 @@ exports.notifyStop = notifyStop;
 exports.orderArray = orderArray;
 exports.orderData = orderData;
 exports.parseDescriptionMarkup = parseDescriptionMarkup;
+exports.parseGroupby = parseGroupby;
 exports.playAbsoluteContinuousTones = playAbsoluteContinuousTones;
 exports.playAbsoluteDiscreteTones = playAbsoluteDiscreteTones;
 exports.playAbsoluteSpeeches = playAbsoluteSpeeches;

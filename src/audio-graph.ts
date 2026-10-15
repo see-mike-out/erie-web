@@ -1,5 +1,5 @@
 import {
-  compileSequnceStream,
+  compileSequenceStream,
   compileStreamingStream
 } from './compile';
 import {
@@ -39,7 +39,7 @@ export async function compileAudioGraph(audio_spec: TopLevelSpec, options: Confi
     ordering_normalized = generateBaseOrderSpec(normalized, sequenceConfig);
   }
 
-  let sequence = !is_streaming ? await compileSequnceStream(
+  let sequence = !is_streaming ? await compileSequenceStream(
     audio_spec,
     normalized,
     datasets,

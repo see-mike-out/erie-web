@@ -107,6 +107,8 @@ describe('Coordinate Range Validation', () => {
       panAzimuth: { field: 'year', type: 'quantitative', scale: { domain: [2019, 2023], range: [0, 1170] } }
     });
 
+    spec.tone.continued = true;
+
     const { normalized } = await normalizeSpecification(spec);
     const compiled = await compileAudioGraph(spec, {}) as StreamingStream;
     const enc = (normalized[0] as NormalizedSingleStreamItem).stream.encoding;

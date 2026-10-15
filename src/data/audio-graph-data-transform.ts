@@ -87,9 +87,13 @@ export function transformData(
       }
       // density
       else if ('density' in transform && transform.density) {
+        let groupby = ('groupby' in transform) ? transform.groupby ?? [] : [];
+        if (groupby === GroupbyAuto) {
+          groupby = dimensions.filter((d) => table.columnNames().includes(d));
+        }
         table = getKernelDensity(table,
           transform.density,
-          transform.groupby,
+          groupby,
           transform.cumulative,
           transform.counts,
           transform.bandwidth,

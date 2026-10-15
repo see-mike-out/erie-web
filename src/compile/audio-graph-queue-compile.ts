@@ -43,12 +43,6 @@ import {
   RepeatTree,
   RepeatTreeLeaf,
   RepeatTreeNonLeaf,
-  PAN_X_chn,
-  PAN_Y_chn,
-  PAN_Z_chn,
-  PAN_RADIUS_chn,
-  PAN_POLAR_chn,
-  PAN_AZIMUTH_chn,
   TransformerFunction,
   Datum
 } from "../types";
@@ -62,7 +56,7 @@ import {
 import { makeGlyph } from './audio-graph-make-glyph';
 import { orderData } from './audio-graph-order-data';
 
-export async function compileSingleLayerAuidoGraph(
+export async function compileSingleLayerAudioGraph(
   audio_spec: NormalizedSingleStream,
   _data: Datum[],
   config: ConfigInterface | undefined,
