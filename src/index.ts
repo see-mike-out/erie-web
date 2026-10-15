@@ -9,3 +9,4 @@ export * from "./chimes";
 export * from "./compile";
 export * from "./normalize";
 export * from "./player";
+export * from "./data";
