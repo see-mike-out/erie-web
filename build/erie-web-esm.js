@@ -1,6 +1,7 @@
 import { max, bin, range, min, nice, bisectRight, extent, csvParse, tsvParse, format, timeFormat, scaleLinear, scaleOrdinal, descending, ascending, scaleLog, scaleSymlog, scaleSqrt, scalePow, scaleTime } from 'd3';
 import * as aq from 'arquero';
 import * as vega from 'vega-statistics';
+import { scaleLinear as scaleLinear$1 } from 'd3-scale';
 
 function isBrowserEventPossible() {
     var _a;
@@ -1174,7 +1175,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global Reflect, Promise, SuppressedError, Symbol */
+/* global Reflect, Promise, SuppressedError, Symbol, Iterator */
 
 
 function __awaiter(thisArg, _arguments, P, generator) {
@@ -3690,6 +3691,8 @@ class ErieSynthFrequency {
         this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
     }
 }
+// inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
+const AMMppaer = (amount) => (amount + 1) / 2;
 
 const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
 const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
@@ -4899,6 +4902,60 @@ function playRelativeDiscreteTonesAndSpeeches(player_id, ctx, queue, _config, in
     });
 }
 
+function playAbsoluteSpeeches(player_id, ctx, queue, config, ttsFetchFunction, bufferPrimitve) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // clear previous state
+        setErieGlobalState(player_id, undefined);
+        // playing a series of discrete tones with an aboslute schedule
+        // set audio context controls
+        setErieGlobalControl(player_id, { type: ToneType, player: ctx });
+        // gain == loudness
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.value = 0;
+        // sort queue to mark the last node for sequence end check
+        let q0 = queue.toSorted(glyphSorterByStart);
+        q0[0].isFirst = true;
+        let q = q0.toSorted(glyphSorterByEnd);
+        q[q.length - 1].isLast = true;
+        config.subpart = true;
+        // play as async promise
+        return new Promise((resolve, reject) => {
+            // get the current time
+            let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+            // set and play sounds
+            let prev;
+            for (let sound of q) {
+                if (isErieGlobalState(player_id, Stopped)) {
+                    resolve();
+                    break;
+                }
+                if (prev) {
+                    getStartTime1(q) - getEndTime1(prev);
+                }
+                // get discrete oscillator
+                const inst = makeInstrument(ctx);
+                inst.connect(gain);
+                // after stopping (need to define before stopping!)
+                // this part actually plays the sound
+                inst.onended = () => {
+                    if ((config === null || config === void 0 ? void 0 : config.falseTiming) && isErieGlobalControlType(player_id, SpeechType)) {
+                        closeErieGlobalControl(player_id);
+                    }
+                    playSingleSpeech(player_id, sound, config, bufferPrimitve, ttsFetchFunction);
+                    if (sound.isLast) {
+                        resolve();
+                    }
+                };
+                // play & stop
+                inst.start(ct + sound.start - 0.02);
+                inst.stop(ct + sound.start);
+                prev = q;
+            }
+        });
+    });
+}
+
 function rampContinuousTone(ctx, q, duration, inst, panner, isStereo, gain, rampers, filters, filterNodes, filterEncoders, filterFinishers, config) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g, _h;
@@ -5449,6 +5506,10 @@ function makeSingleStreamQueueValues(sounds) {
     queue_values = queue_values.sort((a, b) => (getStartTime1(a) - getStartTime1(b)));
     return queue_values;
 }
+function isAudioGraphQueue(o) {
+    var _a;
+    return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioGraphQueue.name;
+}
 
 function setCurrentTime(ctx) {
     return ctx.currentTime;
@@ -5473,6 +5534,24 @@ function isErieGlobalControlType(player_id, t) {
     }
     else {
         return ((_d = (_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c[player_id]) === null || _d === void 0 ? void 0 : _d.type) === t;
+    }
+}
+function isErieGlobalControlAudioContext(player_id) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (isBrowserWindowPossible()) {
+        return (((_b = (_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a[player_id]) === null || _b === void 0 ? void 0 : _b.player) instanceof AudioContext) || (((_d = (_c = window.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c[player_id]) === null || _d === void 0 ? void 0 : _d.player) instanceof OfflineAudioContext);
+    }
+    else {
+        return (((_f = (_e = Globals.ErieGlobalControl) === null || _e === void 0 ? void 0 : _e[player_id]) === null || _f === void 0 ? void 0 : _f.player) instanceof AudioContext) || (((_h = (_g = Globals.ErieGlobalControl) === null || _g === void 0 ? void 0 : _g[player_id]) === null || _h === void 0 ? void 0 : _h.player) instanceof OfflineAudioContext);
+    }
+}
+function isErieGlobalControlSpeechSynthesis(player_id) {
+    var _a, _b, _c, _d;
+    if (isBrowserWindowPossible()) {
+        return (((_b = (_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a[player_id]) === null || _b === void 0 ? void 0 : _b.player) instanceof SpeechSynthesis);
+    }
+    else {
+        return (((_d = (_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c[player_id]) === null || _d === void 0 ? void 0 : _d.player) instanceof SpeechSynthesis);
     }
 }
 function closeErieGlobalControl(player_id) {
@@ -10609,6 +10688,36 @@ function getScaleType(channel, encoding, values) {
     return { isTime, isSpeech, encodingType, field, binned, aggregate, fieldRange };
 }
 
+function make3DScaleFunction(encoding) {
+    const { domain, range, default: defaultValue = { x: 0, y: 0, z: 0 } } = encoding;
+    const scale = scaleLinear$1().domain(domain).range(range);
+    return (panX, panY, panZ, panRadius, panPolar, panAzimuth) => {
+        if ((panX !== undefined || panY !== undefined || panZ !== undefined) && (panRadius !== undefined || panPolar !== undefined || panAzimuth !== undefined)) {
+            throw new Error('Cannot specify both cartesian and spherical coordinates');
+        }
+        if (panX !== undefined && panY === undefined && panZ === undefined && panRadius === undefined && panPolar === undefined && panAzimuth === undefined) {
+            // Stereo panning
+            return {
+                x: scale(panX),
+                y: scale(defaultValue.y),
+                z: scale(defaultValue.z)
+            };
+        }
+        if (panRadius !== undefined && panPolar !== undefined && panAzimuth !== undefined && panX === undefined && panY === undefined && panZ === undefined) {
+            const polarRad = panPolar * (Math.PI / 180);
+            const azimuthRad = panAzimuth * (Math.PI / 180);
+            panX = panRadius * (Math.sin(polarRad) * Math.cos(azimuthRad));
+            panY = panRadius * (Math.sin(polarRad) * Math.sin(azimuthRad));
+            panZ = panRadius * Math.cos(polarRad);
+        }
+        return {
+            x: scale(panX !== undefined ? panX : defaultValue.x),
+            y: scale(panY !== undefined ? panY : defaultValue.y),
+            z: scale(panZ !== undefined ? panZ : defaultValue.z)
+        };
+    };
+}
+
 function makeGlyph(i, datum, tone_spec, channels, encoding, scales, hasTime2, total_duration, repeat_options) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
     let glyphs = [];
@@ -13230,4 +13339,4 @@ function compileAudioGraph(audio_spec, options) {
     });
 }
 
-export { ABS, AM, AVG, AfterAll, AfterThis, Aggregate, AudioFilterPrototype, AudioPrimitiveBuffer, BeforeAll, BeforeThis, Bin, Boxplot, BufferChannels$1 as BufferChannels, CORR, COUNT, COVARIANCE, COVARIANCEP, Calculate, Channel, ChannelCaps, ChannelThresholds, ChimeAfterPlay, ChimeAfterPlayback, ChimeBeforePlay, ChimeBeforePlayback, ChimeIncoming, ChimeNext, Chimes, Config, DEF_DUR, DEF_LEGEND_DUR, DEF_SPEECH_RATE, DEF_TAPPING_DUR, DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, DETUNE_chn, DISTINCT, DUR_chn, Data, Dataset, Datasets, DateFormat, DefCarrierPitch, DefModPitch, Def_tone, DefaultChannels, DefaultFrequency, DefaultGlyphFeatures, DefaultHistoryLimit, DefaultHistoryQuery, DefaultModGainAM, DefaultModGainFM, DefaultNoitfyOptions, DefaultPlaybackLimit, DefaultPlaybackSpeed, Density, DescKeyAggregate, DescKeyChannel, DescKeyDomain, DescKeyDomainLength, DescKeyDomainMax, DescKeyDomainMin, DescKeyDomainNumberedRegex, DescKeyField, DescKeyIndex, DescKeyList, DescKeyRange, DescKeyRangeLength, DescKeyRangeMax, DescKeyRangeMin, DescKeySound, DescKeyTimeUnit, DescKeyTitle, DetuneChannel, Diffing, DoubleOps, DurationChannel, ErieFilters, FM, Filter, Finished, Fold, ForceRepeatScale, Globals, HARMONICITY_chn, HarmonicityChannel, InternalData, K_Keyword, K_Text, KeyBand, KeyBase, KeyConstant, KeyDescription, KeyDomain, KeyDomainMax, KeyDomainMid, KeyDomainMin, KeyExponent, KeyLength, KeyMaxDistinct, KeyMaxTappingLength, KeyNice, KeyOrder, KeyPauseLength, KeyPauseRate, KeyPolarity, KeyRange, KeyRangeMax, KeyRangeMid, KeyRangeMin, KeySingleTappingPosition, KeySort, KeyTimes, KeyTiming, KeyTitle, KeyType, KeyZero, LINEAR, LOG, LOUDNESS_chn, LegendType, LoudnessChannel, MAX, MAX_DETUNE, MAX_DUR, MAX_LIMIT_PITCH$1 as MAX_LIMIT_PITCH, MAX_LIMIT_TAP_SPEED$1 as MAX_LIMIT_TAP_SPEED, MAX_LOUD, MAX_PAN, MAX_PAN_AZIMUTH, MAX_PAN_POLAR, MAX_PAN_RADIUS, MAX_PAN_X, MAX_PAN_Y, MAX_PAN_Z, MAX_PITCH, MAX_POST_REVERB, MAX_TAPPING_DUR, MAX_TAP_COUNT, MAX_TAP_SPEED, MAX_TIME, MEAN, MEDIAN, MIN, MIN_DETUNE, MIN_DUR, MIN_LOUD, MIN_PAN, MIN_PAN_AZIMUTH, MIN_PAN_POLAR, MIN_PAN_RADIUS, MIN_PAN_X, MIN_PAN_Y, MIN_PAN_Z, MIN_PITCH, MIN_POST_REVERB, MIN_TAP_COUNT, MIN_TAP_SPEED, MIN_TIME, MODE, MODULATION_chn, MONO, M_Sound, M_Text, ModulationChannel, MultiNoteInstruments, MultiPlaying, NEG, NOM, NONSKIP, NonTimeChannels, Notify, NotifyAfterPlay, NotifyAfterPlayback, NotifyBeforePlay, NotifyBeforePlayback, NotifyIncoming, NotifyNext, NotifyTypes, NumberFormat, ORD, OVERLAY, OmitDesc, OrderingRoles, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound, OrderingTypeText, OscTypes, Overlay, OverlayStream, PAN_AZIMUTH_chn, PAN_POLAR_chn, PAN_RADIUS_chn, PAN_X_chn, PAN_Y_chn, PAN_Z_chn, PAN_chn, PITCH_chn, POS, POST_REVERB_chn, POW, PRODUCT, PanChannel, Pause, PauseForBase, PauseNoBase, Paused, PitchChannel, PlayAt, Playback, PlaybackAuto, PlaybackConditional, PlaybackManual, PlaybackTypes, PlaybackUnitDatum, PlaybackUnitInstance, PlaybackUnitTime, PlaybackUnits, Playing, PostReverbChannel, QUANT, QUANTILE, Quantile, QueueItemTypes, REL, REPEAT_chn, RampAbrupt, RampExp, RampLinear, RampMethods, RamperNames, RepeatChannel, RoleAnnounceKeyScStopPlay, RoleDescription, RoleLength, RoleName, RoleRepeat, RoleRepeatTitle, RoleScaleDescription, RoleScaleOverview, RoleStreamSound, RoleTitle, SAWTOOTH, SEQUENCE, SIM, SINE, SINGLE_TAP_END, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, SKIP, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, SPEECH_chn, SQRT, SQUARE, STATIC, STDEV, STDEVP, SUM, SYMLOG, SampleRate$1 as SampleRate, SampledTone, Sampling$1 as Sampling, ScaleDescriptionOrder, Sequence, SequenceStream, SingleNoteInstruments, SingleOps, SingleTapPosOptions, SpeechAfterChannel, SpeechBeforeChannel, SpeechChannels, SpeechStream, SpeechType, Stopped, Stream, StreamingStream, SupportedInstruments, SupportedPolarity, SupportedScaleTypes, SupportedSortValues, Synth, SynthTone, SynthTypes, TAPCNT_chn, TAPSPD_chn, TIMBRE_chn, TIME2_chn, TIME_chn, TIMINGS, TMP, TRIANGLE, TU_Always, TU_BEAT, TU_Never, TU_SEC, TU_Start, TapChannels, TapCountChannel, TapSpeedChannel, TextType, Tick, TickKeyBand, TickKeyInterval, TickKeyLoudness, TickKeyName, TickKeyOscType, TickKeyPitch, TickKeyPlayAtTime0, TickList, TimbreChannel, Time2Channel, TimeChannel, TimeChannels, TimeFormat, Tone, ToneOverlaySeries, ToneSeries, ToneSpeechSeries, ToneType, Transform, UnitStream, VALID, VARIANCE, VARIANCEP, Wave, WaveTone, ZeroOPs, aRange, asc, bcp47language, bin_end_ending, bin_ending, bufferToArrayBuffer, checkTimezone, chimeSynth, clearResources, compileAudioGraph, compileDescriptionMarkup, compileSequenceStream, compileSingleLayerAudioGraph, compileStreamingStream, concatenateBuffers, cosDeg, count_ending, deepcopy, defaultTapLength, desc, descriptionKeywords, detuneAmmount, dropUndefined, floor, genRid, generatePCMCode, getAudioScales, getChannelType, getChimeBeat, getDuration1, getEndTime1, getFirstDefined, getPresetTimeUnitValues, getSampleBaseUrl, getStartTime1, getTimezone, glyphSorterByEnd, glyphSorterByStart, intNotify, isArrayOf, isBrowserEventPossible, isBrowserWindowPossible, isCSV, isDefaultGlyphFeature, isEmptyObject, isGlyphInfo, isInRange, isInstanceOf, isJSON, isOscType, isOutRange, isOverlayStream, isOverlayStreamObject, isPauseInfo, isPauseQueueItem, isRepeatedStream, isSequenceStream, isSequenceStreamObject, isSeriesQueueItem, isSingleStream, isSoundInfo, isStreamingStream, isStreamingStreamObject, isTSV, isTextInfo, isTextQueueItem, isTimeUnit, isToneOverlayInfo, isToneOverlaySeriesQueueItem, isToneQueueItem, isToneSeriesInfo, isToneSeriesQueueItem, isToneSpeechSeriesQueueItem, isUnitStreamObject, listString, makeBeatFunction, makeBeatRounder, makeParamFilter, makeRepeatStreamTree, makeScaleDescription, makeScales, makeTapPattern, makeWaveFromBuffer, mergeTapPattern, normalizeOrderSpec, normalizeScaleConsistency, normalizeSingleSpec, normalizeSpecification, noteFreqRange, noteScale, noteScaleOrder, noteToFreq, notifyPause, notifyResume, notifyStop, parseDescriptionMarkup, parseGroupby, playChime, playSystemSpeech, postprocessRepeatStreams, produceTZalignedTime, readyRecording, registerFilter, round, setSampleBaseUrl, sinDeg, tidyUpScaleDefinitions, timeUnitDomainDefs, toHashedObject, toOrdinalNumbers, unique, validateScale };
+export { ABS, AM, AMMppaer, AVG, AfterAll, AfterThis, Aggregate, AudioFilterPrototype, AudioGraphQueue, AudioPrimitiveBuffer, BeforeAll, BeforeThis, Bin, Boxplot, BrownNoise, BufferChannels$1 as BufferChannels, CORR, COUNT, COVARIANCE, COVARIANCEP, Calculate, Channel, ChannelCaps, ChannelThresholds, ChimeAfterPlay, ChimeAfterPlayback, ChimeBeforePlay, ChimeBeforePlayback, ChimeIncoming, ChimeNext, Chimes, Config, DEF_DUR, DEF_LEGEND_DUR, DEF_SPEECH_RATE, DEF_TAPPING_DUR, DEF_TAPPING_DUR_BEAT, DEF_TAP_DUR, DEF_TAP_DUR_BEAT, DEF_TAP_PAUSE_RATE, DETUNE_chn, DISTINCT, DUR_chn, Data, Dataset, Datasets, DateFormat, DefCarrierPitch, DefModPitch, Def_tone, DefaultChannels, DefaultFrequency, DefaultGlyphFeatures, DefaultHistoryLimit, DefaultHistoryQuery, DefaultModGainAM, DefaultModGainFM, DefaultNoitfyOptions, DefaultPlaybackLimit, DefaultPlaybackSpeed, Density, DescKeyAggregate, DescKeyChannel, DescKeyDomain, DescKeyDomainLength, DescKeyDomainMax, DescKeyDomainMin, DescKeyDomainNumberedRegex, DescKeyField, DescKeyIndex, DescKeyList, DescKeyRange, DescKeyRangeLength, DescKeyRangeMax, DescKeyRangeMin, DescKeySound, DescKeyTimeUnit, DescKeyTitle, DetuneChannel, Diffing, DoubleOps, DurationChannel, ErieFilters, ErieSynth, ErieSynthFrequency, FM, Filter, FilterExtraChannelTypes, Finished, Fold, ForceRepeatScale, Globals, HARMONICITY_chn, HarmonicityChannel, InternalData, K_Keyword, K_Text, KeyBand, KeyBase, KeyConstant, KeyDescription, KeyDomain, KeyDomainMax, KeyDomainMid, KeyDomainMin, KeyExponent, KeyLength, KeyMaxDistinct, KeyMaxTappingLength, KeyNice, KeyOrder, KeyPauseLength, KeyPauseRate, KeyPolarity, KeyRange, KeyRangeMax, KeyRangeMid, KeyRangeMin, KeySingleTappingPosition, KeySort, KeyTimes, KeyTiming, KeyTitle, KeyType, KeyZero, LINEAR, LOG, LOUDNESS_chn, LegendType, LoudnessChannel, MAX, MAX_DETUNE, MAX_DUR, MAX_LIMIT_PITCH$1 as MAX_LIMIT_PITCH, MAX_LIMIT_TAP_SPEED$1 as MAX_LIMIT_TAP_SPEED, MAX_LOUD, MAX_PAN, MAX_PAN_AZIMUTH, MAX_PAN_POLAR, MAX_PAN_RADIUS, MAX_PAN_X, MAX_PAN_Y, MAX_PAN_Z, MAX_PITCH, MAX_POST_REVERB, MAX_TAPPING_DUR, MAX_TAP_COUNT, MAX_TAP_SPEED, MAX_TIME, MEAN, MEDIAN, MIN, MIN_DETUNE, MIN_DUR, MIN_LOUD, MIN_PAN, MIN_PAN_AZIMUTH, MIN_PAN_POLAR, MIN_PAN_RADIUS, MIN_PAN_X, MIN_PAN_Y, MIN_PAN_Z, MIN_PITCH, MIN_POST_REVERB, MIN_TAP_COUNT, MIN_TAP_SPEED, MIN_TIME, MODE, MODULATION_chn, MONO, M_Sound, M_Text, ModulationChannel, MultiNoteInstruments, MultiPlaying, NEG, NOM, NONSKIP, NoiseTypes, NomPalletes, NonTimeChannels, Notify, NotifyAfterPlay, NotifyAfterPlayback, NotifyBeforePlay, NotifyBeforePlayback, NotifyIncoming, NotifyNext, NotifyTypes, NumberFormat, ORD, OVERLAY, OmitDesc, OrderingRoles, OrderingTypeMarkup, OrderingTypeRepeat, OrderingTypeSound, OrderingTypeText, OscTypes, Overlay, OverlayStream, PAN_AZIMUTH_chn, PAN_POLAR_chn, PAN_RADIUS_chn, PAN_X_chn, PAN_Y_chn, PAN_Z_chn, PAN_chn, PITCH_chn, POS, POST_REVERB_chn, POW, PRODUCT, PanChannel, Pause, PauseForBase, PauseNoBase, Paused, PinkNoise, PitchChannel, PlayAt, Playback, PlaybackAuto, PlaybackConditional, PlaybackManual, PlaybackTypes, PlaybackUnitDatum, PlaybackUnitInstance, PlaybackUnitTime, PlaybackUnits, Playing, PostReverbChannel, PresetFilters, QUANT, QUANTILE, QuantPreferredRange, Quantile, QueueItemTypes, REL, REPEAT_chn, RampAbrupt, RampExp, RampLinear, RampMethods, RamperNames, RepeatChannel, RoleAnnounceKeyScStopPlay, RoleDescription, RoleLength, RoleName, RoleRepeat, RoleRepeatTitle, RoleScaleDescription, RoleScaleOverview, RoleStreamSound, RoleTitle, SAWTOOTH, SEQUENCE, SIM, SINE, SINGLE_TAP_END, SINGLE_TAP_MIDDLE, SINGLE_TAP_START, SKIP, SPEECH_AFTER_chn, SPEECH_BEFORE_chn, SPEECH_chn, SQRT, SQUARE, STATIC, STDEV, STDEVP, SUM, SYMLOG, SampleRate$1 as SampleRate, SampledTone, Sampling$1 as Sampling, ScaleDescriptionOrder, Sequence, SequenceStream, SingleNoteInstruments, SingleOps, SingleTapPosOptions, SpeechAfterChannel, SpeechBeforeChannel, SpeechChannels, SpeechStream, SpeechType, Stopped, Stream, StreamingStream, SupportedInstruments, SupportedPolarity, SupportedScaleTypes, SupportedSortValues, Synth, SynthTone, SynthTypes, TAPCNT_chn, TAPSPD_chn, TIMBRE_chn, TIME2_chn, TIME_chn, TIMINGS, TMP, TRIANGLE, TU_Always, TU_BEAT, TU_Never, TU_SEC, TU_Start, TapChannels, TapCountChannel, TapSpeedChannel, TextType, Tick, TickKeyBand, TickKeyInterval, TickKeyLoudness, TickKeyName, TickKeyOscType, TickKeyPitch, TickKeyPlayAtTime0, TickList, TimbreChannel, Time2Channel, TimeChannel, TimeChannels, TimeFormat, Tone, ToneOverlaySeries, ToneSeries, ToneSpeechSeries, ToneType, Transform, UnitStream, VALID, VARIANCE, VARIANCEP, Wave, WaveTone, WebSpeechGenerator, WhiteNoise, ZeroOPs, _getData, aRange, applyTransforms, asc, bcp47language, bin_end_ending, bin_ending, bufferToArrayBuffer, checkTimezone, chimeSynth, clearPlayerEvents, clearResources, closeErieGlobalControl, compileAudioGraph, compileDescriptionMarkup, compileSequenceStream, compileSingleLayerAudioGraph, compileStreamingStream, concatenateBuffers, cosDeg, count_ending, createBin, createPanner, deepcopy, defaultTapLength, desc, descriptionKeywords, determineNoteRange, detuneAmmount, diffTable, doAggregate, doCalculate, dropUndefined, emitNotePlayEvent, emitNoteStopEvent, filterTable, floor, foldTable, genRid, generatePCMCode, generateQuantiles, getAudioScales, getChannelCaps, getChannelThresholds, getChannelType, getChimeBeat, getData, getDuration1, getEndTime1, getFirstDefined, getKernelDensity, getPresetTimeUnitValues, getSampleBaseUrl, getStartTime1, getTimezone, getTransformers, glyphSorterByEnd, glyphSorterByStart, intNotify, isArrayOf, isAudioGraphQueue, isBrowserEventPossible, isBrowserWindowPossible, isCSV, isDefaultGlyphFeature, isEmptyObject, isErieGlobalControlAudioContext, isErieGlobalControlSpeechSynthesis, isErieGlobalControlType, isErieGlobalState, isGlyphInfo, isInRange, isInstanceOf, isJSON, isOscType, isOutRange, isOverlayStream, isOverlayStreamObject, isPauseInfo, isPauseQueueItem, isRepeatedStream, isSequenceStream, isSequenceStreamObject, isSeriesQueueItem, isSingleStream, isSoundInfo, isStreamingStream, isStreamingStreamObject, isTSV, isTextInfo, isTextQueueItem, isTimeUnit, isToneOverlayInfo, isToneOverlaySeriesQueueItem, isToneQueueItem, isToneSeriesInfo, isToneSeriesQueueItem, isToneSpeechSeriesQueueItem, isUnitStreamObject, listString, loadSamples, make3DScaleFunction, makeAscSortFn, makeBeatFunction, makeBeatRounder, makeBoxPlotTable, makeContext, makeDescSortFn, makeFieldedScaleFunction, makeIndexSortFn, makeInstrument, makeMultiScaleSamplingNode, makeNoiseNode, makeNominalScaleFunction, makeOfflineContext, makeOrdinalScaleFunction, makeParamFilter, makeQuantitativeScaleFunction, makeRepeatStreamTree, makeScaleDescription, makeScales, makeSingleScaleSamplingNode, makeSpeechChannelScale, makeStaticScaleFunction, makeSynth, makeTapPattern, makeTemporalScaleFunction, makeTimeChannelScale, makeTimeLevelFunction, makeTimeUnitFunction, makeWaveFromBuffer, mergeTapPattern, normalizeOrderSpec, normalizeScaleConsistency, normalizeSingleSpec, normalizeSpecification, noteFreqRange, noteScale, noteScaleOrder, noteToFreq, notifyPause, notifyResume, notifyStop, orderArray, parseDescriptionMarkup, parseGroupby, playAbsoluteContinuousTones, playAbsoluteDiscreteTones, playAbsoluteSpeeches, playChime, playPause, playRelativeDiscreteTonesAndSpeeches, playSingleSpeech, playSingleTone, playSystemSpeech, postprocessRepeatStreams, produceTZalignedTime, rampBy, rampContinuousTone, readyRecording, registerFilter, repeatPallete, round, roundToNote, roundToNoteScale, sendQueueFinishEvent, sendQueueStartEvent, sendSpeechFinishEvent, sendSpeechStartEvent, sendStreamingSignal, sendToneFinishEvent, sendToneStartEvent, setCurrentTime, setErieGlobalControl, setErieGlobalState, setErieGlobalStreamingControl, setPlayerEvents, setSampleBaseUrl, sinDeg, tidyUpScaleDefinitions, timeUnitDomain, timeUnitDomainDefs, toHashedObject, toOrdinalNumbers, transformData, unique, validateScale };

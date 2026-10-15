@@ -1,8 +1,8 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3'), require('arquero'), require('vega-statistics')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'd3', 'arquero', 'vega-statistics'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Erie = {}, global.d3, global.aq, global.vega));
-})(this, (function (exports, d3, aq, vega) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3'), require('arquero'), require('vega-statistics'), require('d3-scale')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'd3', 'arquero', 'vega-statistics', 'd3-scale'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Erie = {}, global.d3, global.aq, global.vega, global.d3Scale));
+})(this, (function (exports, d3, aq, vega, d3Scale) { 'use strict';
 
     function _interopNamespaceDefault(e) {
         var n = Object.create(null);
@@ -1196,7 +1196,7 @@
     OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
     PERFORMANCE OF THIS SOFTWARE.
     ***************************************************************************** */
-    /* global Reflect, Promise, SuppressedError, Symbol */
+    /* global Reflect, Promise, SuppressedError, Symbol, Iterator */
 
 
     function __awaiter(thisArg, _arguments, P, generator) {
@@ -3712,6 +3712,8 @@
             this.synther.carrier.frequency.setValueCurveAtTime(values, startTime, duration);
         }
     }
+    // inspired by https://github.com/Tonejs/Tone.js/blob/dev/Tone/signal/AudioToGain.ts#L10
+    const AMMppaer = (amount) => (amount + 1) / 2;
 
     const WhiteNoise = 'whiteNoise', PinkNoise = 'pinkNoise', BrownNoise = 'brownNoise';
     const NoiseTypes = [WhiteNoise, PinkNoise, BrownNoise];
@@ -4921,6 +4923,60 @@
         });
     }
 
+    function playAbsoluteSpeeches(player_id, ctx, queue, config, ttsFetchFunction, bufferPrimitve) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // clear previous state
+            setErieGlobalState(player_id, undefined);
+            // playing a series of discrete tones with an aboslute schedule
+            // set audio context controls
+            setErieGlobalControl(player_id, { type: ToneType, player: ctx });
+            // gain == loudness
+            const gain = ctx.createGain();
+            gain.connect(ctx.destination);
+            gain.gain.value = 0;
+            // sort queue to mark the last node for sequence end check
+            let q0 = queue.toSorted(glyphSorterByStart);
+            q0[0].isFirst = true;
+            let q = q0.toSorted(glyphSorterByEnd);
+            q[q.length - 1].isLast = true;
+            config.subpart = true;
+            // play as async promise
+            return new Promise((resolve, reject) => {
+                // get the current time
+                let ct = (config === null || config === void 0 ? void 0 : config.context_time) !== undefined ? config.context_time : setCurrentTime(ctx);
+                // set and play sounds
+                let prev;
+                for (let sound of q) {
+                    if (isErieGlobalState(player_id, Stopped)) {
+                        resolve();
+                        break;
+                    }
+                    if (prev) {
+                        getStartTime1(q) - getEndTime1(prev);
+                    }
+                    // get discrete oscillator
+                    const inst = makeInstrument(ctx);
+                    inst.connect(gain);
+                    // after stopping (need to define before stopping!)
+                    // this part actually plays the sound
+                    inst.onended = () => {
+                        if ((config === null || config === void 0 ? void 0 : config.falseTiming) && isErieGlobalControlType(player_id, SpeechType)) {
+                            closeErieGlobalControl(player_id);
+                        }
+                        playSingleSpeech(player_id, sound, config, bufferPrimitve, ttsFetchFunction);
+                        if (sound.isLast) {
+                            resolve();
+                        }
+                    };
+                    // play & stop
+                    inst.start(ct + sound.start - 0.02);
+                    inst.stop(ct + sound.start);
+                    prev = q;
+                }
+            });
+        });
+    }
+
     function rampContinuousTone(ctx, q, duration, inst, panner, isStereo, gain, rampers, filters, filterNodes, filterEncoders, filterFinishers, config) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c, _d, _e, _f, _g, _h;
@@ -5471,6 +5527,10 @@
         queue_values = queue_values.sort((a, b) => (getStartTime1(a) - getStartTime1(b)));
         return queue_values;
     }
+    function isAudioGraphQueue(o) {
+        var _a;
+        return ((_a = o === null || o === void 0 ? void 0 : o.constructor) === null || _a === void 0 ? void 0 : _a.name) === AudioGraphQueue.name;
+    }
 
     function setCurrentTime(ctx) {
         return ctx.currentTime;
@@ -5495,6 +5555,24 @@
         }
         else {
             return ((_d = (_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c[player_id]) === null || _d === void 0 ? void 0 : _d.type) === t;
+        }
+    }
+    function isErieGlobalControlAudioContext(player_id) {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        if (isBrowserWindowPossible()) {
+            return (((_b = (_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a[player_id]) === null || _b === void 0 ? void 0 : _b.player) instanceof AudioContext) || (((_d = (_c = window.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c[player_id]) === null || _d === void 0 ? void 0 : _d.player) instanceof OfflineAudioContext);
+        }
+        else {
+            return (((_f = (_e = Globals.ErieGlobalControl) === null || _e === void 0 ? void 0 : _e[player_id]) === null || _f === void 0 ? void 0 : _f.player) instanceof AudioContext) || (((_h = (_g = Globals.ErieGlobalControl) === null || _g === void 0 ? void 0 : _g[player_id]) === null || _h === void 0 ? void 0 : _h.player) instanceof OfflineAudioContext);
+        }
+    }
+    function isErieGlobalControlSpeechSynthesis(player_id) {
+        var _a, _b, _c, _d;
+        if (isBrowserWindowPossible()) {
+            return (((_b = (_a = window.ErieGlobalControl) === null || _a === void 0 ? void 0 : _a[player_id]) === null || _b === void 0 ? void 0 : _b.player) instanceof SpeechSynthesis);
+        }
+        else {
+            return (((_d = (_c = Globals.ErieGlobalControl) === null || _c === void 0 ? void 0 : _c[player_id]) === null || _d === void 0 ? void 0 : _d.player) instanceof SpeechSynthesis);
         }
     }
     function closeErieGlobalControl(player_id) {
@@ -10631,6 +10709,36 @@
         return { isTime, isSpeech, encodingType, field, binned, aggregate, fieldRange };
     }
 
+    function make3DScaleFunction(encoding) {
+        const { domain, range, default: defaultValue = { x: 0, y: 0, z: 0 } } = encoding;
+        const scale = d3Scale.scaleLinear().domain(domain).range(range);
+        return (panX, panY, panZ, panRadius, panPolar, panAzimuth) => {
+            if ((panX !== undefined || panY !== undefined || panZ !== undefined) && (panRadius !== undefined || panPolar !== undefined || panAzimuth !== undefined)) {
+                throw new Error('Cannot specify both cartesian and spherical coordinates');
+            }
+            if (panX !== undefined && panY === undefined && panZ === undefined && panRadius === undefined && panPolar === undefined && panAzimuth === undefined) {
+                // Stereo panning
+                return {
+                    x: scale(panX),
+                    y: scale(defaultValue.y),
+                    z: scale(defaultValue.z)
+                };
+            }
+            if (panRadius !== undefined && panPolar !== undefined && panAzimuth !== undefined && panX === undefined && panY === undefined && panZ === undefined) {
+                const polarRad = panPolar * (Math.PI / 180);
+                const azimuthRad = panAzimuth * (Math.PI / 180);
+                panX = panRadius * (Math.sin(polarRad) * Math.cos(azimuthRad));
+                panY = panRadius * (Math.sin(polarRad) * Math.sin(azimuthRad));
+                panZ = panRadius * Math.cos(polarRad);
+            }
+            return {
+                x: scale(panX !== undefined ? panX : defaultValue.x),
+                y: scale(panY !== undefined ? panY : defaultValue.y),
+                z: scale(panZ !== undefined ? panZ : defaultValue.z)
+            };
+        };
+    }
+
     function makeGlyph(i, datum, tone_spec, channels, encoding, scales, hasTime2, total_duration, repeat_options) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
         let glyphs = [];
@@ -13254,16 +13362,19 @@
 
     exports.ABS = ABS;
     exports.AM = AM;
+    exports.AMMppaer = AMMppaer;
     exports.AVG = AVG;
     exports.AfterAll = AfterAll;
     exports.AfterThis = AfterThis;
     exports.Aggregate = Aggregate;
     exports.AudioFilterPrototype = AudioFilterPrototype;
+    exports.AudioGraphQueue = AudioGraphQueue;
     exports.AudioPrimitiveBuffer = AudioPrimitiveBuffer;
     exports.BeforeAll = BeforeAll;
     exports.BeforeThis = BeforeThis;
     exports.Bin = Bin;
     exports.Boxplot = Boxplot;
+    exports.BrownNoise = BrownNoise;
     exports.BufferChannels = BufferChannels$1;
     exports.CORR = CORR;
     exports.COUNT = COUNT;
@@ -13332,8 +13443,11 @@
     exports.DoubleOps = DoubleOps;
     exports.DurationChannel = DurationChannel;
     exports.ErieFilters = ErieFilters;
+    exports.ErieSynth = ErieSynth;
+    exports.ErieSynthFrequency = ErieSynthFrequency;
     exports.FM = FM;
     exports.Filter = Filter;
+    exports.FilterExtraChannelTypes = FilterExtraChannelTypes;
     exports.Finished = Finished;
     exports.Fold = Fold;
     exports.ForceRepeatScale = ForceRepeatScale;
@@ -13424,6 +13538,8 @@
     exports.NEG = NEG;
     exports.NOM = NOM;
     exports.NONSKIP = NONSKIP;
+    exports.NoiseTypes = NoiseTypes;
+    exports.NomPalletes = NomPalletes;
     exports.NonTimeChannels = NonTimeChannels;
     exports.Notify = Notify;
     exports.NotifyAfterPlay = NotifyAfterPlay;
@@ -13462,6 +13578,7 @@
     exports.PauseForBase = PauseForBase;
     exports.PauseNoBase = PauseNoBase;
     exports.Paused = Paused;
+    exports.PinkNoise = PinkNoise;
     exports.PitchChannel = PitchChannel;
     exports.PlayAt = PlayAt;
     exports.Playback = Playback;
@@ -13475,8 +13592,10 @@
     exports.PlaybackUnits = PlaybackUnits;
     exports.Playing = Playing;
     exports.PostReverbChannel = PostReverbChannel;
+    exports.PresetFilters = PresetFilters;
     exports.QUANT = QUANT;
     exports.QUANTILE = QUANTILE;
+    exports.QuantPreferredRange = QuantPreferredRange;
     exports.Quantile = Quantile;
     exports.QueueItemTypes = QueueItemTypes;
     exports.REL = REL;
@@ -13582,8 +13701,12 @@
     exports.VARIANCEP = VARIANCEP;
     exports.Wave = Wave;
     exports.WaveTone = WaveTone;
+    exports.WebSpeechGenerator = WebSpeechGenerator;
+    exports.WhiteNoise = WhiteNoise;
     exports.ZeroOPs = ZeroOPs;
+    exports._getData = _getData;
     exports.aRange = aRange;
+    exports.applyTransforms = applyTransforms;
     exports.asc = asc;
     exports.bcp47language = bcp47language;
     exports.bin_end_ending = bin_end_ending;
@@ -13591,7 +13714,9 @@
     exports.bufferToArrayBuffer = bufferToArrayBuffer;
     exports.checkTimezone = checkTimezone;
     exports.chimeSynth = chimeSynth;
+    exports.clearPlayerEvents = clearPlayerEvents;
     exports.clearResources = clearResources;
+    exports.closeErieGlobalControl = closeErieGlobalControl;
     exports.compileAudioGraph = compileAudioGraph;
     exports.compileDescriptionMarkup = compileDescriptionMarkup;
     exports.compileSequenceStream = compileSequenceStream;
@@ -13600,34 +13725,55 @@
     exports.concatenateBuffers = concatenateBuffers;
     exports.cosDeg = cosDeg;
     exports.count_ending = count_ending;
+    exports.createBin = createBin;
+    exports.createPanner = createPanner;
     exports.deepcopy = deepcopy;
     exports.defaultTapLength = defaultTapLength;
     exports.desc = desc;
     exports.descriptionKeywords = descriptionKeywords;
+    exports.determineNoteRange = determineNoteRange;
     exports.detuneAmmount = detuneAmmount;
+    exports.diffTable = diffTable;
+    exports.doAggregate = doAggregate;
+    exports.doCalculate = doCalculate;
     exports.dropUndefined = dropUndefined;
+    exports.emitNotePlayEvent = emitNotePlayEvent;
+    exports.emitNoteStopEvent = emitNoteStopEvent;
+    exports.filterTable = filterTable;
     exports.floor = floor;
+    exports.foldTable = foldTable;
     exports.genRid = genRid;
     exports.generatePCMCode = generatePCMCode;
+    exports.generateQuantiles = generateQuantiles;
     exports.getAudioScales = getAudioScales;
+    exports.getChannelCaps = getChannelCaps;
+    exports.getChannelThresholds = getChannelThresholds;
     exports.getChannelType = getChannelType;
     exports.getChimeBeat = getChimeBeat;
+    exports.getData = getData;
     exports.getDuration1 = getDuration1;
     exports.getEndTime1 = getEndTime1;
     exports.getFirstDefined = getFirstDefined;
+    exports.getKernelDensity = getKernelDensity;
     exports.getPresetTimeUnitValues = getPresetTimeUnitValues;
     exports.getSampleBaseUrl = getSampleBaseUrl;
     exports.getStartTime1 = getStartTime1;
     exports.getTimezone = getTimezone;
+    exports.getTransformers = getTransformers;
     exports.glyphSorterByEnd = glyphSorterByEnd;
     exports.glyphSorterByStart = glyphSorterByStart;
     exports.intNotify = intNotify;
     exports.isArrayOf = isArrayOf;
+    exports.isAudioGraphQueue = isAudioGraphQueue;
     exports.isBrowserEventPossible = isBrowserEventPossible;
     exports.isBrowserWindowPossible = isBrowserWindowPossible;
     exports.isCSV = isCSV;
     exports.isDefaultGlyphFeature = isDefaultGlyphFeature;
     exports.isEmptyObject = isEmptyObject;
+    exports.isErieGlobalControlAudioContext = isErieGlobalControlAudioContext;
+    exports.isErieGlobalControlSpeechSynthesis = isErieGlobalControlSpeechSynthesis;
+    exports.isErieGlobalControlType = isErieGlobalControlType;
+    exports.isErieGlobalState = isErieGlobalState;
     exports.isGlyphInfo = isGlyphInfo;
     exports.isInRange = isInRange;
     exports.isInstanceOf = isInstanceOf;
@@ -13658,13 +13804,36 @@
     exports.isToneSpeechSeriesQueueItem = isToneSpeechSeriesQueueItem;
     exports.isUnitStreamObject = isUnitStreamObject;
     exports.listString = listString;
+    exports.loadSamples = loadSamples;
+    exports.make3DScaleFunction = make3DScaleFunction;
+    exports.makeAscSortFn = makeAscSortFn;
     exports.makeBeatFunction = makeBeatFunction;
     exports.makeBeatRounder = makeBeatRounder;
+    exports.makeBoxPlotTable = makeBoxPlotTable;
+    exports.makeContext = makeContext;
+    exports.makeDescSortFn = makeDescSortFn;
+    exports.makeFieldedScaleFunction = makeFieldedScaleFunction;
+    exports.makeIndexSortFn = makeIndexSortFn;
+    exports.makeInstrument = makeInstrument;
+    exports.makeMultiScaleSamplingNode = makeMultiScaleSamplingNode;
+    exports.makeNoiseNode = makeNoiseNode;
+    exports.makeNominalScaleFunction = makeNominalScaleFunction;
+    exports.makeOfflineContext = makeOfflineContext;
+    exports.makeOrdinalScaleFunction = makeOrdinalScaleFunction;
     exports.makeParamFilter = makeParamFilter;
+    exports.makeQuantitativeScaleFunction = makeQuantitativeScaleFunction;
     exports.makeRepeatStreamTree = makeRepeatStreamTree;
     exports.makeScaleDescription = makeScaleDescription;
     exports.makeScales = makeScales;
+    exports.makeSingleScaleSamplingNode = makeSingleScaleSamplingNode;
+    exports.makeSpeechChannelScale = makeSpeechChannelScale;
+    exports.makeStaticScaleFunction = makeStaticScaleFunction;
+    exports.makeSynth = makeSynth;
     exports.makeTapPattern = makeTapPattern;
+    exports.makeTemporalScaleFunction = makeTemporalScaleFunction;
+    exports.makeTimeChannelScale = makeTimeChannelScale;
+    exports.makeTimeLevelFunction = makeTimeLevelFunction;
+    exports.makeTimeUnitFunction = makeTimeUnitFunction;
     exports.makeWaveFromBuffer = makeWaveFromBuffer;
     exports.mergeTapPattern = mergeTapPattern;
     exports.normalizeOrderSpec = normalizeOrderSpec;
@@ -13678,21 +13847,48 @@
     exports.notifyPause = notifyPause;
     exports.notifyResume = notifyResume;
     exports.notifyStop = notifyStop;
+    exports.orderArray = orderArray;
     exports.parseDescriptionMarkup = parseDescriptionMarkup;
     exports.parseGroupby = parseGroupby;
+    exports.playAbsoluteContinuousTones = playAbsoluteContinuousTones;
+    exports.playAbsoluteDiscreteTones = playAbsoluteDiscreteTones;
+    exports.playAbsoluteSpeeches = playAbsoluteSpeeches;
     exports.playChime = playChime;
+    exports.playPause = playPause;
+    exports.playRelativeDiscreteTonesAndSpeeches = playRelativeDiscreteTonesAndSpeeches;
+    exports.playSingleSpeech = playSingleSpeech;
+    exports.playSingleTone = playSingleTone;
     exports.playSystemSpeech = playSystemSpeech;
     exports.postprocessRepeatStreams = postprocessRepeatStreams;
     exports.produceTZalignedTime = produceTZalignedTime;
+    exports.rampBy = rampBy;
+    exports.rampContinuousTone = rampContinuousTone;
     exports.readyRecording = readyRecording;
     exports.registerFilter = registerFilter;
+    exports.repeatPallete = repeatPallete;
     exports.round = round;
+    exports.roundToNote = roundToNote;
+    exports.roundToNoteScale = roundToNoteScale;
+    exports.sendQueueFinishEvent = sendQueueFinishEvent;
+    exports.sendQueueStartEvent = sendQueueStartEvent;
+    exports.sendSpeechFinishEvent = sendSpeechFinishEvent;
+    exports.sendSpeechStartEvent = sendSpeechStartEvent;
+    exports.sendStreamingSignal = sendStreamingSignal;
+    exports.sendToneFinishEvent = sendToneFinishEvent;
+    exports.sendToneStartEvent = sendToneStartEvent;
+    exports.setCurrentTime = setCurrentTime;
+    exports.setErieGlobalControl = setErieGlobalControl;
+    exports.setErieGlobalState = setErieGlobalState;
+    exports.setErieGlobalStreamingControl = setErieGlobalStreamingControl;
+    exports.setPlayerEvents = setPlayerEvents;
     exports.setSampleBaseUrl = setSampleBaseUrl;
     exports.sinDeg = sinDeg;
     exports.tidyUpScaleDefinitions = tidyUpScaleDefinitions;
+    exports.timeUnitDomain = timeUnitDomain;
     exports.timeUnitDomainDefs = timeUnitDomainDefs;
     exports.toHashedObject = toHashedObject;
     exports.toOrdinalNumbers = toOrdinalNumbers;
+    exports.transformData = transformData;
     exports.unique = unique;
     exports.validateScale = validateScale;
 
