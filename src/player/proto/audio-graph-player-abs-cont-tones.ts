@@ -56,6 +56,7 @@ import {
 import { AudioPrimitiveBuffer } from '../../pulse'
 
 export async function playAbsoluteContinuousTones(
+  player_id: string,
   _ctx: AudioContext,
   queue: Glyphs2,
   config: ConfigInterface,
@@ -66,7 +67,7 @@ export async function playAbsoluteContinuousTones(
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   // sort queue to mark the first and last node for sequence end check
   let q0: Glyph[] = queue.toSorted(glyphSorterByStart);
@@ -86,7 +87,7 @@ export async function playAbsoluteContinuousTones(
   }
 
   // set audio context controls
-  setErieGlobalControl({ type: ToneType, player: ctx });
+  setErieGlobalControl(player_id, { type: ToneType, player: ctx });
 
   // rampers 
   let rampers: RamperCollection = {};
@@ -152,19 +153,19 @@ export async function playAbsoluteContinuousTones(
     // sampled tone pitch is already set when the instrument was created + they can't compose a continuous tone.
     if (inst instanceof OscillatorNode) {
       // osc pitch
-      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, sound.pitch ?? DefaultFrequency, st);
+      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, sound.pitch ?? DefaultFrequency, st, undefined, ct);
     } else if (inst instanceof ErieSynth) {
       // synth pitch
-      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, sound.pitch ?? DefaultFrequency, st);
+      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.pitch, inst.frequency, sound.pitch ?? DefaultFrequency, st, undefined, ct);
       // modulation
       if (inst.type === FM && sound.modulation !== undefined && sound.modulation > 0) {
-        rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), st);
+        rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulator.frequency, (inst.modulatorVolume / sound.modulation), st, undefined, ct);
       } else if (inst.type === AM && sound.modulation !== undefined) {
-        rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulatorGain.gain, (sound.loudness ?? 1) * sound.modulation, st);
+        rampBy(sound.isFirst ? 'setValueAtTime' : rampers.modulation, inst.modulatorGain.gain, (sound.loudness ?? 1) * sound.modulation, st, undefined, ct);
       }
       // hamonicity
       if (sound.harmonicity !== undefined && sound.harmonicity > 0) {
-        rampBy(sound.isFirst ? 'setValueAtTime' : rampers.harmonicity, inst.modulator.frequency, (sound.pitch ?? inst.carrierPitch ?? DefaultFrequency) * sound.harmonicity, st);
+        rampBy(sound.isFirst ? 'setValueAtTime' : rampers.harmonicity, inst.modulator.frequency, (sound.pitch ?? inst.carrierPitch ?? DefaultFrequency) * sound.harmonicity, st, undefined, ct);
       }
       // initialize the envelope
       inst.envelope.gain.cancelScheduledValues(st);
@@ -180,20 +181,20 @@ export async function playAbsoluteContinuousTones(
 
     // detune
     if (sound.detune && 'detune' in inst && inst.detune) {
-      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st);
+      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st, undefined, ct);
     }
     // loudness/gain
     if (sound.loudness !== undefined) {
-      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
+      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st, undefined, ct);
     }
     // panner node
     // DONE - Check stereo vs 3d
     if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
-      rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
+      rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35, ct);
     } else if (!isStereo && panner instanceof PannerNode) {
-      if (sound.panX !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
-      if (sound.panY !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
-      if (sound.panZ !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
+      if (sound.panX !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35, ct);
+      if (sound.panY !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35, ct);
+      if (sound.panZ !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35, ct);
     }
 
     if (sound.isFirst) {
@@ -233,8 +234,8 @@ export async function playAbsoluteContinuousTones(
     }
     // after stopping (need to define before stopping!)
     inst.onended = (e) => {
-      setErieGlobalControl(undefined);
-      setErieGlobalState(undefined);
+      setErieGlobalControl(player_id, undefined);
+      setErieGlobalState(player_id, undefined);
       emitNoteStopEvent('tone', q[0]);
       sendToneFinishEvent({ sid });
     };
@@ -250,8 +251,8 @@ export async function playAbsoluteContinuousTones(
       }
       // after stopping (need to define before stopping!)
       inst.onended = (e) => {
-        setErieGlobalControl(undefined);
-        setErieGlobalState(undefined);
+        setErieGlobalControl(player_id, undefined);
+        setErieGlobalState(player_id, undefined);
         emitNoteStopEvent('tone', q[0]);
         sendToneFinishEvent({ sid });
         resolve();

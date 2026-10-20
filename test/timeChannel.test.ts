@@ -1,7 +1,5 @@
 import { expect, test, describe } from 'vitest';
-import { normalizeSpecification } from '../src/normalize';
-import type { StreamingSpec } from '../src/types';
-import type { NormalizedSingleStreamItem } from '../src';
+import { genRid, StreamingSpec, normalizeSpecification, type NormalizedSingleStreamItem } from '../src';
 
 function makeTimeSpec(overrides: Partial<StreamingSpec>): StreamingSpec {
   return {
@@ -31,7 +29,7 @@ describe('Absolute Timing with Fixed Duration', () => {
       }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
 
@@ -54,7 +52,7 @@ describe('Absolute Timing with Varied Duration', () => {
       }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
 
@@ -70,7 +68,7 @@ describe('Absolute Timing with Varied Duration', () => {
       }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
     expect(enc.time2).toBeUndefined();
@@ -86,7 +84,7 @@ describe('Simultaneous Timing', () => {
       }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
 
@@ -111,7 +109,7 @@ describe('Tick Configuration', () => {
       }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const tick = stream.encoding.time.tick;
 
@@ -140,7 +138,7 @@ describe('Tick Configuration', () => {
       }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const tick = stream.encoding.time.tick;
 
@@ -163,7 +161,7 @@ describe('Duration Field Channels', () => {
       encoding: { duration: { field: 'duration', type: 'quantitative' } }
     });
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     const stream = (normalized[0] as NormalizedSingleStreamItem).stream;
     const enc = stream.encoding;
 

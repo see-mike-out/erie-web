@@ -1,12 +1,13 @@
 import { BoxplotSpec } from "../types";
 import { deepcopy } from "../util";
+import { parseGroupby } from "./erie-util";
 
 export class Boxplot {
   _boxplot: string;
   _extent?: number | 'min-max'
   _invalid?: 'filter' | undefined;
 
-  _groupby?: string[];
+  _groupby?: string[] | "auto";
 
   constructor(c: string, extent?: number | 'min-max', invalid?: 'filter' | undefined) {
     this._boxplot = c;
@@ -20,7 +21,12 @@ export class Boxplot {
   }
 
   extent(t: number | 'min-max') {
-    this._extent = t;
+    if ((typeof t === "number" && t > 0) || t === "min-max") {
+      this._extent = t;
+    } else {
+      throw new TypeError(`Unsupported extent value: ${t}`)
+    }
+
     return this;
   }
 
@@ -31,15 +37,7 @@ export class Boxplot {
 
   groupby(...args: any) {
     // this function resets groupby
-    if (args.length == 1 &&
-      args[0].constructor.name === 'Array' &&
-      args[0].every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args[0]];
-    } else if (args.length >= 1 &&
-      args.every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args];
-    }
-
+    this._groupby = parseGroupby(...args);
     return this;
   }
 
@@ -54,7 +52,7 @@ export class Boxplot {
 
   clone(): Boxplot {
     let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
-    _c._groupby = this._groupby;
+    _c._groupby = deepcopy(this._groupby);
     return _c;
   }
 }

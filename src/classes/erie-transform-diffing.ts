@@ -1,26 +1,30 @@
 import { DiffingSpec } from "../types";
 import { deepcopy } from "../util";
+import { parseGroupby } from "./erie-util";
 
 export class Diffing {
   _diffing: string[];
   _carryOver?: boolean;
   _keepFirstAsZero?: boolean;
   _as?: string[];
-  _groupby?: string[];
+  _groupby?: string[] | "auto";
 
-  constructor(c: string[], carryOver?: boolean, keepFirstAsZero?: boolean,  a?: string[]) {
-    this._diffing = c;
+  constructor(c: string[], carryOver?: boolean, keepFirstAsZero?: boolean, a?: string[]) {
+    this._diffing = deepcopy(c);
     if (a) this._as = a;
     this._carryOver = carryOver ?? true;
     this._keepFirstAsZero = keepFirstAsZero ?? true;
   }
 
   diffing(c: string[]) {
-    this._diffing = c;
+    this._diffing = deepcopy(c);
     return this;
   }
 
   as(c: string[]) {
+    if (c.length !== this._diffing.length) {
+      throw new TypeError("The length of `as` must be the same with that of the diffing fields.");
+    }
     this._as = c;
     return this;
   }
@@ -37,15 +41,7 @@ export class Diffing {
 
   groupby(...args: any) {
     // this function resets groupby
-    if (args.length == 1 &&
-      args[0].constructor.name === 'Array' &&
-      args[0].every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args[0]];
-    } else if (args.length >= 1 &&
-      args.every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args];
-    }
-
+    this._groupby = parseGroupby(...args);
     return this;
   }
 
@@ -61,7 +57,7 @@ export class Diffing {
 
   clone(): Diffing {
     let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
-    _c._groupby = this._groupby;
+    _c._groupby = deepcopy(this._groupby);
     return _c;
   }
 }

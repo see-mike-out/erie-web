@@ -9,6 +9,7 @@ import { Stream } from "./erie-stream";
 import { TickList } from "./erie-tick";
 import { Transform } from "./erie-transform";
 import {
+  clearResources,
   isArrayOf,
   isInstanceOf
 } from "./erie-util";
@@ -18,11 +19,19 @@ import {
   DataObject,
   DatasetObject
 } from "../types/api/data";
+import { DataSpec, OverlayStreamSpec, OverlayStreamSpec1, OverlayStreamSpec2 } from "types";
+import { dropUndefined } from "../util";
+import { Notify } from "./erie-notify";
+import { deepcopy } from "../util";
 
 export class Overlay {
   _name?: string;
   _title?: string;
   _description?: string;
+  _skipTitle?: boolean;
+  _skipDescription?: boolean;
+  _skipLength?: boolean;
+
   overlay: Stream[];
   datasets?: Datasets;
   transform?: Transform;
@@ -32,6 +41,7 @@ export class Overlay {
   wave?: Wave;
   tick?: TickList;
   config?: Config;
+  notify?: { [key: string]: Notify };
 
   constructor(...a: any) {
     this.datasets = new Datasets();
@@ -53,6 +63,8 @@ export class Overlay {
       this.addStreams(args[0])
     } else if (isArrayOf(args, Stream)) {
       this.addStreams(args)
+    } else {
+      throw new TypeError("Wrong stream types.")
     }
   }
 
@@ -66,8 +78,23 @@ export class Overlay {
     return this;
   }
 
+  skipTitle(b: boolean) {
+    this._skipTitle = b;
+    return this;
+  }
+
   description(n: string) {
     this._description = n;
+    return this;
+  }
+
+  skipDescription(b: boolean) {
+    this._skipDescription = b;
+    return this;
+  }
+
+  skipLength(b: boolean) {
+    this._skipDescription = b;
     return this;
   }
 
@@ -123,7 +150,21 @@ export class Overlay {
         }
       }
       delete clone.wave;
+
+      // config
+      let cloned_config = clone.config?.get() ?? {};
+      if (cloned_config && Object.keys(cloned_config).length > 0) {
+        for (const ckey in cloned_config) {
+          // keey only inconsistent
+          if (this.config?.get(ckey) === cloned_config[ckey]) {
+            clone.config?.set(ckey, undefined);
+          }
+        }
+      }
+
       this.overlay.push(clone);
+    } else {
+      throw new TypeError("Wrong item to add into a sequence.")
     }
 
     return this;
@@ -142,6 +183,9 @@ export class Overlay {
       name: this._name,
       title: this._title,
       description: this._description,
+      skipTitle: this._skipTitle,
+      skipDescription: this._skipDescription,
+      skipLength: this._skipLength,
       data: <DataObject>this.data?.get(),
       datasets: <DatasetObject[]>this.datasets?.get(),
       transform: this.transform?.get(),
@@ -150,10 +194,62 @@ export class Overlay {
       sampling: this.sampling?.get(),
       wave: this.wave?.get(),
       overlay: this.overlay.map((d) => d.get()),
-      config: this.config?.get()
+      config: this.config?.get(),
+      notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+        if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+        return acc;
+      }, {} as { [key: string]: Notify })
     };
 
     return g;
+  }
+
+  toSpec(is_part_of?: boolean): OverlayStreamSpec {
+    if (this.datasets?.toSpec() && this.datasets?.n_datasets > 0) {
+      const o: OverlayStreamSpec2 = clearResources({
+        name: this._name,
+        title: this._title,
+        description: this._description,
+        skipTitle: this._skipTitle,
+        skipDescription: this._skipDescription,
+        skipLength: this._skipLength,
+        datasets: this.datasets.toSpec(),
+        transform: this.transform?.get(),
+        tick: this.tick?.get(),
+        synth: this.synth?.get(),
+        sampling: this.sampling?.get(),
+        wave: this.wave?.get(),
+        overlay: this.overlay.map((d) => d.toSpec()),
+        config: this.config?.get(),
+        notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+          if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+          return acc;
+        }, {} as { [key: string]: Notify })
+      });
+      return dropUndefined(o);
+    } else {
+      const o: OverlayStreamSpec1 = clearResources({
+        name: this._name,
+        title: this._title,
+        description: this._description,
+        skipTitle: this._skipTitle,
+        skipDescription: this._skipDescription,
+        skipLength: this._skipLength,
+        data: this.data?.toSpec(is_part_of) as DataSpec ?? undefined,
+        transform: this.transform?.get(),
+        tick: this.tick?.get(),
+        synth: this.synth?.get(),
+        sampling: this.sampling?.get(),
+        wave: this.wave?.get(),
+        overlay: this.overlay.map((d) => d.toSpec()),
+        config: this.config?.get(),
+        notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+          if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+          return acc;
+        }, {} as { [key: string]: Notify })
+      });
+      return dropUndefined(o);
+    }
   }
 
   clone() {
@@ -161,6 +257,9 @@ export class Overlay {
     _c._name = this._name;
     _c._title = this._title;
     _c._description = this._description;
+    _c._skipTitle = this._skipTitle;
+    _c._skipDescription = this._skipDescription;
+    _c._skipLength = this._skipLength;
     _c.data = this.data?.clone();
     _c.datasets = this.datasets?.clone();
     _c.transform = this.transform?.clone();
@@ -169,6 +268,11 @@ export class Overlay {
     _c.wave = this.wave?.clone();
     _c.overlay = this.overlay.map((d) => d.clone());
     _c.config = this.config?.clone();
+    _c.tick = this.tick?.clone();
+    _c.notify = Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+      if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+      return acc;
+    }, {} as { [key: string]: Notify });
 
     return _c;
   }

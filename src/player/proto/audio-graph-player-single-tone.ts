@@ -49,6 +49,7 @@ import { AudioPrimitiveBuffer } from '../../pulse';
 import { rampBy } from '../audio-graph-ramp';
 
 export async function playSingleTone(
+  player_id: string,
   ctx: AudioContext | OfflineAudioContext,
   sound: Glyph,
   config: ConfigInterface,
@@ -59,16 +60,16 @@ export async function playSingleTone(
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
   // if it is from a discrete series and being stopped, then do nothing
-  if (config?.subpart && isErieGlobalState(Stopped)) return;
+  if (config?.subpart && isErieGlobalState(player_id, Stopped)) return;
 
   // if it is an individual play (not from a discrete series)
-  if (!config?.subpart) setErieGlobalState(undefined);
+  if (!config?.subpart) setErieGlobalState(player_id, undefined);
 
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   // set audio context controls
-  setErieGlobalControl({ type: ToneType, player: ctx });
+  setErieGlobalControl(player_id, { type: ToneType, player: ctx });
 
   let sid;
   // if it is an individual play (not from a discrete series), fire a new tone start event
@@ -211,14 +212,19 @@ async function __playSingleTone(
       rampBy('setValueAtTime', inst.modulator.frequency, sound.pitch, ct);
     }
 
+    // set envelope
     inst.envelope.gain.cancelScheduledValues(ct);
+    // gain must be 0 at the start point
     rampBy('setValueAtTime', inst.envelope.gain, 0, ct);
+    // raise gain to the top (1) at the attack time
     rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, ct + (inst.attackTime || 0));
-    if (inst.decayTime) {
-      // rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + getStartTime1(sound) + inst.adTime);
-      rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + inst.adTime);
+    // if decay is set, then start moving to the sustain level during that decay time.
+    if (inst.decayTime !== undefined) {
+      rampBy('linearRampToValueAtTime', inst.envelope.gain, (inst.sustain || 1), ct + inst.adTime);
     }
-    rampBy('setValueAtTime', inst.envelope.gain, inst.sustain || 1, ct + (sound.duration ?? 0));
+    // keep the sustain level throughout the duration
+    rampBy('setValueAtTime', inst.envelope.gain, (inst.sustain || 1), ct + (sound.duration ?? 0));
+    // turn the volume off after the duration of time including the decay time.
     rampBy('linearRampToValueAtTime', inst.envelope.gain, 0, ct + (sound.duration ?? 0) + inst.adTime);
   }
 

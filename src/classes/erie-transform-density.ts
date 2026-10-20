@@ -1,8 +1,10 @@
+import { deepcopy } from "../util";
 import { DensityObject } from "../types";
+import { parseGroupby } from "./erie-util";
 
 export class Density {
   _density: string;
-  _groupby?: string[];
+  _groupby?: string[] | "auto";
   _cumulative: boolean;
   _counts: boolean;
   _bandwidth?: number;
@@ -31,6 +33,9 @@ export class Density {
 
   extent(a: number[]) {
     if (a.length == 2) {
+      if (a[0] > a[1]) {
+        throw new TypeError("Density 'extent' should have two nubmer in order.");
+      }
       this._extent = [...a];
     } else {
       throw new TypeError("Density 'extent' should be an Array of two Numbers.");
@@ -38,8 +43,10 @@ export class Density {
 
     return this;
   }
-  groupby(g: string[]) {
-    this._groupby = [...g];
+
+  groupby(...args: any) {
+    // this function resets groupby
+    this._groupby = parseGroupby(...args);
     return this;
   }
 
@@ -86,30 +93,30 @@ export class Density {
   get(): DensityObject {
     return {
       density: this._density,
-      extent: this._extent ? [...this._extent] : undefined,
-      groupby: this._groupby ? [...this._groupby] : undefined,
+      extent: deepcopy(this._extent),
+      groupby: deepcopy(this._groupby),
       cumulative: this._cumulative,
       counts: this._counts,
       bandwidth: this._bandwidth,
       minsteps: this._minsteps,
       maxsteps: this._maxsteps,
       steps: this._steps,
-      as: [...this._as]
+      as: deepcopy(this._as)
     };
   }
 
   clone(): Density {
     let _c = new Density(this._density);
     _c._density = this._density;
-    _c._extent = this._extent ? [...this._extent] : undefined;
-    _c._groupby = this._groupby ? [...this._groupby] : undefined;
+    _c._extent = deepcopy(this._extent);
+    _c._groupby = deepcopy(this._groupby);
     _c._cumulative = this._cumulative;
     _c._counts = this._counts;
     _c._bandwidth = this._bandwidth;
     _c._minsteps = this._minsteps;
     _c._maxsteps = this._maxsteps;
     _c._steps = this._steps;
-    _c._as = [...this._as];
+    _c._as = deepcopy(this._as);
     return _c;
   }
 }

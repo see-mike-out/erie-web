@@ -13,11 +13,12 @@ export interface ToneSpec {
 export interface SampledToneSpec {
   name: string;
   sample: SamplingItem;
+  baseUrl?: string;
 }
 
 export interface WaveSpec {
   name: string
-  disableNormalization: boolean;
+  disableNormalization?: boolean;
   real: number[];
   imag: number[];
 }

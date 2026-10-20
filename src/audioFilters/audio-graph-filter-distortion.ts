@@ -17,7 +17,7 @@ export class DistortionFilter extends AudioFilterPrototype {
   }
   initialize(s: number, e: number) {
     // s: starting time is not important but for formatting
-    this.filter.curve = makeDistortionCurve(e);
+    this.filter.curve = makeDistortionCurve(e, this);
   }
   connect(node: AudioNode) {
     this.filter.connect(node);
@@ -28,9 +28,9 @@ export class DistortionFilter extends AudioFilterPrototype {
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createWaveShaper#examples
-function makeDistortionCurve(amount: number) {
+function makeDistortionCurve(amount: number, filter: DistortionFilter) {
   const k = amount ?? 50;
-  const n_samples = 44100;
+  const n_samples = filter.ctx.sampleRate ?? 44100;
   const curve = new Float32Array(n_samples);
   const deg = Math.PI / 180;
 
@@ -43,12 +43,12 @@ function makeDistortionCurve(amount: number) {
 
 export const DistortionEncoder = function (filter: DistortionFilter, sound: Glyph, startTime: number, rampers?: RamperCollection) {
   if (sound.others?.distortion !== undefined) {
-    filter.filter.curve = makeDistortionCurve(sound.others.distortion);
+    filter.filter.curve = makeDistortionCurve(sound.others.distortion, filter);
   } else {
-    filter.filter.curve = makeDistortionCurve(100);
+    filter.filter.curve = makeDistortionCurve(100, filter);
   }
 } as AudioFilterEncoder
 
 export const DistortionFinisher = function (filter: DistortionFilter, sound: Glyph, startTime: number, duration: number, rampers?: RamperCollection) {
-  filter.filter.curve = makeDistortionCurve(50);
+  filter.filter.curve = makeDistortionCurve(50, filter);
 } as AudioFilterFinisher

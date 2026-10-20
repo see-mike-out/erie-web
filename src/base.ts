@@ -7,40 +7,41 @@ import { isBrowserWindowPossible } from "./util";
 
 declare global {
   interface Window {
-    ErieGlobalControl?: GlobalControl;
-    ErieGlobalState?: GlobalState;
-    ErieSampleBaseUrl?: string;
-    ErieGlobalPlayerEvents?: Map<string, (e: KeyboardEvent) => void>;
-    ErieGlobalStreamingControl: GlobalStreamingControl;
+    ErieGlobalControl?: { [key: string]: GlobalControl | undefined };
+    ErieGlobalState?: { [key: string]: GlobalState };
+    ErieSampleBaseUrl?: { [key: string]: string };
+    ErieGlobalPlayerEvents?: { [key: string]: Map<string, (e: KeyboardEvent) => void> };
+    ErieGlobalStreamingControl: { [key: string]: GlobalStreamingControl };
   }
 }
 
 export const Globals: {
-  ErieGlobalControl: GlobalControl | undefined,
-  ErieGlobalState: GlobalState,
-  ErieGlobalPlayerEvents: Map<string, (e: KeyboardEvent) => void>,
-  ErieSampleBaseUrl: string,
-  ErieGlobalStreamingControl: GlobalStreamingControl;
+  ErieGlobalControl: { [key: string]: GlobalControl | undefined },
+  ErieGlobalState: { [key: string]: GlobalState },
+  ErieGlobalPlayerEvents: { [key: string]: Map<string, (e: KeyboardEvent) => void> },
+  ErieSampleBaseUrl: { [key: string]: string },
+  ErieGlobalStreamingControl: { [key: string]: GlobalStreamingControl };
 } = {
-  ErieGlobalControl: undefined,
-  ErieGlobalState: undefined,
-  ErieGlobalPlayerEvents: new Map(),
-  ErieSampleBaseUrl: 'audio_sample/',
-  ErieGlobalStreamingControl: {} as GlobalStreamingControl
+  ErieGlobalControl: {},
+  ErieGlobalState: {},
+  ErieGlobalPlayerEvents: {},
+  ErieSampleBaseUrl: {},
+  ErieGlobalStreamingControl: {}
 }
 
-export function setSampleBaseUrl(url: string) {
+export function setSampleBaseUrl(player_id: string, url: string) {
   if (isBrowserWindowPossible()) {
-    window.ErieSampleBaseUrl = url;
+    if (!window.ErieSampleBaseUrl) window.ErieSampleBaseUrl = {};
+    window.ErieSampleBaseUrl[player_id] = url;
   } else {
-    Globals.ErieSampleBaseUrl = url;
+    Globals.ErieSampleBaseUrl[player_id] = url;
   }
 }
 
-export function getSampleBaseUrl(url: string) {
+export function getSampleBaseUrl(player_id: string, url: string) {
   if (isBrowserWindowPossible()) {
-    return window.ErieSampleBaseUrl;
+    return window.ErieSampleBaseUrl?.[player_id];
   } else {
-    return Globals.ErieSampleBaseUrl;
+    return Globals.ErieSampleBaseUrl[player_id];
   }
 }

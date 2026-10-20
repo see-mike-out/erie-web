@@ -1,27 +1,30 @@
 import {
   isInstanceOf
 } from "./erie-util";
-import { deepcopy } from "../util";
-import { ConfigInterface } from "../types";
+import { deepcopy, dropUndefined } from "../util";
+import { ConfigInterface, isTimeUnit } from "../types";
 
 export class Config {
   _config: ConfigInterface = {};
   constructor() {
     this._config = {
-      speechRate: 1.75,
-      skipScaleSpeech: false,
-      skipDescription: false,
-      skipTitle: false,
-      overlayScaleConsistency: true,
-      forceOverlayScaleConsistency: false,
-      sequenceScaleConsistency: true,
-      forceSequenceScaleConsistency: false
+      // speechRate: 1.75,
+      // skipScaleSpeech: false,
+      // skipDescription: false,
+      // skipTitle: false,
+      // skipLength: false,
+      // overlayScaleConsistency: true,
+      // forceOverlayScaleConsistency: false,
+      // sequenceScaleConsistency: true,
+      // forceSequenceScaleConsistency: false
     };
   }
 
   set(k: keyof ConfigInterface, v: any) {
-    if (configValidator(k, v)) {
-      this._config[k] = v;
+    if (v === undefined) {
+      delete this._config[k];
+    } else if (configValidator(k, v)) {
+      this._config[k] = deepcopy(v);
     } else {
       throw TypeError(`Wrong value type for ${k}.`);
     }
@@ -29,8 +32,12 @@ export class Config {
     return this;
   }
 
-  get() {
-    return deepcopy(this._config);
+  get(k?: keyof ConfigInterface) {
+    if (k) {
+      return this._config[k];
+    } else {
+      return dropUndefined(deepcopy(this._config));
+    }
   }
 
   clone(): Config {
@@ -48,9 +55,10 @@ function configValidator(k: keyof ConfigInterface, v: any) {
   else if (k === 'skipScaleSpeech') return isInstanceOf(v, Boolean);
   else if (k === 'skipDescription') return isInstanceOf(v, Boolean);
   else if (k === 'skipTitle') return isInstanceOf(v, Boolean);
-  else if (k === 'overlayScaleConsistency') return isInstanceOf(v, Boolean);
-  else if (k === 'forceOverlayScaleConsistency') return isInstanceOf(v, Boolean);
-  else if (k === 'sequenceScaleConsistency') return isInstanceOf(v, Boolean);
-  else if (k === 'forceSequenceScaleConsistency') return isInstanceOf(v, Boolean)
+  else if (['overlayScaleConsistency', 'forceOverlayScaleConsistency', 'sequenceScaleConsistency', 'forceSequenceScaleConsistency'].includes(k as string)) {
+    return isInstanceOf(v, Boolean) || (isInstanceOf(v, Object) && Object.values(v).every((d) => typeof d === 'boolean'));
+  } else if (k === 'timeUnit') {
+    return isTimeUnit(v);
+  }
   else return true;
 }

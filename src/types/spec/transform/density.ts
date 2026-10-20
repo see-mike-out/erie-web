@@ -1,3 +1,5 @@
+import { GroupbyType } from "./groupby";
+
 // Transform: Density
 export interface DensitySpec {
   /**
@@ -11,7 +13,7 @@ export interface DensitySpec {
   /**
    * group the resulting densities by a field(s)
    */
-  groupby?: string[];
+  groupby?: GroupbyType;
   /**
    * whether to make cumulative density
    */

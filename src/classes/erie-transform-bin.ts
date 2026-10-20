@@ -34,22 +34,28 @@ export class Bin {
   }
 
   maxbins(v: number) {
-    if (Math.round(v) == v) {
+    if (Number.isInteger(v) && v > 0) {
       this._maxbins = v;
     } else {
-      throw new TypeError("Bin 'maxbins' should be an integer.");
+      throw new TypeError("Bin 'maxbins' should be a positive integer.");
     }
 
     return this;
   }
 
   step(v: number) {
+    if (!Number.isInteger(v) || v <= 0) {
+      throw new TypeError("Bin 'step' should be a positive number.");
+    }
     this._step = v;
     return this;
   }
 
   exact(v: number[]) {
-    this._exact = v;
+    if (v.length < 2) {
+      throw new TypeError("Bin 'exact'  must have at least 2 numbers.");
+    }
+    this._exact = deepcopy(v).toSorted((a, b) => a - b);
 
     return this;
   }

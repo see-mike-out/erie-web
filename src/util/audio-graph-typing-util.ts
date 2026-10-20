@@ -12,7 +12,7 @@ export function isTSV(d: string) {
   return d.match(TSV_format);
 }
 
-const CSV_format = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/gi;
+const CSV_format = /^(?:\r?\n)*(?:[ ]*(?:'(?:[^'\\]|''|\\[\S\s])*'|"(?:[^"\\]|""|\\[\S\s])*"|[^,'"\s\\]*(?:[ ]+[^,'"\s\\]+)*)[ ]*(?:,[ ]*(?:'(?:[^'\\]|''|\\[\S\s])*'|"(?:[^"\\]|""|\\[\S\s])*"|[^,'"\s\\]*(?:[ ]+[^,'"\s\\]+)*)[ ]*)*(?:\r?\n|$))+$/gi;
 export function isCSV(d: string) {
   return d.match(CSV_format);
 }
@@ -26,3 +26,32 @@ export function aRange(s: number, e: number, incl?: boolean): number[] {
   return o;
 }
 
+export function isInRange(a: number, l: number, g: number, option?: '()' | '[]' | '(]' | '[)') {
+  if (option === '()') {
+    return l < a && a < g;
+  } else if (option === '[]') {
+    return l <= a && a <= g;
+  } else if (option === '(]') {
+    return l < a && a <= g;
+  } else if (option === '[)') {
+    return l <= a && a < g;
+  } else {
+    // default: []
+    return l <= a && a <= g;
+  }
+}
+
+export function isOutRange(a: number, l: number, g: number, option?: '()' | '[]' | '(]' | '[)') {
+  if (option === '()') {
+    return !isInRange(a, l, g, '[]');
+  } else if (option === '[]') {
+    return !isInRange(a, l, g, '()');
+  } else if (option === '(]') {
+    return !isInRange(a, l, g, '[)');
+  } else if (option === '[)') {
+    return !isInRange(a, l, g, '(]');
+  } else {
+    // default: [] --- inclusive
+    return !isInRange(a, l, g, '()');
+  }
+}

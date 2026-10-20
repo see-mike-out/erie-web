@@ -4,7 +4,10 @@ import {
   EncodingType,
   FormatType,
   RampType,
-  ScaleType
+  ScaleType,
+  SortValues,
+  timeLevelValues,
+  timeUnitDomainDefs
 } from "../object";
 import { InlineBinType } from "../spec";
 import { TickObject } from "./tick";
@@ -13,7 +16,7 @@ import { TickObject } from "./tick";
 export interface ChannelObject {
   defined: boolean,
   channel: string | undefined,
-  field?: string | undefined,
+  field?: string | string[] | undefined,
   type?: EncodingType | undefined,
   ramp?: RampType | undefined,
   aggregate?: AggOpType | undefined,
@@ -25,5 +28,12 @@ export interface ChannelObject {
   formatType?: FormatType | undefined,
   speech?: boolean | undefined,
   tick?: TickObject | string,
-  roundToNote?: boolean
+  roundToNote?: boolean,
+  by?: string[] | string;
+  p?: number | undefined;
+  sort?: SortValues;
+  timeUnit?: keyof typeof timeUnitDomainDefs,
+  timeUnitName?: string | string[] | number[],
+  timeLevel?: timeLevelValues;
+  sustain?: boolean;
 }

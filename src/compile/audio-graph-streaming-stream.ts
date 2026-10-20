@@ -53,7 +53,8 @@ import {
 } from '../types';
 import {
   toOrdinalNumbers,
-  deepcopy
+  deepcopy,
+  genRid
 } from '../util';
 import { UnitStream } from './audio-graph-unit-stream';
 
@@ -92,6 +93,7 @@ export class StreamingStream {
   description!: string;
   option: StreamingOption;
   config: ConfigInterface;
+  player_id!: string;
 
   audioFilters!: string[];
   synths: HashedObject<SynthNormed>;
@@ -258,13 +260,14 @@ export class StreamingStream {
     this.ramp = deepcopy(ramp);
   }
 
-  setSampling(samplings: HashedObject<SampledToneNormed>) {
+  async setSampling(samplings: HashedObject<SampledToneNormed>) {
     this.samplings = deepcopy(samplings);
     // load them here;
     for (const inst in this.samplings) {
-      loadSamples(new AudioContext(), inst, this.samplings, this.config.options?.baseUrl).then((sample) => {
-        this.loaded_samples[inst] = sample;
-      })
+      let ctx = new AudioContext();
+      let sample = await loadSamples(ctx, inst, this.samplings, this.config.options?.baseUrl);
+      this.loaded_samples[inst] = sample;
+      ctx.close();
     }
   }
 
@@ -274,6 +277,10 @@ export class StreamingStream {
 
   setWaves(waves: HashedObject<WaveNormed>) {
     this.waves = waves;
+  }
+
+  setPlayerId(id: string) {
+    this.player_id = id;
   }
 
   // references
@@ -310,7 +317,7 @@ export class StreamingStream {
     } else if (this.option.test_data && this.option.test_data.test) {
       await this.play(this.option.test_data.test, true)
     } else {
-      console.warn("No test data is provoded.")
+      console.warn("No test data is provided.")
     }
     this.unmuteBaseTick();
   }
@@ -318,11 +325,10 @@ export class StreamingStream {
   start() {
     if (this.is_started) {
       console.warn("This stream is already started. If you want to re-initiate, then destroy and restart the stream.");
-      return;
     }
     if (!this.is_started) {
       if (this.is_destroyed) {
-        console.warn("This stream is destroyed. Crreating a new stream.")
+        console.warn("This stream is destroyed. Creating a new stream.")
       }
       this.baseContext = new AudioContext();
       if (this.has_base_tone) {
@@ -334,7 +340,7 @@ export class StreamingStream {
           if (this.baseValues.option.asTick) {
             config.tick = {
               interval: this.baseValues.option.tickInterval ?? 5,
-              band: 0.2,
+              band: this.baseValues.option.tickBand ?? 0.2,
               instrument: this.baseToneSampled ?? config.instrument_type ?? 'default'
             };
             if (baseValues.pitch) config.tick.pitch = baseValues.pitch;
@@ -343,6 +349,7 @@ export class StreamingStream {
             baseValues.loudness = 0.0001
           }
           this.baseStream = playIndefininteContinuousTones(
+            this.player_id,
             this.baseContext,
             baseValues,
             config,
@@ -469,7 +476,7 @@ export class StreamingStream {
       if (converted.length > 0) {
         if (repeat && repeat.announce) {
           let ann = repeat.order[ci].join(', ')
-          await playSingleSpeech({ type: "text", speech: ann }, this.config, bufferPrimitve, ttsFetchFunction);
+          await playSingleSpeech(this.player_id, { type: "text", speech: ann }, this.config, bufferPrimitve, ttsFetchFunction);
         }
 
         if (this.has_base_tone && !this.baseValues.option?.asTick) {
@@ -513,7 +520,7 @@ export class StreamingStream {
           )
         } else {
           // prerender
-          this.currentQueue = new AudioGraphQueue();
+          this.currentQueue = new AudioGraphQueue(this.player_id);
 
           // overall config
           if (this.config) {
@@ -523,7 +530,7 @@ export class StreamingStream {
           }
 
           // registration
-          this.currentQueue.setSampling(this.samplings);
+          await this.currentQueue.setSampling(this.samplings);
           this.currentQueue.setSynths(this.synths);
           this.currentQueue.setWaves(this.waves);
 
@@ -584,23 +591,24 @@ export class StreamingStream {
   }
 
   muteBaseTick() {
-    setErieGlobalStreamingControl('streaming_base_tick_mute', true);
+    setErieGlobalStreamingControl(this.player_id, 'streaming_base_tick_mute', true);
   }
   unmuteBaseTick() {
-    setErieGlobalStreamingControl('streaming_base_tick_mute', false);
+    setErieGlobalStreamingControl(this.player_id, 'streaming_base_tick_mute', false);
   }
 
   destroy() {
     // for the entirety
+    let baseStream = this.baseStream, baseContext = this.baseContext;
     this.cancel().then(() => {
       // remove the player
-      if (this.baseStream) {
-        this.baseStream.inst.stop(this.baseContext.currentTime);
-        if (this.baseStream.tick_interval_id) {
-          clearInterval(this.baseStream.tick_interval_id)
+      if (baseStream) {
+        baseStream.inst.stop(baseContext.currentTime);
+        if (baseStream.tick_schedule_id) {
+          clearTimeout(baseStream.tick_schedule_id);
         }
       }
-      if (this.baseContext) this.baseContext.close();
+      if (baseContext) baseContext.close();
     });
     this.status = Stopped;
     this.is_destroyed = true;
@@ -648,9 +656,9 @@ export class StreamingStream {
         this.muteBaseTone()
         let pause_time = notificationItem.pause ?? this.has_base_tone ? PauseForBase : PauseNoBase
         if ('speech' in notificationItem && notificationItem.speech) {
-          // todo: test
           await playPause(pause_time);
           await playSingleSpeech(
+            this.player_id,
             {
               type: TextType,
               speech: notificationItem.speech,
@@ -665,7 +673,6 @@ export class StreamingStream {
           )
           await playPause(pause_time);
         } else if ('sample' in notificationItem && notificationItem.sample) {
-          // todo: test
           try {
             let sample = this.noitify_samples[when];
             if (!sample) {
@@ -682,14 +689,14 @@ export class StreamingStream {
             glyphs.hasSpeech = false;
 
             await playPause(pause_time);
-            await playAbsoluteDiscreteTones(ctx, glyphs, this.noitify_samples, {}, {}, {}, [], bufferPrimitve);
+            await playAbsoluteDiscreteTones(this.player_id, ctx, glyphs, this.noitify_samples, {}, {}, {}, [], bufferPrimitve);
             await playPause(pause_time);
           } catch {
             console.warn("Sampling failed")
           }
         } else if ('chime' in notificationItem && notificationItem.chime) {
           await playPause(pause_time);
-          await playChime(undefined, when as keyof typeof Chimes, bufferPrimitve)
+          await playChime(this.player_id, undefined, when as keyof typeof Chimes, bufferPrimitve)
           await playPause(pause_time);
         }
         this.unmuteBaseTone()

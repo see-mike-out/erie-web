@@ -1,6 +1,7 @@
 import {
   HashedObject,
-  RecordObject
+  RecordObject,
+  timeLevelValues
 } from "../types";
 import { deepcopy } from "./audio-graph-util";
 
@@ -53,4 +54,22 @@ export function bufferToArrayBuffer(x: any[]) {
     arr[i] = x[i];
   }
   return arrayBuffer;
+}
+
+export function checkTimezone(d: string) {
+  const tzRegex = /(Z|[+-]\d{2}(:?\d{2})?)$/;
+  return tzRegex.test(d.trim());
+}
+
+export function getTimezone(d: string) {
+  const tzRegex = /(Z|[+-]\d{2}(:?\d{2})?)$/;
+  return d.trim().match(tzRegex)?.[0];
+}
+
+export function produceTZalignedTime(
+  d: string,
+  unit: timeLevelValues,
+  timezone?: string
+) {
+
 }

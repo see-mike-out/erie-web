@@ -24,111 +24,58 @@ import {
 
 export class TimeChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = TIME_chn;
+    super(f, t, TIME_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v >= 0;
-  }
-
-  clone(): TimeChannel {
-    let _c = new TimeChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
   }
 }
 
 export class Time2Channel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = TIME2_chn;
-  }
-
-  clone(): Time2Channel {
-    let _c = new Time2Channel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
+    super(f, t, TIME2_chn);
   }
 }
 
 export class DurationChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = DUR_chn;
+    super(f, t, DUR_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v >= 0;
-  }
-
-  clone(): DurationChannel {
-    let _c = new DurationChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
   }
 }
 
 const MAX_LIMIT_TAP_SPEED = 7;
 export class TapSpeedChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = TAPSPD_chn;
+    super(f, t, TAPSPD_chn);
   }
 
   validator(v: any) {
-    return isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_TAP_SPEED;
-  }
-
-  clone(): TapSpeedChannel {
-    let _c = new TapSpeedChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
+    if (v > MAX_LIMIT_TAP_SPEED) {
+      console.warn(`The value ${v} for the tapSpeed channel may burden audio contexts (recommendation: <= ${MAX_LIMIT_TAP_SPEED}).`)
+    }
+    return isInstanceOf(v, Number) && v >= 0;
   }
 }
 
 export class TapCountChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = TAPCNT_chn;
+    super(f, t, TAPCNT_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v >= 0;
-  }
-
-  clone(): TapCountChannel {
-    let _c = new TapCountChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
   }
 }
 
 const MAX_LIMIT_PITCH = 3000;
 export class PitchChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = PITCH_chn;
+    super(f, t, PITCH_chn);
     this._roundToNote = false;
   }
 
@@ -138,214 +85,114 @@ export class PitchChannel extends Channel {
   }
 
   validator(v: any) {
-    return (isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_PITCH) || (isInstanceOf(v, String) && v.match(/^[A-F][0-9]$/gi));
-  }
-
-  clone(): PitchChannel {
-    let _c = new PitchChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
+    if (v > MAX_LIMIT_PITCH) {
+      console.warn(`The value ${v} for the pitch channel may burden audio contexts (recommendation: <= ${MAX_LIMIT_PITCH}).`)
+    }
+    return (isInstanceOf(v, Number) && v >= 0) || (isInstanceOf(v, String) && v.match(/^[A-G](#|b)?[0-9]$/i) !== null);
   }
 }
 
 export class DetuneChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = DETUNE_chn;
+    super(f, t, DETUNE_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v >= -1200 && v <= 1200;
   }
-
-  clone(): DetuneChannel {
-    let _c = new DetuneChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
-  }
 }
 
 export class LoudnessChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = LOUDNESS_chn;
+    super(f, t, LOUDNESS_chn);
   }
 
   validator(v: any) {
+    if (v > 1) {
+      console.warn(`The loudness value greater than 1 (${v}) may result in too loud sound.`)
+    }
     return isInstanceOf(v, Number);
-  }
-
-  clone(): LoudnessChannel {
-    let _c = new LoudnessChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
   }
 }
 
 export class PanChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = PAN_chn;
+    super(f, t, PAN_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v >= -1 && v <= 1;
   }
-
-  clone(): PanChannel {
-    let _c = new PanChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
-  }
 }
 
 export class PostReverbChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = POST_REVERB_chn;
+    super(f, t, POST_REVERB_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v >= 0;
   }
-
-  clone(): PostReverbChannel {
-    let _c = new PostReverbChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
-  }
 }
 
 export class SpeechBeforeChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = SPEECH_BEFORE_chn;
-  }
-
-  clone(): SpeechBeforeChannel {
-    let _c = new SpeechBeforeChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
+    super(f, t, SPEECH_BEFORE_chn);
   }
 }
 
 export class SpeechAfterChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = SPEECH_AFTER_chn;
-  }
-
-  clone(): SpeechAfterChannel {
-    let _c = new SpeechAfterChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
+    super(f, t, SPEECH_AFTER_chn);
   }
 }
 
 export class RepeatChannel extends Channel {
-  constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = REPEAT_chn;
+  constructor(f?: string | string[], t?: EncodingType) {
+    super(f, t, REPEAT_chn);
   }
 
-  clone(): RepeatChannel {
-    let _c = new RepeatChannel(undefined, undefined);
+  clone(): Channel {
+    let _c = new (this.constructor as any)();
     let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
+    _c.assignFrom(_g);
     return _c;
   }
 }
 
 export class ModulationChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = MODULATION_chn;
+    super(f, t, MODULATION_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v > 0;
   }
 
-  clone(): ModulationChannel {
-    let _c = new ModulationChannel(undefined, undefined);
+  clone(): Channel {
+    let _c = new (this.constructor as any)();
     let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
+    _c.assignFrom(_g);
     return _c;
   }
 }
 
 export class HarmonicityChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = HARMONICITY_chn;
+    super(f, t, HARMONICITY_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, Number) && v > 0
   }
-
-  clone(): HarmonicityChannel {
-    let _c = new HarmonicityChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
-  }
 }
 
 export class TimbreChannel extends Channel {
   constructor(f?: string, t?: EncodingType) {
-    super(f, t);
-    this._channel = TIMBRE_chn;
+    super(f, t, TIMBRE_chn);
   }
 
   validator(v: any) {
     return isInstanceOf(v, String);
-  }
-
-  clone(): TimbreChannel {
-    let _c = new TimbreChannel(undefined, undefined);
-    let _g: ChannelObject = this.get();
-    Object.keys(_g).forEach(k => {
-      let ck = k === "defined" ? k : "_" + k;
-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
-    });
-    return _c;
   }
 }

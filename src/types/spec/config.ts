@@ -1,4 +1,4 @@
-import { TimeUnit } from "../object"
+import { bcp47language, TimeUnit } from "../object"
 
 export interface ConfigSpec {
   speechRate?: number,
@@ -10,7 +10,8 @@ export interface ConfigSpec {
   sequenceScaleConsistency?: boolean | ScaleConsistencyRecord,
   forceSequenceScaleConsistency?: boolean | ScaleConsistencyRecord,
   timeUnit?: TimeUnit,
-  [key: string]: any
+  [key: string]: any,
+  locale?: typeof bcp47language[number]
 }
 
 export type ScaleConsistencyRecord = {

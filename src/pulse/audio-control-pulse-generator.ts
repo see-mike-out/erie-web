@@ -1,3 +1,4 @@
+import { max } from "d3";
 import {
   AudioGraphQueueItem,
   AudioGraphQueueItemToneSeries,
@@ -13,7 +14,7 @@ import {
 } from "../util";
 
 const channels = 2;
-// TODO
+
 export async function generatePCMCode(queue: AudioGraphQueueItem) {
   // currently only support sine wave
   // this is an experimental feature. currently only works for non-overlaid tone-series queues.
@@ -21,85 +22,100 @@ export async function generatePCMCode(queue: AudioGraphQueueItem) {
   // supported channels: time, pitch, loudness, pan
   let ctx = new AudioContext();
   let sampleRate = ctx.sampleRate;
-  let queues: Array<AudioGraphQueueItemToneSeries> = [];
+  let queues: Array<AudioGraphQueueItemToneSeries[]> = [];
   if (isToneSeriesQueueItem(queue)) {
-    queues.push(queue)
+    queues.push([queue])
   } else if (isToneOverlaySeriesQueueItem(queue)) {
-    queues.push(...queue.overlays);
+    queues.push(queue.overlays);
   }
 
-  let queue_lengths = queues.map((q) => Math.max(...q.sounds.map((d: Glyph) => getEndTime1(d) + (d.postReverb || 0))));
-  let length = Math.max(...queue_lengths);
-  let frameCount = sampleRate * length;
+  let queue_lengths = queues.map((qs: AudioGraphQueueItemToneSeries[]) => {
+    // max -> map
+    return max(qs.map((q: AudioGraphQueueItemToneSeries) => {
+      // max -> map
+      return max(q.sounds.map(
+        (d: Glyph) => {
+          return getEndTime1(d) + (d.postReverb || 0);
+        }) as number[]) as number;
+    }));
+  }) as number[];
+  let length = max(queue_lengths);
+  if (length === undefined) {
+    throw new TypeError("Queue length not provided.")
+  }
+  const frameCount = sampleRate * length;
   let buffer = ctx.createBuffer(channels, frameCount, sampleRate);
   let channel0 = buffer.getChannelData(0);
   let channel1 = buffer.getChannelData(1);
-
 
   for (let i = 0; i < frameCount; i++) {
     channel0[i] = 0;
     channel1[i] = 0;
   }
-  for (const queue of queues) {
-    let sounds = queue.sounds;
-    if (!queue.continued) {
-      // discrete sounds
-      for (const sound of sounds) {
-        let f = getStartTime1(sound) * sampleRate,
-          t = (getEndTime1(sound) + (sound.postReverb ?? 0)) * sampleRate;
-        let length = t - f;
-        let data = populatePCMforFreq((sound.pitch ?? DefaultFrequency), length, sampleRate);
-        let gain = sound.loudness;
-        if (gain === undefined) gain = 1;
-        let pan = sound.pan;
-        if (pan === undefined) pan = 0;
-        let LRgain = getLRgain(pan);
-        for (let i = 0; i < length; i++) {
-          channel0[f + i] += data[i] * gain * LRgain[0];
-          channel1[f + i] += data[i] * gain * LRgain[1];
-        }
-      }
-    } else {
-      // continous sound
-      let ramp_pan = getRampFunction(queue.ramp?.pan),
-        ramp_gain = getRampFunction(queue.ramp?.loudness);
-      if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
-        sounds.sort((a: Glyph, b: Glyph) => getStartTime1(a) - getStartTime1(b));
-        let acc_prev = 0;
-        for (let i = 0; i < sounds.length - 1; i++) {
-          let sound = sounds[i], next_sound = sounds[i + 1];
-          let f = Math.round(getStartTime1(sound) * sampleRate),
-            t = Math.round(getStartTime1(next_sound) * sampleRate);
+  
+  for (const queue_list of queues) {
+    for (const queue of queue_list) {
+      let sounds = queue.sounds;
+      if (!queue.continued) {
+        // discrete sounds
+        for (const sound of sounds) {
+          let f = getStartTime1(sound) * sampleRate,
+            t = (getEndTime1(sound) + (sound.postReverb ?? 0)) * sampleRate;
           let length = t - f;
+          let data = populatePCMforFreq((sound.pitch ?? DefaultFrequency), length, sampleRate);
+          let gain = sound.loudness;
+          if (gain === undefined) gain = 1;
+          let pan = sound.pan;
+          if (pan === undefined) pan = 0;
+          let LRgain = getLRgain(pan);
+          for (let i = 0; i < length; i++) {
+            channel0[f + i] += data[i] * gain * LRgain[0];
+            channel1[f + i] += data[i] * gain * LRgain[1];
+          }
+        }
+      } else {
+        // continous sound
+        let ramp_pan = getRampFunction(queue.ramp?.pan),
+          ramp_gain = getRampFunction(queue.ramp?.loudness);
+        if (ramp_pan instanceof Function && ramp_gain instanceof Function) {
+          sounds.sort((a: Glyph, b: Glyph) => getStartTime1(a) - getStartTime1(b));
+          let acc_prev = 0;
+          for (let i = 0; i < sounds.length - 1; i++) {
+            let sound = sounds[i], next_sound = sounds[i + 1];
+            let f = Math.round(getStartTime1(sound) * sampleRate),
+              t = Math.round(getStartTime1(next_sound) * sampleRate);
+            let length = t - f;
 
-          let pcm_pop = populatePCMforFreqRamp((sound.pitch ?? DefaultFrequency), (next_sound.pitch ?? DefaultFrequency), queue.ramp?.pitch, acc_prev, length, sampleRate);
-          if (pcm_pop) {
-            let data = pcm_pop?.data, acc = pcm_pop?.acc;
-            acc_prev = acc;
+            let pcm_pop = populatePCMforFreqRamp((sound.pitch ?? DefaultFrequency), (next_sound.pitch ?? DefaultFrequency), queue.ramp?.pitch, acc_prev, length, sampleRate);
+            if (pcm_pop) {
+              let data = pcm_pop?.data, acc = pcm_pop?.acc;
+              acc_prev = acc;
 
-            let f_gain = sound.loudness;
-            if (f_gain === undefined) f_gain = 1;
-            let f_pan = sound.pan;
-            if (f_pan === undefined) f_pan = 0;
+              let f_gain = sound.loudness;
+              if (f_gain === undefined) f_gain = 1;
+              let f_pan = sound.pan;
+              if (f_pan === undefined) f_pan = 0;
 
-            let t_gain = sound.loudness;
-            if (t_gain === undefined) t_gain = 1;
-            let t_pan = sound.pan;
-            if (t_pan === undefined) t_pan = 0;
+              let t_gain = sound.loudness;
+              if (t_gain === undefined) t_gain = 1;
+              let t_pan = sound.pan;
+              if (t_pan === undefined) t_pan = 0;
 
-            for (let j = 0; j < length; j++) {
-              let rpi = data[j];
-              let rga = ramp_gain(f_gain, t_gain, j / length)
-              let rpa = ramp_pan(f_pan, t_pan, j / length);
-              let LRgain = getLRgain(rpa);
-              channel0[f + j] += rpi * rga * LRgain[0];
-              channel1[f + j] += rpi * rga * LRgain[1];
+              for (let j = 0; j < length; j++) {
+                let rpi = data[j];
+                let rga = ramp_gain(f_gain, t_gain, j / length)
+                let rpa = ramp_pan(f_pan, t_pan, j / length);
+                let LRgain = getLRgain(rpa);
+                channel0[f + j] += rpi * rga * LRgain[0];
+                channel1[f + j] += rpi * rga * LRgain[1];
+              }
             }
           }
         }
       }
     }
   }
+  ctx.close();
   return buffer;
 }
 

@@ -1,5 +1,4 @@
 export * from "./audio-graph-queue-compile";
-export * from "./audio-graph-queue-compile";
 export * from "./audio-graph-repeat-stream";
 export * from "./audio-graph-update-scale";
 export * from "./audio-graph-sequence-stream";

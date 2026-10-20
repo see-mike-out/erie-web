@@ -201,6 +201,7 @@ export type RoundedNote = {
 export type NoteValue = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
 export type OctaveValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type OctaveKey = `${NoteValue}${OctaveValue}`
+export type OctaveCKey = `C${OctaveValue}`
 export type NoteNames = keyof OctaveObject;
 export type NoteKey = OctaveKey | 'mono';
 

@@ -1,6 +1,7 @@
 import { Stream } from "./erie-stream";
 import { Overlay } from "./erie-overlay";
 import {
+  clearResources,
   isArrayOf,
   isInstanceOf
 } from "./erie-util";
@@ -19,12 +20,18 @@ import {
   DataObject,
   DatasetObject
 } from "../types/api/data";
+import { Notify } from "./erie-notify";
+import { deepcopy, dropUndefined } from "../util";
+import { DataSpec, SequenceStreamSpec, SequenceStreamSpec1, SequenceStreamSpec2 } from "../types";
 
 
 export class Sequence {
   _name?: string;
   _title?: string;
   _description?: string;
+  _skipTitle?: boolean;
+  _skipDescription?: boolean;
+  _skipLength?: boolean;
   sequence: Array<Stream | Overlay>;
   datasets?: Datasets;
   transform?: Transform;
@@ -34,6 +41,7 @@ export class Sequence {
   wave?: Wave;
   tick?: TickList;
   config?: Config;
+  notify?: { [key: string]: Notify };
 
   constructor(...a: any) {
     let args = [...a];
@@ -55,6 +63,8 @@ export class Sequence {
       this.addStreams(args[0])
     } else if (isArrayOf(args, [Stream, Overlay])) {
       this.addStreams(args)
+    } else {
+      throw new TypeError("Wrong stream types.")
     }
   }
 
@@ -68,8 +78,23 @@ export class Sequence {
     return this;
   }
 
+  skipTitle(b: boolean) {
+    this._skipTitle = b;
+    return this;
+  }
+
   description(n: string) {
     this._description = n;
+    return this;
+  }
+
+  skipDescription(b: boolean) {
+    this._skipDescription = b;
+    return this;
+  }
+
+  skipLength(b: boolean) {
+    this._skipDescription = b;
     return this;
   }
 
@@ -129,7 +154,22 @@ export class Sequence {
         }
       }
       delete clone.wave;
+
+      // config
+      let cloned_config = clone.config?.get() ?? {};
+      if (cloned_config && Object.keys(cloned_config).length > 0) {
+        for (const ckey in cloned_config) {
+          // keey only inconsistent
+          if (this.config?.get(ckey) === cloned_config[ckey]) {
+            clone.config?.set(ckey, undefined);
+          }
+        }
+      }
+
+      // add
       this.sequence.push(clone);
+    } else {
+      throw new TypeError("Wrong item to add into a sequence.")
     }
 
     return this;
@@ -157,10 +197,62 @@ export class Sequence {
       sampling: this.sampling?.get(),
       wave: this.wave?.get(),
       sequence: this.sequence.map((d) => d.get()),
-      config: this.config?.get()
+      config: this.config?.get(),
+      notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+        if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+        return acc;
+      }, {} as { [key: string]: Notify })
     };
 
     return g;
+  }
+
+  toSpec(): SequenceStreamSpec {
+    if (this.datasets?.toSpec() && this.datasets?.n_datasets > 0) {
+      const o: SequenceStreamSpec2 = clearResources({
+        name: this._name,
+        title: this._title,
+        description: this._description,
+        skipTitle: this._skipTitle,
+        skipDescription: this._skipDescription,
+        skipLength: this._skipLength,
+        datasets: this.datasets.toSpec(),
+        transform: this.transform?.get(),
+        tick: this.tick?.get(),
+        synth: this.synth?.get(),
+        sampling: this.sampling?.get(),
+        wave: this.wave?.get(),
+        sequence: this.sequence.map((d) => d.toSpec(true)),
+        config: this.config?.get(),
+        notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+          if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+          return acc;
+        }, {} as { [key: string]: Notify })
+      });
+      return dropUndefined(o);
+    } else {
+      const o: SequenceStreamSpec1 = clearResources({
+        name: this._name,
+        title: this._title,
+        description: this._description,
+        skipTitle: this._skipTitle,
+        skipDescription: this._skipDescription,
+        skipLength: this._skipLength,
+        data: this.data?.toSpec() as DataSpec ?? undefined,
+        transform: this.transform?.get(),
+        tick: this.tick?.get(),
+        synth: this.synth?.get(),
+        sampling: this.sampling?.get(),
+        wave: this.wave?.get(),
+        sequence: this.sequence.map((d) => d.toSpec(true && this.data?.toSpec() !== undefined)),
+        config: this.config?.get(),
+        notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+          if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+          return acc;
+        }, {} as { [key: string]: Notify })
+      });
+      return dropUndefined(o);
+    }
   }
 
   clone() {
@@ -168,6 +260,9 @@ export class Sequence {
     _c._name = this._name;
     _c._title = this._title;
     _c._description = this._description;
+    _c._skipTitle = this._skipTitle;
+    _c._skipDescription = this._skipDescription;
+    _c._skipLength = this._skipLength;
     _c.data = this.data?.clone();
     _c.datasets = this.datasets?.clone();
     _c.transform = this.transform?.clone();
@@ -176,5 +271,12 @@ export class Sequence {
     _c.wave = this.wave?.clone();
     _c.sequence = this.sequence.map((d) => d.clone());
     _c.config = this.config?.clone();
+    _c.tick = this.tick?.clone();
+    _c.notify = Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+      if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+      return acc;
+    }, {} as { [key: string]: Notify });
+
+    return _c;
   }
 }

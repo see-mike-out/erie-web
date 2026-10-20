@@ -1,0 +1,4451 @@
+diff --git a/src/classes/erie-channel.ts b/src/classes/erie-channel.ts
+index 653e20e..3b995dd 100644
+--- a/src/classes/erie-channel.ts
++++ b/src/classes/erie-channel.ts
+@@ -1,5 +1,5 @@
+ import { Tick } from "./erie-tick";
+-import { FormatType } from "vega";
++import { FormatType } from "../types";
+ import { deepcopy } from "../util";
+ import {
+   isArrayOf,
+@@ -65,16 +65,35 @@ import {
+   VALID,
+   VARIANCE,
+   VARIANCEP,
+-  OscTypes
++  OscTypes,
++  TickKeyBand,
++  SortValues,
++  timeLevelValues,
++  timeUnitDomainDefs,
++  ChannelSpec,
++  ConditionItem
+ } from "../types";
++import { compact } from "./erie-util";
++
++// Scale keys that take a plain value without cross-key side effects.
++const SIMPLE_SCALE_KEYS = [
++  'type', 'base', 'constant', 'exponent',
++  'domainMin', 'domainMax', 'domainMid',
++  'rangeMin', 'rangeMax', 'rangeMid',
++  'sort'
++];
++
++const AGG_SINGLE = [VALID, DISTINCT, MEAN, AVG, MODE, MEDIAN, QUANTILE, STDEV, STDEVP,
++  VARIANCE, VARIANCEP, SUM, PRODUCT, MAX, MIN];
+ 
+ export class Channel {
+   defined: boolean;
+   _channel: string | undefined;
+-  _field: string | undefined;
++  _field: string | string[] | undefined;
+   _type: EncodingType | undefined;
+   _ramp: RampType | undefined;
+   _aggregate: AggOpType | undefined;
++  _p?: number;
+   _bin: InlineBinType | undefined;
+   _scale: ScaleType;
+   _condition: Condition | undefined;
+@@ -84,60 +103,65 @@ export class Channel {
+   _speech: boolean | undefined;
+   _tick: any;
+   _roundToNote?: boolean;
++  _by?: string | string[];
++  _sort?: SortValues;
++  _timeUnit?: keyof typeof timeUnitDomainDefs;
++  _timeUnitName?: string | string[] | number[];
++  _timeLevel?: timeLevelValues;
++  _sustain?: boolean;
+ 
+-  constructor(f?: string, t?: EncodingType) {
++  /**
++   * `channel` is set BEFORE `field()` runs, so channel-specific validation
++   * (e.g., array fields for the repeat channel) works from the constructor.
++   */
++  constructor(f?: string | string[], t?: EncodingType, channel?: string) {
+     this.defined = false;
+-    this._channel = undefined;
+-    this._field;
+-    this._type;
+-    if (f) {
+-      this.field(f, t);
+-    }
++    this._channel = channel;
++    this._field = undefined;
++    this._type = undefined;
+     this._ramp = 'linear';
+-    this._aggregate;
+-    this._bin;
++    this._aggregate = undefined;
++    this._bin = undefined;
+     this._scale = {};
+-    this._condition;
+-    this._value;
+-    this._format;
+-    this._formatType;
++    this._condition = undefined;
++    this._value = undefined;
++    this._format = undefined;
++    this._formatType = undefined;
++    this._speech = undefined;
++    if (f !== undefined) this.field(f, t);
+   }
+ 
++  /** Copy the definition of another channel into this one (keeps this channel's name). */
+   set(c: Channel) {
+-    if (isInstanceOfByName(c, `TimeChannel`) ||
+-      isInstanceOfByName(c, `Time2Channel`) ||
+-      isInstanceOfByName(c, `DurationChannel`) ||
+-      isInstanceOfByName(c, `TapSpeedChannel`) ||
+-      isInstanceOfByName(c, `TapCountChannel`) ||
+-      isInstanceOfByName(c, `PitchChannel`) ||
+-      isInstanceOfByName(c, `DetuneChannel`) ||
+-      isInstanceOfByName(c, `LoudnessChannel`) ||
+-      isInstanceOfByName(c, `PanChannel`) ||
+-      isInstanceOfByName(c, `PostReverbChannel`) ||
+-      isInstanceOfByName(c, `SpeechBeforeChannel`) ||
+-      isInstanceOfByName(c, `SpeechAfterChannel`) ||
+-      isInstanceOfByName(c, `RepeatChannel`) ||
+-      isInstanceOfByName(c, `ModulationChannel`) ||
+-      isInstanceOfByName(c, `HarmonicityChannel`) ||
+-      isInstanceOfByName(c, `Channel`)
+-    ) {
+-      let g = c.get();
+-      Object.assign(this, g);
++    if (!(c instanceof Channel)) {
++      throw new TypeError("channel.set expects a Channel object.");
+     }
++    const own = this._channel;
++    this.assignFrom(c.get());
++    this._channel = own;
++    return this;
+   }
+ 
+-  field(f: string | undefined, t: EncodingType | undefined) {
++  /** Maps ChannelObject keys to private fields (never overwrite methods). */
++  protected assignFrom(g: ChannelObject) {
++    for (const [k, v] of Object.entries(g)) {
++      const ck = k === 'defined' ? k : '_' + k;
++      (this as any)[ck] = v === undefined ? v : deepcopy(v);
++    }
++  }
++
++  field(f: string | string[] | undefined, t?: EncodingType) {
+     if (f === undefined) {
+       this._field = undefined;
+     } else if (isInstanceOf(f, String)) {
+       this._field = f;
+     } else if (this._channel === REPEAT_chn && isArrayOf(f, String)) {
+-      this._field = f;
++      this._field = [...(f as string[])];
+     } else {
+-      throw new TypeError('A field for an encoding channel must be a String.');
++      throw new TypeError('A field for an encoding channel must be a String (or a String[] for repeat).');
+     }
+     if (t) this.type(t);
+-    this.defined = true;
++    this.defined = f !== undefined || this.defined;
+     return this;
+   }
+ 
+@@ -146,91 +170,65 @@ export class Channel {
+     return this;
+   }
+ 
+-  ramp(r: RampType) {
++  ramp(r: RampType | boolean) {
+     if (isInstanceOf(r, String)) {
+-      this._ramp = r;
++      this._ramp = r as RampType;
+     } else {
+       this._ramp = r ? 'linear' : 'abrupt';
+     }
++    return this;
+   }
+ 
+-  aggregate(op: AggOpType) {
+-    switch (op) {
+-      case COUNT:
+-        if (this._field) {
+-          console.warn('A count aggregate will drop the existing field.');
+-        }
+-        this._aggregate = op;
+-        this._type = QUANT;
+-        this.defined = true;
+-        break;
+-      case VALID:
+-      case DISTINCT:
+-      case MEAN:
+-      case AVG:
+-      case MODE:
+-      case MEDIAN:
+-      case QUANTILE:
+-      case STDEV:
+-      case STDEVP:
+-      case VARIANCE:
+-      case VARIANCEP:
+-      case SUM:
+-      case PRODUCT:
+-      case MAX:
+-      case MIN:
+-        this._aggregate = op;
+-        this._type = QUANT;
+-        this.defined = true;
+-        break;
+-      case CORR:
+-      case COVARIANCE:
+-      case COVARIANCEP:
+-        throw new TypeError('An aggregate operation for two fields cannot be declared here.');
++  aggregate(op: AggOpType, p?: number) {
++    if (op === COUNT) {
++      if (this._field) {
++        console.warn('A count aggregate drops the existing field.');
++        this._field = undefined;
++      }
++    } else if ([CORR, COVARIANCE, COVARIANCEP].includes(op)) {
++      throw new TypeError('An aggregate operation for two fields cannot be declared here.');
++    } else if (!AGG_SINGLE.includes(op)) {
++      throw new TypeError(`Unsupported aggregate operation: ${op}`);
+     }
++    if (op === QUANTILE) {
++      const pp = p ?? 0.5;
++      if (!(pp >= 0 && pp <= 1)) throw new RangeError("'p' must be between 0 and 1.");
++      this._p = pp;
++    } else {
++      this._p = undefined;
++    }
++    this._aggregate = op;
++    this._type = QUANT;
++    this.defined = true;
+     return this;
+   }
+ 
+-  bin(...args: any) {
+-    // polymorph
+-    let is_bin, nice, maxbins, step, exact;
+-    if (args.length == 1) {
+-      if (isInstanceOf(args[0], Boolean)) {
+-        is_bin = args[0];
+-      } else if (isArrayOf(args[0], Number)) {
+-        is_bin = true;
+-        exact = args[0];
+-      }
+-    } else if (args.length >= 2 && args.length <= 3) {
+-      is_bin = true;
+-      [maxbins, nice, step] = args;
++  bin(...args: any[]) {
++    // bin(true|false) | bin(number[]) | bin(maxbins, nice?, step?)
++    if (args.length === 1 && isInstanceOf(args[0], Boolean)) {
++      this._bin = args[0];
++    } else if (args.length === 1 && isArrayOf(args[0], Number)) {
++      this._bin = { exact: [...args[0]] };
++    } else if (args.length >= 1 && args.length <= 3 && (args[0] === undefined || typeof args[0] === 'number')) {
++      const [maxbins, nice, step] = args;
++      this._bin = compact({ maxbins, nice, step });
++      if (Object.keys(this._bin as object).length === 0) this._bin = true;
+     } else {
+       throw new TypeError(`Wrong argument is provided for a channel's bin.`);
+     }
+-
+-    this._bin = is_bin;
+-    if (maxbins || nice || step) {
+-      this._bin = {
+-        maxbins, nice, step
+-      };
+-    } else if (exact) {
+-      this._bin = { exact };
+-    }
+     this.defined = true;
+-
+     return this;
+   }
+ 
+   scale(p: keyof ScaleType, v: any) {
+-    if (p === KeyDomain && v instanceof Array) {
++    if (p === KeyDomain && Array.isArray(v)) {
+       this._scale.domain = [...v];
+-    } else if (p === KeyRange && v instanceof Object && v.field) {
++    } else if (p === KeyRange && v instanceof Object && !Array.isArray(v) && v.field) {
+       this._scale.range = deepcopy(v);
+-    } else if (p === KeyRange && isInstanceOf(v, Array)) {
+-      if (v.every(this.validator)) {
++    } else if (p === KeyRange && Array.isArray(v)) {
++      if (v.every((d) => this.validator(d))) {
+         this._scale.range = [...v];
+-        if (this._scale.times !== undefined ||
+-          this._scale.maxDistinct !== undefined) {
++        if (this._scale.times !== undefined || this._scale.maxDistinct !== undefined) {
+           console.warn('Existing scale settings will be ignored.')
+           this._scale.times = undefined;
+           this._scale.maxDistinct = undefined;
+@@ -238,22 +236,20 @@ export class Channel {
+       } else {
+         throw new TypeError('Unsupported value type');
+       }
+-    } else if (p === KeyOrder && isInstanceOf(v, Array)) {
+-      this._scale.order = v;
++    } else if (p === KeyOrder && Array.isArray(v)) {
++      this._scale.order = [...v];
+     } else if (p === KeyPolarity && SupportedPolarity.includes(v)) {
+       this._scale.polarity = v;
+     } else if (p === KeyMaxDistinct && isInstanceOf(v, Boolean)) {
+       this._scale.maxDistinct = v;
+-      if (this._scale.range !== undefined ||
+-        this._scale.times !== undefined) {
++      if (this._scale.range !== undefined || this._scale.times !== undefined) {
+         console.warn('Existing scale settings will be ignored.')
+         this._scale.range = undefined;
+         this._scale.times = undefined;
+       }
+     } else if (p === KeyTimes && isInstanceOf(v, Number)) {
+       this._scale.times = v;
+-      if (this._scale.range !== undefined ||
+-        this._scale.maxDistinct !== undefined) {
++      if (this._scale.range !== undefined || this._scale.maxDistinct !== undefined) {
+         console.warn('Existing scale settings will be ignored.')
+         this._scale.range = undefined;
+         this._scale.maxDistinct = undefined;
+@@ -271,32 +267,33 @@ export class Channel {
+     } else if (this._channel === TIME_chn && p === KeyTiming && TIMINGS.includes(v)) {
+       this._scale.timing = v;
+     } else if (this._channel === TAPSPD_chn && p === KeySingleTappingPosition && SingleTapPosOptions.includes(v)) {
+-      this._scale.timing = v;
++      this._scale.singleTappingPosition = v;
++    } else if (SIMPLE_SCALE_KEYS.includes(p as string) && v !== undefined) {
++      (this._scale as any)[p] = deepcopy(v);
+     } else {
+-      throw new Error('The provide key and value is not a supported scale option.')
++      throw new Error(`Unsupported scale option: ${String(p)}`);
+     }
+     this.defined = true;
+-
+     return this;
+   }
+ 
+   addCondition(c: Condition1 | Condition2 | Condition3, o: any) {
+-    if ((isInstanceOf(c, String)
+-      || c instanceof Array
+-      || (!(c instanceof Array) && c instanceof Object && c.not !== undefined))
+-      && o !== undefined) {
+-      if (!this._condition) this._condition = [];
+-      this._condition.push({
+-        test: c,
+-        value: o
+-      });
+-      if (this._type !== STATIC) {
+-        console.warn('The type of this channel is changed to static, and the scales will be droped.')
+-        this._type = STATIC;
+-        this._scale = {};
+-      }
+-    } else {
+-      throw new Error('The provide condition and value is not a supported condition.')
++    const validTest = isInstanceOf(c, String)
++      || Array.isArray(c)
++      || (c instanceof Object && (c as Condition2).not !== undefined);
++    if (!validTest || o === undefined) {
++      throw new Error('The provided condition and value is not a supported condition.');
++    }
++    if (!this.validator(o)) {
++      throw new TypeError('Unsupported value type for this channel.');
++    }
++    if (!this._condition) this._condition = [];
++    this._condition.push({ test: deepcopy(c), value: o });
++    if (this._type !== STATIC) {
++      // unchanged library semantics: conditional channels are static
++      console.warn('The type of this channel is changed to static, and the scales will be dropped.')
++      this._type = STATIC;
++      this._scale = {};
+     }
+     this.defined = true;
+     return this;
+@@ -304,104 +301,115 @@ export class Channel {
+ 
+   addConditions(c: Condition) {
+     for (const cond of c) {
+-      if (cond.test && cond.value) this.addCondition(cond.test, cond.value);
++      // falsy values like 0 / false / '' are legitimate condition values
++      if (cond.test !== undefined && cond.value !== undefined) this.addCondition(cond.test, cond.value);
+     }
+-    this.defined = true;
+-
+     return this;
+   }
+ 
+-  getConditions() {
+-    return this._condition ? deepcopy(this._condition) : this._condition;
++  getConditions(): ConditionItem[] | undefined {
++    return this._condition ? deepcopy(this._condition) : undefined;
+   }
+ 
+   removeCondition(i: number) {
+-    if (this._condition instanceof Array) {
+-      this._condition.splice(i, 1);
+-    }
++    if (Array.isArray(this._condition)) this._condition.splice(i, 1);
++    return this;
+   }
+ 
+   resetCondition() {
+-    return this._condition = undefined;
++    this._condition = undefined;
++    return this;
+   }
+ 
+   value(v: any) {
+-    if (this.validator(v)) {
+-      this._value = v;
+-      if (this._type !== STATIC) {
+-        console.warn('The type of this channel is changed to static, and the scales will be droped.')
+-        this._type = STATIC;
+-        this._scale = {};
+-        this._field = undefined;
+-        this._aggregate = undefined;
+-        this._bin = undefined;
+-      }
+-    } else {
+-      throw new TypeError('Unsupported value type');
++    if (!this.validator(v)) throw new TypeError('Unsupported value type');
++    this._value = v;
++    if (this._type !== STATIC) {
++      console.warn('The type of this channel is changed to static, and the scales will be dropped.')
++      this._type = STATIC;
++      this._scale = {};
++      this._field = undefined;
++      this._aggregate = undefined;
++      this._bin = undefined;
+     }
+     this.defined = true;
+-
+     return this;
+   }
+ 
+   speech(v: boolean) {
+-    if (this._channel === REPEAT_chn) {
+-      this._speech = v;
+-    } else {
+-      throw new Error('Speech option is only for a repeat channel.')
+-    }
++    if (this._channel !== REPEAT_chn) throw new Error('Speech option is only for a repeat channel.');
++    this._speech = v;
+     this.defined = true;
+-
+     return this;
+   }
+ 
+-  tick(k: TickKeys | Tick, v: any) {
+-    if (this._channel === TIME_chn) {
+-      if (isInstanceOf(k, String)) {
+-        if (!this._tick) this._tick = {};
+-        if (k === TickKeyName && isInstanceOf(v, String)) {
+-          this._tick.name = v;
+-        } else if (k === TickKeyInterval && isInstanceOf(v, Number)) {
+-          this._tick.interval = v;
+-        } else if (k === TickKeyPlayAtTime0 && isInstanceOf(v, Boolean)) {
+-          this._tick.playAtTime0 = v;
+-        } else if (k === TickKeyOscType && OscTypes.includes(v)) {
+-          this._tick.playAtTime0 = v;
+-        } else if (k === TickKeyPitch && isInstanceOf(v, Number)) {
+-          this._tick.pitch = v;
+-        } else if (k === TickKeyLoudness && isInstanceOf(v, Number) && 0 <= v && v <= 1) {
+-          this._tick.loudness = v;
+-        }
+-      } else if (isInstanceOf(k, Tick)) {
+-        this._tick = { name: (<Tick>k)._name };
+-      } else {
+-        throw new TypeError('The "speech" option for a channel must be Boolean.')
+-      }
++  tick(k: TickKeys | Tick, v?: any) {
++    if (this._channel !== TIME_chn) throw new Error('Tick option is only for a time channel.');
++    if (k instanceof Tick) {
++      this._tick = { name: k._name };
++    } else if (isInstanceOf(k, String)) {
++      if (!this._tick) this._tick = {};
++      if (k === TickKeyName && isInstanceOf(v, String)) this._tick.name = v;
++      else if (k === TickKeyInterval && isInstanceOf(v, Number) && v > 0) this._tick.interval = v;
++      else if (k === TickKeyBand && isInstanceOf(v, Number) && v > 0) this._tick.band = v;
++      else if (k === TickKeyPlayAtTime0 && isInstanceOf(v, Boolean)) this._tick.playAtTime0 = v;
++      else if (k === TickKeyOscType && OscTypes.includes(v)) this._tick.oscType = v;
++      else if (k === TickKeyPitch && isInstanceOf(v, Number) && v > 0) this._tick.pitch = v;
++      else if (k === TickKeyLoudness && isInstanceOf(v, Number) && 0 <= v && v <= 1) this._tick.loudness = v;
++      else throw new TypeError(`Unsupported tick option or value: ${String(k)}`);
+     } else {
+-      throw new Error('Speech option is only for a time channel.')
++      throw new TypeError('A tick must be a Tick object or a tick key/value pair.');
+     }
+     this.defined = true;
+-
+     return this;
+   }
+ 
+-  format(f: string, t: FormatType) {
+-    if (f && t && isInstanceOf(f, String)) {
+-      this._format = f;
+-      this._formatType = t;
+-    } else if (f && isInstanceOf(f, String)) {
+-      this._format = f;
+-    }
++  format(f: string, t?: FormatType) {
++    if (!isInstanceOf(f, String)) throw new TypeError('A format must be a String.');
++    this._format = f;
++    if (t) this._formatType = t;
++    return this;
+   }
+ 
+   formatType(t: FormatType) {
+     this._formatType = t;
++    return this;
++  }
++
++  /** ChannelSpec.by: group-by field(s) for this channel. */
++  by(b: string | string[]) {
++    this._by = Array.isArray(b) ? [...b] : b;
++    return this;
++  }
++
++  /** ChannelSpec.sort */
++  sort(s: SortValues) {
++    this._sort = s;
++    return this;
++  }
++
++  timeUnit(u: keyof typeof timeUnitDomainDefs, name?: string | string[] | number[]) {
++    if (!(u in timeUnitDomainDefs)) throw new TypeError(`Unsupported time unit: ${String(u)}`);
++    this._timeUnit = u;
++    if (name !== undefined) this._timeUnitName = Array.isArray(name) ? [...name] as any : name;
++    return this;
++  }
++
++  timeLevel(l: timeLevelValues) {
++    this._timeLevel = l;
++    return this;
++  }
++
++  /** StreamingChannelSpec.sustain (only meaningful for streaming specs). */
++  sustain(v: boolean) {
++    this._sustain = v;
++    return this;
+   }
+ 
+   get(): ChannelObject {
+-    let o: ChannelObject = {
++    const o: ChannelObject = {
+       type: this._type,
+-      field: this._field,
++      field: this._field as any,
+       channel: this._channel,
+       aggregate: this._aggregate,
+       bin: this._bin ? deepcopy(this._bin) : this._bin,
+@@ -409,8 +417,17 @@ export class Channel {
+       value: this._value,
+       condition: this._condition ? deepcopy(this._condition) : this._condition,
+       ramp: this._ramp,
++      format: this._format,
++      formatType: this._formatType,
+       defined: this.defined,
+-      roundToNote: this._roundToNote
++      roundToNote: this._roundToNote,
++      p: this._p,
++      by: this._by,
++      sort: this._sort,
++      timeUnit: this._timeUnit,
++      timeUnitName: this._timeUnitName,
++      timeLevel: this._timeLevel,
++      sustain: this._sustain
+     };
+     if (this._channel === TIME_chn) {
+       o.tick = this._tick ? deepcopy(this._tick) : this._tick;
+@@ -418,21 +435,26 @@ export class Channel {
+     if (this._channel === REPEAT_chn) {
+       o.speech = this._speech;
+     }
++    return o;
++  }
+ 
++  /** Declarative ChannelSpec (bookkeeping keys and undefined values removed). */
++  toSpec(): ChannelSpec {
++    const { defined, channel, ...rest } = this.get();
++    const o: any = compact(rest);
++    if (o.scale && Object.keys(o.scale).length === 0) delete o.scale;
+     return o;
+   }
+ 
+-  validator(v: any) {
++  validator(v: any): boolean {
+     return true;
+   }
+ 
+-  clone(): Channel {
+-    let _c: Channel = new Channel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
++  /** Clones keep the concrete subclass (and its validator). */
++  clone(): this {
++    const Ctor = this.constructor as new () => this;
++    const _c = new Ctor();
++    _c.assignFrom(this.get());
+     return _c;
+   }
+ }
+diff --git a/src/classes/erie-channels.ts b/src/classes/erie-channels.ts
+index 96aefd0..9b26b27 100644
+--- a/src/classes/erie-channels.ts
++++ b/src/classes/erie-channels.ts
+@@ -17,118 +17,66 @@ import {
+   HARMONICITY_chn,
+   TIMBRE_chn,
+   DETUNE_chn,
+-  ChannelObject,
+   EncodingType
+ } from "../types";
+ 
+ 
+ export class TimeChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = TIME_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, TIME_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= 0;
+   }
+ 
+-  clone(): TimeChannel {
+-    let _c = new TimeChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class Time2Channel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = TIME2_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, TIME2_chn);
+   }
+ 
+-  clone(): Time2Channel {
+-    let _c = new Time2Channel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class DurationChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = DUR_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, DUR_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= 0;
+   }
+ 
+-  clone(): DurationChannel {
+-    let _c = new DurationChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ const MAX_LIMIT_TAP_SPEED = 7;
+ export class TapSpeedChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = TAPSPD_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, TAPSPD_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_TAP_SPEED;
+   }
+ 
+-  clone(): TapSpeedChannel {
+-    let _c = new TapSpeedChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class TapCountChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = TAPCNT_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, TAPCNT_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= 0;
+   }
+ 
+-  clone(): TapCountChannel {
+-    let _c = new TapCountChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ const MAX_LIMIT_PITCH = 3000;
+ export class PitchChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = PITCH_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, PITCH_chn);
+     this._roundToNote = false;
+   }
+ 
+@@ -138,214 +86,105 @@ export class PitchChannel extends Channel {
+   }
+ 
+   validator(v: any) {
+-    return (isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_PITCH) || (isInstanceOf(v, String) && v.match(/^[A-F][0-9]$/gi));
++    return (isInstanceOf(v, Number) && v >= 0 && v <= MAX_LIMIT_PITCH) || (isInstanceOf(v, String) && /^[A-G](#|b)?[0-9]$/i.test(v));
+   }
+ 
+-  clone(): PitchChannel {
+-    let _c = new PitchChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class DetuneChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = DETUNE_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, DETUNE_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= -1200 && v <= 1200;
+   }
+ 
+-  clone(): DetuneChannel {
+-    let _c = new DetuneChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class LoudnessChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = LOUDNESS_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, LOUDNESS_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number);
+   }
+ 
+-  clone(): LoudnessChannel {
+-    let _c = new LoudnessChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class PanChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = PAN_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, PAN_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= -1 && v <= 1;
+   }
+ 
+-  clone(): PanChannel {
+-    let _c = new PanChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class PostReverbChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = POST_REVERB_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, POST_REVERB_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v >= 0;
+   }
+ 
+-  clone(): PostReverbChannel {
+-    let _c = new PostReverbChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class SpeechBeforeChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = SPEECH_BEFORE_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, SPEECH_BEFORE_chn);
+   }
+ 
+-  clone(): SpeechBeforeChannel {
+-    let _c = new SpeechBeforeChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class SpeechAfterChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = SPEECH_AFTER_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, SPEECH_AFTER_chn);
+   }
+ 
+-  clone(): SpeechAfterChannel {
+-    let _c = new SpeechAfterChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class RepeatChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = REPEAT_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, REPEAT_chn);
+   }
+ 
+-  clone(): RepeatChannel {
+-    let _c = new RepeatChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class ModulationChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = MODULATION_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, MODULATION_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v > 0;
+   }
+ 
+-  clone(): ModulationChannel {
+-    let _c = new ModulationChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class HarmonicityChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = HARMONICITY_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, HARMONICITY_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, Number) && v > 0
+   }
+ 
+-  clone(): HarmonicityChannel {
+-    let _c = new HarmonicityChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+ 
+ export class TimbreChannel extends Channel {
+-  constructor(f?: string, t?: EncodingType) {
+-    super(f, t);
+-    this._channel = TIMBRE_chn;
++  constructor(f?: string | string[], t?: EncodingType) {
++    super(f, t, TIMBRE_chn);
+   }
+ 
+   validator(v: any) {
+     return isInstanceOf(v, String);
+   }
+ 
+-  clone(): TimbreChannel {
+-    let _c = new TimbreChannel(undefined, undefined);
+-    let _g: ChannelObject = this.get();
+-    Object.keys(_g).forEach(k => {
+-      let ck = k === "defined" ? k : "_" + k;
+-      _c[<keyof Channel>ck] = _g[<keyof ChannelObject>k];
+-    });
+-    return _c;
+-  }
+ }
+\ No newline at end of file
+diff --git a/src/classes/erie-config.ts b/src/classes/erie-config.ts
+index 0db9894..4b90eb2 100644
+--- a/src/classes/erie-config.ts
++++ b/src/classes/erie-config.ts
+@@ -1,9 +1,15 @@
+-import {
+-  isInstanceOf
+-} from "./erie-util";
+ import { deepcopy } from "../util";
+ import { ConfigInterface } from "../types";
+ 
++const BOOLEAN_KEYS = ['skipScaleSpeech', 'skipDescription', 'skipTitle'];
++// ConfigSpec allows `boolean | ScaleConsistencyRecord` for these
++const CONSISTENCY_KEYS = [
++  'overlayScaleConsistency',
++  'forceOverlayScaleConsistency',
++  'sequenceScaleConsistency',
++  'forceSequenceScaleConsistency'
++];
++
+ export class Config {
+   _config: ConfigInterface = {};
+   constructor() {
+@@ -20,37 +26,43 @@ export class Config {
+   }
+ 
+   set(k: keyof ConfigInterface, v: any) {
+-    if (configValidator(k, v)) {
+-      this._config[k] = v;
++    if (configValidator(k as string, v)) {
++      this._config[k] = deepcopy(v);
+     } else {
+-      throw TypeError(`Wrong value type for ${k}.`);
++      throw new TypeError(`Wrong value type for ${String(k)}.`);
+     }
++    return this;
++  }
+ 
++  unset(k: keyof ConfigInterface) {
++    delete this._config[k];
+     return this;
+   }
+ 
+-  get() {
++  get(): ConfigInterface {
+     return deepcopy(this._config);
+   }
+ 
+   clone(): Config {
+-    let _c = new Config();
+-    let g = this.get();
+-    Object.keys(g).forEach((k) => {
+-      _c.set(k, g[k]);
+-    });
++    const _c = new Config();
++    _c._config = this.get();
+     return _c;
+   }
+ }
+ 
+-function configValidator(k: keyof ConfigInterface, v: any) {
+-  if (k === 'speechRate') return isInstanceOf(v, Number) && v > 0;
+-  else if (k === 'skipScaleSpeech') return isInstanceOf(v, Boolean);
+-  else if (k === 'skipDescription') return isInstanceOf(v, Boolean);
+-  else if (k === 'skipTitle') return isInstanceOf(v, Boolean);
+-  else if (k === 'overlayScaleConsistency') return isInstanceOf(v, Boolean);
+-  else if (k === 'forceOverlayScaleConsistency') return isInstanceOf(v, Boolean);
+-  else if (k === 'sequenceScaleConsistency') return isInstanceOf(v, Boolean);
+-  else if (k === 'forceSequenceScaleConsistency') return isInstanceOf(v, Boolean)
+-  else return true;
+-}
+\ No newline at end of file
++function isPlainBoolRecord(v: any) {
++  return v !== null && typeof v === 'object' && !Array.isArray(v)
++    && Object.values(v).every((d) => typeof d === 'boolean');
++}
++
++export function configValidator(k: string, v: any): boolean {
++  if (k === 'speechRate') return typeof v === 'number' && Number.isFinite(v) && v > 0;
++  if (BOOLEAN_KEYS.includes(k)) return typeof v === 'boolean';
++  if (CONSISTENCY_KEYS.includes(k)) return typeof v === 'boolean' || isPlainBoolRecord(v);
++  if (k === 'timeUnit') {
++    return v !== null && typeof v === 'object'
++      && ['second', 'beat'].includes(v.unit)
++      && (v.tempo === undefined || (typeof v.tempo === 'number' && v.tempo > 0));
++  }
++  return true; // open-ended keys (ConfigSpec has an index signature)
++}
+diff --git a/src/classes/erie-data.ts b/src/classes/erie-data.ts
+index 40c5319..b6f5107 100644
+--- a/src/classes/erie-data.ts
++++ b/src/classes/erie-data.ts
+@@ -1,7 +1,10 @@
+ import {
+   Datum,
+   DataObject,
+-  DatasetObject
++  DatasetObject,
++  DataSpec,
++  DatasetSpecItem,
++  StreamingDataSpec
+ } from "../types";
+ import { deepcopy } from "../util";
+ import {
+@@ -38,77 +41,85 @@ export class Data {
+     this._test = null;
+   }
+ 
+-  set(type: DataType | Dataset, e: any) {
+-    if (isInstanceOf(type, Dataset)) {
+-      this.type = Name;
+-      this._name = (<Dataset>type)._name;
+-      // cancel others
+-      this._values = null;
+-      this._url = null;
+-      this._name = null;
+-      this._streaming = false;
+-      this._test = null;
+-    } else {
+-      console.warn("data.set method is only for a dataset object.")
++  /** Reference a named dataset (declared via Datasets/Dataset). */
++  set(ds: Dataset | string) {
++    const name = isInstanceOf(ds, Dataset) ? (<Dataset>ds)._name : ds;
++    if (typeof name !== 'string' || !name) {
++      throw new TypeError("data.set expects a Dataset object or a dataset name.");
+     }
++    this.reset();
++    this.type = Name;
++    this._name = name;
+     return this;
+   }
+ 
+   values(v: Datum[]) {
+     if (isArrayOf(v, Object)) {
++      this.reset();
+       this.type = Values;
+       this._values = deepcopy(v);
+-      // cancel others
+-      this._name = null;
+-      this._url = null;
+-      this._name = null;
+-      this._streaming = false;
+-      this._test = null;
+     } else {
+-      console.warn("only tidy data can be provided.")
++      throw new TypeError("Only tidy data (an Array of plain Objects) can be provided.");
+     }
+     return this;
+   }
+ 
+   url(v: string) {
+-    if (typeof v === 'string') {
+-      this.type = Values;
++    if (typeof v === 'string' && v.length > 0) {
++      this.reset();
++      this.type = Url;
+       this._url = v;
+-      // cancel others
+-      this._values = null;
+-      this._name = null;
+-      this._name = null;
+-      this._streaming = false;
+-      this._test = null;
+     } else {
+-      console.warn("only string-based url can be provided.")
++      throw new TypeError("Only a non-empty string url can be provided.");
+     }
+     return this;
+   }
+ 
+   streaming(test?: Datum[] | string) {
+-    this.type = Streaming;
+-    this._name = null;
+-    this._name = null;
+-    this._streaming = true;
++    let t: { url: string } | { values: Datum[] } | null = null;
+     if (typeof test === 'string') {
+-      this._test = { url: test };
+-    } else if (isArrayOf(test, Object)) {
+-      this._test = { values: deepcopy(test as Datum[]) };
++      t = { url: test };
++    } else if (test !== undefined && isArrayOf(test, Object)) {
++      t = { values: deepcopy(test as Datum[]) };
+     } else if (this._url) {
+-      // get from those already set
+-      this._test = { url: this._url }
++      t = { url: this._url };
+     } else if (this._values) {
+-      // get from those already set
+-      this._test = { values: deepcopy(this._values) }
+-    } else {
+-      console.warn("only string-based url or tidy data can be provided for the test data for streaming spec.")
++      t = { values: deepcopy(this._values) };
+     }
+-    this._url = null;
+-    this._values = null;
++    this.reset();
++    this.type = Streaming;
++    this._streaming = true;
++    this._test = t;
+     return this;
+   }
+ 
++  private reset() {
++    this.type = Unset;
++    this._values = null;
++    this._url = null;
++    this._name = null;
++    this._streaming = false;
++    this._test = null;
++  }
++
++  /**
++   * Serialize into the declarative `DataSpec` / `StreamingDataSpec` shape
++   * that `compileAudioGraph` expects (no null keys, no `type` tag).
++   */
++  toSpec(): DataSpec | StreamingDataSpec | undefined {
++    switch (this.type) {
++      case Values: return { values: deepcopy(this._values as Datum[]) };
++      case Url: return { url: this._url as string };
++      case Name: return { name: this._name as string };
++      case Streaming: {
++        const o: StreamingDataSpec = { stream: true };
++        if (this._test) o.test = deepcopy(this._test);
++        return o;
++      }
++      default: return undefined;
++    }
++  }
++
+   get(): DataObject {
+     return {
+       type: this.type,
+@@ -120,19 +131,14 @@ export class Data {
+     }
+   }
+ 
+-  clone() {
+-    let _c = new Data();
++  clone(): Data {
++    const _c = new Data();
+     _c.type = this.type;
+-    if (this.type === Values) {
+-      _c._values = deepcopy(this._values);
+-    } else if (this.type === Url) {
+-      _c._url = this._url;
+-    } else if (this.type === Name) {
+-      _c._name = this._name;
+-    } else if (this.type === Streaming) {
+-      _c._streaming = this._streaming;
+-      _c._test = deepcopy(this._test);
+-    }
++    _c._values = deepcopy(this._values);
++    _c._url = this._url;
++    _c._name = this._name;
++    _c._streaming = this._streaming;
++    _c._test = deepcopy(this._test);
+     return _c;
+   }
+ }
+@@ -145,20 +151,30 @@ export class Datasets {
+     this.datasets = [];
+   }
+ 
++  /** Adds (a copy of) a dataset; a dataset with the same name is replaced. */
+   add(ds: Dataset) {
+-    this.datasets.push(ds.clone());
+-
++    const i = this.datasets.findIndex((d) => d._name === ds._name);
++    if (i >= 0) this.datasets[i] = ds.clone();
++    else this.datasets.push(ds.clone());
+     return this;
+   }
+ 
+-  get(name?: string): DatasetObject | DatasetObject[] {
++  has(name: string) {
++    return this.datasets.some((d) => d._name === name);
++  }
++
++  get(name?: string): DatasetObject | DatasetObject[] | undefined {
+     if (name) {
+-      return this.datasets?.filter(d => d._name === name)?.[0].get();
++      return this.datasets.find(d => d._name === name)?.get();
+     } else {
+-      return this.datasets?.map((d) => d.get());
++      return this.datasets.map((d) => d.get());
+     }
+   }
+ 
++  toSpec(): DatasetSpecItem[] {
++    return this.datasets.map((d) => d.toSpec());
++  }
++
+   clone(): Datasets {
+     let _c = new Datasets();
+     _c.datasets = this.datasets?.map((d) => d.clone());
+@@ -180,12 +196,31 @@ export class Dataset {
+     return this;
+   }
+ 
+-  set(t: DataType, v: any) {
+-    this.data.set(t, v);
++  /** A dataset holds inline values or a url (DatasetSpecItem). */
++  values(v: Datum[]) {
++    this.data.values(v);
++    return this;
++  }
++
++  url(u: string) {
++    this.data.url(u);
++    return this;
++  }
+ 
++  /** @deprecated use `.values()` / `.url()` */
++  set(t: typeof Values | typeof Url, v: any) {
++    if (t === Values) this.data.values(v);
++    else if (t === Url) this.data.url(v);
++    else throw new TypeError("A dataset can only hold 'values' or 'url'.");
+     return this;
+   }
+ 
++  toSpec(): DatasetSpecItem {
++    if (this.data.type === Values) return { name: this._name, values: deepcopy(this.data._values as Datum[]) };
++    if (this.data.type === Url) return { name: this._name, url: this.data._url as string };
++    throw new Error(`Dataset "${this._name}" has no values or url.`);
++  }
++
+   get(): DatasetObject {
+     return {
+       name: this._name,
+diff --git a/src/classes/erie-notify.ts b/src/classes/erie-notify.ts
+index d445ab4..b7ea417 100644
+--- a/src/classes/erie-notify.ts
++++ b/src/classes/erie-notify.ts
+@@ -1,5 +1,6 @@
+ import { Chimes } from "../chimes";
+-import { bcp47language, NotifyItemSpec } from "../types";
++import { bcp47language, NotifyItemSpec, NotifyTypes } from "../types";
++import { compact } from "./erie-util";
+ 
+ const Unset = 'unset',
+   Chime = 'chime',
+@@ -16,6 +17,7 @@ export class Notify {
+   _speechRate?: number;
+   _chime?: keyof typeof Chimes;
+   _sample?: string;
++  _pause?: number;
+ 
+   constructor(t?: string) {
+     this._type = Unset;
+@@ -59,7 +61,7 @@ export class Notify {
+       this._type = Speech
+     }
+     if (this._type != Speech) {
+-      console.warn("Only supported for speech-type cnotifications.")
++      console.warn("Only supported for speech-type notifications.")
+     } else if (typeof t == 'string') {
+       this._speech = t;
+     }
+@@ -67,10 +69,7 @@ export class Notify {
+   }
+ 
+   loudness(n: number) {
+-    if (this._type == Unset) {
+-      this._type = Speech
+-    }
+-    if (typeof n == 'number' && n > 0) {
++    if (typeof n == 'number' && n >= 0) {
+       this._loudness = n;
+     }
+     return this;
+@@ -81,7 +80,7 @@ export class Notify {
+       this._type = Speech
+     }
+     if (this._type != Speech) {
+-      console.warn("Only supported for speech-type cnotifications.")
++      console.warn("Only supported for speech-type notifications.")
+     } else if (typeof n == 'number' && n > 0) {
+       this._pitch = n;
+     }
+@@ -90,19 +89,40 @@ export class Notify {
+ 
+   detune(n: number) {
+     if (this._type != Sampling) {
+-      console.warn("Only supported for sampling-type cnotifications.")
+-    } else if (typeof n == 'number' && n > 0) {
++      console.warn("Only supported for sampling-type notifications.")
++    } else if (typeof n == 'number' && n >= -1200 && n <= 1200) {
++      // detune is in cents and can be negative
+       this._detune = n;
+     }
+     return this;
+   }
+ 
++  speechRate(n: number) {
++    if (this._type == Unset) {
++      this._type = Speech
++    }
++    if (this._type != Speech) {
++      console.warn("Only supported for speech-type notifications.")
++    } else if (typeof n == 'number' && n > 0) {
++      this._speechRate = n;
++    }
++    return this;
++  }
++
++  /** Pause (in seconds) after the notification; supported by all notification kinds. */
++  pause(n: number) {
++    if (typeof n == 'number' && n >= 0) {
++      this._pause = n;
++    }
++    return this;
++  }
++
+   language(s: string) {
+     if (this._type == Unset) {
+       this._type = Speech
+     }
+     if (this._type != Speech) {
+-      console.warn("Only supported for speech-type cnotifications.")
++      console.warn("Only supported for speech-type notifications.")
+     } else if (typeof s == 'string' && bcp47language.includes(s)) {
+       this._language = s;
+     }
+@@ -111,7 +131,7 @@ export class Notify {
+ 
+   chime(s: string) {
+     if (this._type != Chime) {
+-      console.warn("Only supported for chime-type cnotifications.")
++      console.warn("Only supported for chime-type notifications.")
+     } else if (isChimeName(s)) {
+       this._chime = s;
+     }
+@@ -120,7 +140,7 @@ export class Notify {
+ 
+   sample(s: string) {
+     if (this._type != Sampling) {
+-      console.warn("Only supported for sampling-type cnotifications.")
++      console.warn("Only supported for sampling-type notifications.")
+     } else if (typeof s == 'string') {
+       this._sample = s;
+     }
+@@ -132,33 +152,38 @@ export class Notify {
+     if (this._type == Unset) return undefined;
+     else if (this._type == Speech) {
+       if (this._speech) {
+-        return {
++        return compact({
+           speech: this._speech,
+           loudness: this._loudness,
+           pitch: this._pitch,
+           language: this._language,
+-          speechRate: this._speechRate
+-        };
++          speechRate: this._speechRate,
++          pause: this._pause
++        });
+       } else {
+         return true;
+       }
+     }
+     else if (this._type == Sampling) {
+       if (this._sample) {
+-        return {
+-          chime: this._sample,
++        // SampledNotifyItemSpec uses `sample`, not `chime`
++        return compact({
++          sample: this._sample,
+           loudness: this._loudness,
+-        };
++          detune: this._detune,
++          pause: this._pause
++        });
+       } else {
+         console.error("Undefined sampling URL")
+       }
+     }
+     else if (this._type == Chime) {
+       if (this._chime) {
+-        return {
++        return compact({
+           chime: this._chime,
+           loudness: this._loudness,
+-        };
++          pause: this._pause
++        });
+       } else {
+         console.error("Undefined chime name")
+       }
+@@ -178,6 +203,7 @@ export class Notify {
+       _c._speechRate = this._speechRate;
+       _c._chime = this._chime;
+       _c._sample = this._sample;
++      _c._pause = this._pause;
+     }
+     return _c;
+   }
+@@ -187,13 +213,7 @@ function isChimeName(s: string): s is (keyof typeof Chimes) {
+   return (typeof s == 'string') && (s in Chimes);
+ }
+ 
+-export function intNotify() {
+-  return {
+-    incoming: new Notify(),
+-    beforePlayback: new Notify(),
+-    afterPlayback: new Notify(),
+-    beforePlay: new Notify(),
+-    afterPlay: new Notify(),
+-    next: new Notify()
+-  }
++export function intNotify(): { [key: string]: Notify } {
++  // derived from NotifyTypes so the class can't drift from the spec
++  return Object.fromEntries(NotifyTypes.map((k) => [k, new Notify()]));
+ }
+\ No newline at end of file
+diff --git a/src/classes/erie-overlay.ts b/src/classes/erie-overlay.ts
+index 23349fc..5f1f8bf 100644
+--- a/src/classes/erie-overlay.ts
++++ b/src/classes/erie-overlay.ts
+@@ -5,7 +5,12 @@ import {
+   Datasets
+ } from "./erie-data";
+ import { Sampling } from "./erie-sampling";
+-import { Stream } from "./erie-stream";
++import {
++  dropUndefined,
++  hoistSharedResources,
++  nonEmpty,
++  Stream
++} from "./erie-stream";
+ import { TickList } from "./erie-tick";
+ import { Transform } from "./erie-transform";
+ import {
+@@ -18,11 +23,15 @@ import {
+   DataObject,
+   DatasetObject
+ } from "../types/api/data";
++import { InSeqOverlayStreamSpec, OverlayStreamSpec } from "../types";
+ 
+ export class Overlay {
+   _name?: string;
+   _title?: string;
+   _description?: string;
++  _skipTitle?: boolean;
++  _skipDescription?: boolean;
++  _skipLength?: boolean;
+   overlay: Stream[];
+   datasets?: Datasets;
+   transform?: Transform;
+@@ -33,7 +42,8 @@ export class Overlay {
+   tick?: TickList;
+   config?: Config;
+ 
+-  constructor(...a: any) {
++  /** new Overlay(name?, ...streams) or new Overlay(name?, streams[]) */
++  constructor(...a: any[]) {
+     this.datasets = new Datasets();
+     this.transform = new Transform();
+     this.data = new Data();
+@@ -42,34 +52,27 @@ export class Overlay {
+     this.wave = new Wave();
+     this.tick = new TickList();
+     this.config = new Config();
++    this.overlay = [];
+ 
+-    let args = [...a];
++    const args = [...a];
+     if (isInstanceOf(args[0], String)) {
+-      this._name = args[0];
+-      args.splice(0, 1);
++      this._name = args.shift();
+     }
+-    this.overlay = [];
+-    if (isArrayOf(args[0], Stream)) {
+-      this.addStreams(args[0])
+-    } else if (isArrayOf(args, Stream)) {
+-      this.addStreams(args)
++    if (args.length === 1 && isArrayOf(args[0], Stream)) {
++      this.addStreams(args[0]);
++    } else if (args.length > 0 && isArrayOf(args, Stream)) {
++      this.addStreams(args);
++    } else if (args.length > 0) {
++      throw new TypeError("Overlay only accepts Stream objects.");
+     }
+   }
+ 
+-  name(n: string) {
+-    this._name = n;
+-    return this;
+-  }
+-
+-  title(n: string) {
+-    this._title = n;
+-    return this;
+-  }
+-
+-  description(n: string) {
+-    this._description = n;
+-    return this;
+-  }
++  name(n: string) { this._name = n; return this; }
++  title(n: string) { this._title = n; return this; }
++  description(n: string) { this._description = n; return this; }
++  skipTitle(v: boolean) { this._skipTitle = v; return this; }
++  skipDescription(v: boolean) { this._skipDescription = v; return this; }
++  skipLength(v: boolean) { this._skipLength = v; return this; }
+ 
+   stream(i: number) {
+     return this.overlay[i];
+@@ -81,67 +84,26 @@ export class Overlay {
+   }
+ 
+   add(s: Stream) {
+-    if (isInstanceOf(s, Stream)) {
+-      let clone = s.clone();
+-      // datasets
+-      let cloned_datasets = clone.datasets;
+-      if (cloned_datasets && cloned_datasets.datasets.length > 0) {
+-        for (const ds of cloned_datasets.datasets) {
+-          this.datasets?.add(ds);
+-        }
+-      }
+-      delete clone.datasets;
+-      // tick
+-      let cloned_ticks = clone.tick;
+-      if (cloned_ticks && cloned_ticks.tick.length > 0) {
+-        for (const ds of cloned_ticks.tick) {
+-          this.tick?.add(ds);
+-        }
+-      }
+-      delete clone.tick;
+-      // sampling
+-      let cloned_samples = clone.sampling;
+-      if (cloned_samples && cloned_samples.sampling.length > 0) {
+-        for (const ds of cloned_samples.sampling) {
+-          this.sampling?.add(ds);
+-        }
+-      }
+-      delete clone.sampling;
+-      // synth
+-      let cloned_synths = clone.synth;
+-      if (cloned_synths && cloned_synths.synth.length > 0) {
+-        for (const ds of cloned_synths.synth) {
+-          this.synth?.add(ds);
+-        }
+-      }
+-      delete clone.synth;
+-      // wave
+-      let cloned_waves = clone.wave;
+-      if (cloned_waves && cloned_waves.wave.length > 0) {
+-        for (const ds of cloned_waves.wave) {
+-          this.wave?.add(ds);
+-        }
+-      }
+-      delete clone.wave;
+-      this.overlay.push(clone);
+-    }
+-
++    if (!(s instanceof Stream)) throw new TypeError("Overlay.add only accepts a Stream.");
++    const clone = s.clone();
++    hoistSharedResources(this, clone);
++    this.overlay.push(clone);
+     return this;
+   }
+ 
+   addStreams(ss: Stream[]) {
+-    for (const s of ss) {
+-      this.add(s);
+-    }
+-
++    for (const s of ss) this.add(s);
+     return this;
+   }
+ 
+   get(): OverlayObject {
+-    let g: OverlayObject = {
++    return {
+       name: this._name,
+       title: this._title,
+       description: this._description,
++      skipTitle: this._skipTitle,
++      skipDescription: this._skipDescription,
++      skipLength: this._skipLength,
+       data: <DataObject>this.data?.get(),
+       datasets: <DatasetObject[]>this.datasets?.get(),
+       transform: this.transform?.get(),
+@@ -152,24 +114,66 @@ export class Overlay {
+       overlay: this.overlay.map((d) => d.get()),
+       config: this.config?.get()
+     };
++  }
++
++  /** Nested form used inside a Sequence. */
++  toInSeqSpec(): InSeqOverlayStreamSpec {
++    return dropUndefined({
++      title: this._title,
++      skipTitle: this._skipTitle,
++      description: this._description,
++      skipDescription: this._skipDescription,
++      skipLength: this._skipLength,
++      name: this._name,
++      data: this.data?.toSpec() as any,
++      transform: nonEmpty(this.transform?.get()),
++      overlay: this.overlay.map((s) => s.toUnitSpec())
++    });
++  }
+ 
+-    return g;
++  toSpec(): OverlayStreamSpec {
++    const o: any = {
++      title: this._title,
++      skipTitle: this._skipTitle,
++      description: this._description,
++      skipDescription: this._skipDescription,
++      skipLength: this._skipLength,
++      name: this._name,
++      transform: nonEmpty(this.transform?.get()),
++      overlay: this.overlay.map((s) => s.toUnitSpec()),
++      tick: nonEmpty(this.tick?.get()),
++      sampling: nonEmpty(this.sampling?.get()),
++      synth: nonEmpty(this.synth?.get()),
++      wave: nonEmpty(this.wave?.get()),
++      config: this.config?.get()
++    };
++    const data = this.data?.toSpec();
++    const datasets = nonEmpty(this.datasets?.toSpec());
++    if (data !== undefined) o.data = data;
++    if (datasets !== undefined) o.datasets = datasets;
++    if (data === undefined && datasets === undefined) {
++      throw new Error("An overlay needs either top-level data or datasets.");
++    }
++    return dropUndefined(o);
+   }
+ 
+-  clone() {
+-    let _c = new Overlay();
++  clone(): Overlay {
++    const _c = new Overlay();
+     _c._name = this._name;
+     _c._title = this._title;
+     _c._description = this._description;
++    _c._skipTitle = this._skipTitle;
++    _c._skipDescription = this._skipDescription;
++    _c._skipLength = this._skipLength;
+     _c.data = this.data?.clone();
+     _c.datasets = this.datasets?.clone();
+     _c.transform = this.transform?.clone();
+     _c.synth = this.synth?.clone();
+     _c.sampling = this.sampling?.clone();
+     _c.wave = this.wave?.clone();
++    _c.tick = this.tick?.clone();
+     _c.overlay = this.overlay.map((d) => d.clone());
+     _c.config = this.config?.clone();
+-
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-playback.ts b/src/classes/erie-playback.ts
+index b983ca8..8f19d1b 100644
+--- a/src/classes/erie-playback.ts
++++ b/src/classes/erie-playback.ts
+@@ -18,6 +18,7 @@ export class Playback {
+   init_by(i: string) {
+     if (PlaybackTypes.includes(i)) {
+       this._init_by = i;
++      if (i !== 'conditional') this._condition = undefined;
+     } else {
+       console.error("Unsupported playback initiation type.");
+     }
+@@ -27,18 +28,17 @@ export class Playback {
+   unit(i: string) {
+     if (PlaybackUnits.includes(i)) {
+       this._unit = i;
+-      if (this._unit != 'condition') {
+-        this._condition = undefined;
+-      }
+     } else {
+       console.error("Unsupported playback unit type.");
+     }
+     return this;
+   }
+ 
++  /** Setting a condition implies `init_by('conditional')`. */
+   condition(i: string) {
+     if (typeof i === 'string') {
+-      this._unit = i;
++      this._condition = i;
++      this._init_by = 'conditional';
+     } else {
+       console.error("A playback condition must be a string.");
+     }
+@@ -46,19 +46,19 @@ export class Playback {
+   }
+ 
+   limit(i: number) {
+-    if (typeof i === 'number') {
++    if (typeof i === 'number' && Number.isInteger(i) && i > 0) {
+       this._limit = i;
+     } else {
+-      console.error("Playback limit must be a number.");
++      console.error("Playback limit must be a positive integer.");
+     }
+     return this;
+   }
+ 
+   speed(i: number) {
+-    if (typeof i === 'number') {
++    if (typeof i === 'number' && i > 0) {
+       this._speed = i;
+     } else {
+-      console.error("Playback speed must be a number.");
++      console.error("Playback speed must be a positive number.");
+     }
+     return this;
+   }
+diff --git a/src/classes/erie-sampling.ts b/src/classes/erie-sampling.ts
+index 0268b5d..9903cee 100644
+--- a/src/classes/erie-sampling.ts
++++ b/src/classes/erie-sampling.ts
+@@ -4,8 +4,8 @@ import {
+ } from "../types";
+ import { deepcopy } from "../util";
+ 
+-function scaleKeyCheck(key: string): any {
+-  return key.match(/^[C][0-7]$/);
++function scaleKeyCheck(key: string): boolean {
++  return /^C[0-7]$/.test(key);
+ }
+ 
+ export class SampledTone {
+@@ -13,9 +13,8 @@ export class SampledTone {
+   _sample?: SamplingItem;
+ 
+   constructor(name: string, s: SamplingItem) {
++    if (!name) throw new Error('A sampled tone must have a name.');
+     this._name = name;
+-    this._sample;
+-    this.setName(name);
+     this.setSample(s);
+   }
+ 
+@@ -24,19 +23,30 @@ export class SampledTone {
+     return this;
+   }
+ 
++  /**
++   * Either `{ mono: url }` (one sample, pitch-shifted) or
++   * `{ C0: url, ..., C7: url }` (one sample per octave). Mixing is not allowed.
++   */
+   setSample(s: SamplingItem) {
+-    Object.keys(s).forEach((k) => {
+-      if (!scaleKeyCheck(k) || k === undefined) {
+-        throw new TypeError('The key of a sampling object should be "C" + "0-7".');
+-      } else if (k === "mono") {
+-        this._sample = { mono: s[k] };
+-      } else {
+-        this._sample = {};
+-        let ck = <keyof SamplingItem>k;
+-        this._sample[ck] = s[ck];
++    const keys = Object.keys(s ?? {});
++    if (keys.length === 0) {
++      throw new TypeError('A sampling object must have at least one key.');
++    }
++    if (keys.includes('mono')) {
++      if (keys.length > 1) throw new TypeError('"mono" cannot be combined with octave keys.');
++      this._sample = { mono: s.mono };
++      return this;
++    }
++    const sample: SamplingItem = {};
++    for (const k of keys) {
++      if (!scaleKeyCheck(k)) {
++        throw new TypeError('The key of a sampling object should be "mono" or "C" + "0-7".');
+       }
+-    });
+-
++      const ck = <keyof SamplingItem>k;
++      if (typeof s[ck] !== 'string') throw new TypeError(`Sample URL for ${k} must be a string.`);
++      sample[ck] = s[ck];
++    }
++    this._sample = sample;
+     return this;
+   }
+ 
+diff --git a/src/classes/erie-sequence.ts b/src/classes/erie-sequence.ts
+index 02752a0..8c340c6 100644
+--- a/src/classes/erie-sequence.ts
++++ b/src/classes/erie-sequence.ts
+@@ -1,4 +1,9 @@
+-import { Stream } from "./erie-stream";
++import {
++  dropUndefined,
++  hoistSharedResources,
++  nonEmpty,
++  Stream
++} from "./erie-stream";
+ import { Overlay } from "./erie-overlay";
+ import {
+   isArrayOf,
+@@ -19,12 +24,15 @@ import {
+   DataObject,
+   DatasetObject
+ } from "../types/api/data";
+-
++import { SequenceStreamSpec } from "../types";
+ 
+ export class Sequence {
+   _name?: string;
+   _title?: string;
+   _description?: string;
++  _skipTitle?: boolean;
++  _skipDescription?: boolean;
++  _skipLength?: boolean;
+   sequence: Array<Stream | Overlay>;
+   datasets?: Datasets;
+   transform?: Transform;
+@@ -35,12 +43,8 @@ export class Sequence {
+   tick?: TickList;
+   config?: Config;
+ 
+-  constructor(...a: any) {
+-    let args = [...a];
+-    if (isInstanceOf(args[0], String)) {
+-      this._name = args[0];
+-      args.splice(0, 1);
+-    }
++  /** new Sequence(name?, ...items) or new Sequence(name?, items[]) */
++  constructor(...a: any[]) {
+     this.datasets = new Datasets();
+     this.transform = new Transform();
+     this.data = new Data();
+@@ -49,29 +53,27 @@ export class Sequence {
+     this.wave = new Wave();
+     this.tick = new TickList();
+     this.config = new Config();
+-
+     this.sequence = [];
+-    if (isArrayOf(args[0], [Stream, Overlay])) {
+-      this.addStreams(args[0])
+-    } else if (isArrayOf(args, [Stream, Overlay])) {
+-      this.addStreams(args)
+-    }
+-  }
+ 
+-  name(n: string) {
+-    this._name = n;
+-    return this;
+-  }
+-
+-  title(n: string) {
+-    this._title = n;
+-    return this;
++    const args = [...a];
++    if (isInstanceOf(args[0], String)) {
++      this._name = args.shift();
++    }
++    if (args.length === 1 && isArrayOf(args[0], [Stream, Overlay])) {
++      this.addStreams(args[0]);
++    } else if (args.length > 0 && isArrayOf(args, [Stream, Overlay])) {
++      this.addStreams(args);
++    } else if (args.length > 0) {
++      throw new TypeError("Sequence only accepts Stream or Overlay objects.");
++    }
+   }
+ 
+-  description(n: string) {
+-    this._description = n;
+-    return this;
+-  }
++  name(n: string) { this._name = n; return this; }
++  title(n: string) { this._title = n; return this; }
++  description(n: string) { this._description = n; return this; }
++  skipTitle(v: boolean) { this._skipTitle = v; return this; }
++  skipDescription(v: boolean) { this._skipDescription = v; return this; }
++  skipLength(v: boolean) { this._skipLength = v; return this; }
+ 
+   stream(i: number) {
+     return this.sequence[i];
+@@ -83,72 +85,28 @@ export class Sequence {
+   }
+ 
+   add(s: Stream | Overlay) {
+-    if (isInstanceOf(s, Stream) || isInstanceOf(s, Overlay)) {
+-      let clone = s.clone();
+-      // datasets
+-      let cloned_datasets = clone.datasets;
+-      if (cloned_datasets && cloned_datasets.datasets.length > 0) {
+-        for (const ds of cloned_datasets.datasets) {
+-          this.datasets?.add(ds);
+-        }
+-      }
+-      delete clone.datasets;
+-
+-      // tick
+-      let cloned_ticks = clone.tick;
+-      if (cloned_ticks && cloned_ticks.tick.length > 0) {
+-        for (const ds of cloned_ticks.tick) {
+-          this.tick?.add(ds);
+-        }
+-      }
+-      delete clone.tick;
+-
+-      // sampling
+-      let cloned_samples = clone.sampling;
+-      if (cloned_samples && cloned_samples.sampling.length > 0) {
+-        for (const ds of cloned_samples.sampling) {
+-          this.sampling?.add(ds);
+-        }
+-      }
+-      delete clone.sampling;
+-
+-      // synth
+-      let cloned_synths = clone.synth;
+-      if (cloned_synths && cloned_synths.synth.length > 0) {
+-        for (const ds of cloned_synths.synth) {
+-          this.synth?.add(ds);
+-        }
+-      }
+-      delete clone.synth;
+-
+-      // wave
+-      let cloned_waves = clone.wave;
+-      if (cloned_waves && cloned_waves.wave.length > 0) {
+-        for (const ds of cloned_waves.wave) {
+-          this.wave?.add(ds);
+-        }
+-      }
+-      delete clone.wave;
+-      this.sequence.push(clone);
++    if (!(s instanceof Stream || s instanceof Overlay)) {
++      throw new TypeError("Sequence.add only accepts a Stream or an Overlay.");
+     }
+-
++    const clone = s.clone();
++    hoistSharedResources(this, clone);
++    this.sequence.push(clone);
+     return this;
+   }
+ 
+   addStreams(ss: Array<Overlay | Stream>) {
+-    for (const s of ss) {
+-      this.add(s);
+-    }
+-
++    for (const s of ss) this.add(s);
+     return this;
+   }
+ 
+-
+   get(): SequenceObject {
+-    let g: SequenceObject = {
++    return {
+       name: this._name,
+       title: this._title,
+       description: this._description,
++      skipTitle: this._skipTitle,
++      skipDescription: this._skipDescription,
++      skipLength: this._skipLength,
+       data: <DataObject>this.data?.get(),
+       datasets: <DatasetObject[]>this.datasets?.get(),
+       transform: this.transform?.get(),
+@@ -159,22 +117,46 @@ export class Sequence {
+       sequence: this.sequence.map((d) => d.get()),
+       config: this.config?.get()
+     };
++  }
+ 
+-    return g;
++  toSpec(): SequenceStreamSpec {
++    const o: any = {
++      title: this._title,
++      skipTitle: this._skipTitle,
++      description: this._description,
++      skipDescription: this._skipDescription,
++      skipLength: this._skipLength,
++      name: this._name,
++      data: this.data?.toSpec(),
++      datasets: nonEmpty(this.datasets?.toSpec()),
++      transform: nonEmpty(this.transform?.get()),
++      sequence: this.sequence.map((s) => s instanceof Overlay ? s.toInSeqSpec() : s.toUnitSpec()),
++      tick: nonEmpty(this.tick?.get()),
++      sampling: nonEmpty(this.sampling?.get()),
++      synth: nonEmpty(this.synth?.get()),
++      wave: nonEmpty(this.wave?.get()),
++      config: this.config?.get()
++    };
++    return dropUndefined(o);
+   }
+ 
+-  clone() {
+-    let _c = new Sequence();
++  clone(): Sequence {
++    const _c = new Sequence();
+     _c._name = this._name;
+     _c._title = this._title;
+     _c._description = this._description;
++    _c._skipTitle = this._skipTitle;
++    _c._skipDescription = this._skipDescription;
++    _c._skipLength = this._skipLength;
+     _c.data = this.data?.clone();
+     _c.datasets = this.datasets?.clone();
+     _c.transform = this.transform?.clone();
+     _c.synth = this.synth?.clone();
+     _c.sampling = this.sampling?.clone();
+     _c.wave = this.wave?.clone();
++    _c.tick = this.tick?.clone();
+     _c.sequence = this.sequence.map((d) => d.clone());
+     _c.config = this.config?.clone();
++    return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-stream.ts b/src/classes/erie-stream.ts
+index 169ee2c..73e663e 100644
+--- a/src/classes/erie-stream.ts
++++ b/src/classes/erie-stream.ts
+@@ -42,7 +42,15 @@ import {
+   REPEAT_chn,
+   MODULATION_chn,
+   HARMONICITY_chn,
+-  DETUNE_chn
++  DETUNE_chn,
++  ChannelSpec,
++  ConfigInterface,
++  DataSpec,
++  NotifySpec,
++  SingleStreamSpec,
++  StreamingDataSpec,
++  StreamingSpec,
++  UnitStreamSpec
+ } from "../types";
+ import { TickList } from "./erie-tick";
+ import { Channel } from "./erie-channel";
+@@ -50,11 +58,83 @@ import { StreamObject } from "../types/api/stream";
+ import { DatasetObject } from "../types/api/data";
+ import { intNotify, Notify } from "./erie-notify";
+ import { Playback } from "./erie-playback";
++import { deepcopy } from "../util";
++
++export function defaultEncoding(): { [key: string]: Channel } {
++  return {
++    [TIME_chn]: new TimeChannel(),
++    [TIME2_chn]: new Time2Channel(),
++    [DUR_chn]: new DurationChannel(),
++    [TAPCNT_chn]: new TapCountChannel(),
++    [TAPSPD_chn]: new TapSpeedChannel(),
++    [POST_REVERB_chn]: new PostReverbChannel(),
++    [PITCH_chn]: new PitchChannel(),
++    [DETUNE_chn]: new DetuneChannel(),
++    [LOUDNESS_chn]: new LoudnessChannel(),
++    [PAN_chn]: new PanChannel(),
++    [SPEECH_BEFORE_chn]: new SpeechBeforeChannel(),
++    [SPEECH_AFTER_chn]: new SpeechAfterChannel(),
++    [TIMBRE_chn]: new TimbreChannel(),
++    [REPEAT_chn]: new RepeatChannel(),
++    [MODULATION_chn]: new ModulationChannel(),
++    [HARMONICITY_chn]: new HarmonicityChannel()
++  };
++}
++
++/** Shared-resource containers that Overlay/Sequence hoist from their children. */
++export interface ResourceHolder {
++  datasets?: Datasets;
++  tick?: TickList;
++  sampling?: Sampling;
++  synth?: Synth;
++  wave?: Wave;
++}
++
++/**
++ * Moves datasets/ticks/samplings/synths/waves from `child` into `parent`
++ * (deduplicated by name) and removes them from the child.
++ */
++export function hoistSharedResources(parent: ResourceHolder, child: ResourceHolder) {
++  child.datasets?.datasets.forEach((d) => parent.datasets?.add(d));
++  const pushUnique = <T extends { _name: string }>(target: T[] | undefined, src: T[] | undefined) => {
++    if (!target || !src) return;
++    for (const item of src) {
++      const i = target.findIndex((t) => t._name === item._name);
++      if (i >= 0) target[i] = item; else target.push(item);
++    }
++  };
++  pushUnique(parent.tick?.tick, child.tick?.tick);
++  pushUnique(parent.sampling?.sampling, child.sampling?.sampling);
++  pushUnique(parent.synth?.synth, child.synth?.synth);
++  pushUnique(parent.wave?.wave, child.wave?.wave);
++  delete child.datasets;
++  delete child.tick;
++  delete child.sampling;
++  delete child.synth;
++  delete child.wave;
++}
++
++/** Only the keys that differ from `new Config()` (for nested unit streams). */
++export function configOverrides(c?: Config): ConfigInterface | undefined {
++  if (!c) return undefined;
++  const base = new Config().get(), cur = c.get();
++  const diff: ConfigInterface = {};
++  for (const k of Object.keys(cur)) {
++    if (JSON.stringify(cur[k]) !== JSON.stringify(base[k])) diff[k] = cur[k];
++  }
++  return Object.keys(diff).length ? diff : undefined;
++}
++
++export function nonEmpty<T>(a?: T[]): T[] | undefined {
++  return a && a.length > 0 ? a : undefined;
++}
+ 
+ export class Stream {
+   _name?: string;
+   _title?: string;
+   _description?: string;
++  _skipTitle?: boolean;
++  _skipDescription?: boolean;
+   data: Data;
+   datasets?: Datasets;
+   transform?: Transform;
+@@ -77,24 +157,7 @@ export class Stream {
+     this.wave = new Wave();
+     this.tone = new Tone();
+     this.tick = new TickList();
+-    this.encoding = {
+-      [TIME_chn]: new TimeChannel(),
+-      [TIME2_chn]: new Time2Channel(),
+-      [DUR_chn]: new DurationChannel(),
+-      [TAPCNT_chn]: new TapCountChannel(),
+-      [TAPSPD_chn]: new TapSpeedChannel(),
+-      [POST_REVERB_chn]: new PostReverbChannel(),
+-      [PITCH_chn]: new PitchChannel(),
+-      [DETUNE_chn]: new DetuneChannel(),
+-      [LOUDNESS_chn]: new LoudnessChannel(),
+-      [PAN_chn]: new PanChannel(),
+-      [SPEECH_BEFORE_chn]: new SpeechBeforeChannel(),
+-      [SPEECH_AFTER_chn]: new SpeechAfterChannel(),
+-      [TIMBRE_chn]: new TimbreChannel(),
+-      [REPEAT_chn]: new RepeatChannel(),
+-      [MODULATION_chn]: new ModulationChannel(),
+-      [HARMONICITY_chn]: new HarmonicityChannel()
+-    };
++    this.encoding = defaultEncoding();
+     this.config = new Config();
+     this.notify = intNotify();
+     this.playback = new Playback();
+@@ -115,56 +178,149 @@ export class Stream {
+     return this;
+   }
+ 
++  skipTitle(v: boolean) {
++    this._skipTitle = v;
++    return this;
++  }
++
++  skipDescription(v: boolean) {
++    this._skipDescription = v;
++    return this;
++  }
++
++  /** Register a custom channel (SingleStreamSpec.encoding is intentionally open). */
++  addChannel(name: string, c: Channel) {
++    c._channel = name;
++    this.encoding[name] = c;
++    return this;
++  }
++
++  isStreaming() {
++    return this.data.type === 'streaming';
++  }
++
+   get(): StreamObject {
+-    let g: StreamObject = {
++    const g: StreamObject = {
+       name: this._name,
+       title: this._title,
+       description: this._description,
+-      data: this.data?.get(),
++      skipTitle: this._skipTitle,
++      skipDescription: this._skipDescription,
++      data: this.data.get(),
+       datasets: <DatasetObject[]>this.datasets?.get(),
+       transform: this.transform?.get(),
+       tick: this.tick?.get(),
+       synth: this.synth?.get(),
+       sampling: this.sampling?.get(),
+       wave: this.wave?.get(),
+-      tone: this.tone?.get(),
++      tone: this.tone.get(),
+       encoding: {},
+-      config: this.config?.get()
++      config: this.config?.get(),
++      playback: this.playback?.get(),
++      notify: this.notifySpec()
++    };
++    for (const chn of Object.keys(this.encoding)) {
++      if (this.encoding[chn].defined) g.encoding[chn] = this.encoding[chn].get();
+     }
+-    Object.keys(this.encoding).forEach((chn) => {
+-      if (this.encoding[chn].defined) {
+-        g.encoding[chn] = this.encoding[chn].get();
+-      }
+-    });
+-
+     return g;
+   }
+ 
++  private notifySpec(): NotifySpec | undefined {
++    if (!this.notify) return undefined;
++    const o: NotifySpec = {};
++    for (const [k, n] of Object.entries(this.notify)) {
++      const v = n.get();
++      if (v !== undefined) o[k] = v;
++    }
++    return Object.keys(o).length ? o : undefined;
++  }
++
++  encodingSpec(): { [key: string]: ChannelSpec } {
++    const enc: { [key: string]: ChannelSpec } = {};
++    for (const chn of Object.keys(this.encoding)) {
++      if (this.encoding[chn].defined) enc[chn] = this.encoding[chn].toSpec();
++    }
++    return enc;
++  }
++
++  /** As a child of an Overlay/Sequence (`UnitStreamSpec`). */
++  toUnitSpec(): UnitStreamSpec {
++    const o: any = {
++      title: this._title,
++      description: this._description,
++      name: this._name,
++      data: this.data.toSpec(),
++      transform: nonEmpty(this.transform?.get()),
++      tone: this.tone.get(),
++      encoding: this.encodingSpec(),
++      config: configOverrides(this.config)
++    };
++    return dropUndefined(o);
++  }
++
++  /**
++   * Declarative top-level spec that `compileAudioGraph` accepts.
++   * Unlike `get()`, this emits the public spec shape (`DataSpec`, `ChannelSpec`, ...).
++   */
++  toSpec(): SingleStreamSpec | StreamingSpec {
++    const data = this.data.toSpec();
++    if (data === undefined) throw new Error("Stream data is not set.");
++    const o: any = {
++      title: this._title,
++      description: this._description,
++      name: this._name,
++      skipTitle: this._skipTitle,
++      skipDescription: this._skipDescription,
++      data: data as DataSpec | StreamingDataSpec,
++      datasets: nonEmpty(this.datasets?.toSpec()),
++      transform: nonEmpty(this.transform?.get()),
++      tone: this.tone.get(),
++      encoding: this.encodingSpec(),
++      tick: nonEmpty(this.tick?.get()),
++      synth: nonEmpty(this.synth?.get()),
++      sampling: nonEmpty(this.sampling?.get()),
++      wave: nonEmpty(this.wave?.get()),
++      config: this.config?.get()
++    };
++    if (this.isStreaming()) {
++      o.playback = this.playback?.get();
++      o.notify = this.notifySpec();
++    }
++    return dropUndefined(o);
++  }
++
+   clone(): Stream {
+-    let _c = new Stream();
++    const _c = new Stream();
+     _c._name = this._name;
+     _c._title = this._title;
+     _c._description = this._description;
++    _c._skipTitle = this._skipTitle;
++    _c._skipDescription = this._skipDescription;
+     _c.data = this.data.clone();
+     _c.datasets = this.datasets?.clone();
+     _c.transform = this.transform?.clone();
+     _c.synth = this.synth?.clone();
+     _c.sampling = this.sampling?.clone();
+     _c.wave = this.wave?.clone();
++    _c.tick = this.tick?.clone();
+     _c.tone = this.tone.clone();
+     _c.playback = this.playback?.clone();
+-    _c.notify = Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+-      if (this.notify?.[curr]) acc[curr] = this.notify?.[curr];
+-      return acc;
+-    }, {} as { [key: string]: Notify })
++    _c.notify = this.notify
++      ? Object.fromEntries(Object.entries(this.notify).map(([k, n]) => [k, n.clone()]))
++      : undefined;
++    // keep every channel (defined or not) so the clone stays fully editable
+     _c.encoding = {};
+-    Object.keys(this.encoding).forEach((chn) => {
+-      if (this.encoding[chn].defined) {
+-        _c.encoding[chn] = this.encoding[chn].clone();
+-      }
+-    });
++    for (const chn of Object.keys(this.encoding)) {
++      _c.encoding[chn] = this.encoding[chn].clone();
++    }
+     _c.config = this.config?.clone();
+-
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
++
++export function dropUndefined<T extends object>(o: T): T {
++  for (const k of Object.keys(o) as (keyof T)[]) {
++    if (o[k] === undefined) delete o[k];
++  }
++  return deepcopy(o);
++}
+diff --git a/src/classes/erie-synth.ts b/src/classes/erie-synth.ts
+index cd52a6c..6388505 100644
+--- a/src/classes/erie-synth.ts
++++ b/src/classes/erie-synth.ts
+@@ -24,6 +24,7 @@ export class SynthTone {
+   _decayTime: number;
+ 
+   constructor(name: string) {
++    if (!name) throw new Error('A synth tone must have a name.');
+     this._name = name;
+     this._type = 'FM';
+     this._carrierType = 'sine';
+@@ -47,6 +48,7 @@ export class SynthTone {
+   }
+ 
+   type(t: SynthType) {
++    if (t !== AM && t !== FM) throw new TypeError(`Unsupported synth type: ${t}`);
+     this._type = t;
+     return this;
+   }
+@@ -69,7 +71,7 @@ export class SynthTone {
+     if (p >= -1200 && p <= 1200) {
+       this._carrierDetune = p;
+     } else {
+-      throw new TypeError(`The carreir detune of a synth tone must be between -1200 and 1200.`);
++      throw new TypeError(`The carrier detune of a synth tone must be between -1200 and 1200.`);
+     }
+     return this;
+   }
+@@ -83,7 +85,7 @@ export class SynthTone {
+     if (p >= 0) {
+       this._modulatorPitch = p;
+     } else {
+-      throw new TypeError(`The modulator volume of a synth tone must be equal to or greater than 0.`);
++      throw new TypeError(`The modulator pitch of a synth tone must be equal to or greater than 0.`);
+     }
+     return this;
+   }
+@@ -99,12 +101,12 @@ export class SynthTone {
+ 
+   modulation(p: number) {
+     if (this._type === AM) {
+-      console.warn('Moudlation index for an AM synth will be ignored.')
++      console.warn('Modulation index for an AM synth will be ignored.')
+     }
+     if (p > 0) {
+       this._modulation = p;
+     } else {
+-      throw new TypeError(`The moudlation index of a synth tone must be Number and greater than 0.`);
++      throw new TypeError(`The modulation index of a synth tone must be Number and greater than 0.`);
+     }
+ 
+     return this;
+@@ -124,10 +126,11 @@ export class SynthTone {
+   }
+ 
+   attackTime(p: number) {
+-    if (p > 0) {
++    // default is 0, so 0 must be an accepted value
++    if (typeof p === 'number' && p >= 0) {
+       this._attackTime = p;
+     } else {
+-      throw new TypeError(`The attack time of a synth tone must be Number and greater than 0.`);
++      throw new TypeError(`The attack time of a synth tone must be equal to or greater than 0.`);
+     }
+ 
+     return this;
+@@ -143,6 +146,33 @@ export class SynthTone {
+     return this;
+   }
+ 
++  carrierVolume(p: number) {
++    if (typeof p === 'number' && p >= 0) {
++      this._carrierVolume = p;
++    } else {
++      throw new TypeError(`The carrier volume of a synth tone must be equal to or greater than 0.`);
++    }
++    return this;
++  }
++
++  sustain(p: number) {
++    if (typeof p === 'number' && p >= 0 && p <= 1) {
++      this._sustain = p;
++    } else {
++      throw new TypeError(`The sustain level of a synth tone must be between 0 and 1.`);
++    }
++    return this;
++  }
++
++  decayTime(p: number) {
++    if (typeof p === 'number' && p >= 0) {
++      this._decayTime = p;
++    } else {
++      throw new TypeError(`The decay time of a synth tone must be equal to or greater than 0.`);
++    }
++    return this;
++  }
++
+   get(): SynthObject {
+     return {
+       name: this._name,
+diff --git a/src/classes/erie-tick.ts b/src/classes/erie-tick.ts
+index 00bcef7..bd80303 100644
+--- a/src/classes/erie-tick.ts
++++ b/src/classes/erie-tick.ts
+@@ -1,21 +1,25 @@
+ import {
+   OscType,
++  OscTypes,
+   TickObject
+ } from "../types";
+ 
+ export class Tick {
+   _name: string;
+   _interval: number;
++  _band?: number;
+   _playAtTime0: boolean;
+   _oscType: OscType;
+   _pitch: number;
+   _loudness: number;
++  _description?: string;
++  // TickSpec also allows a sampled instrument instead of an oscillator
++  _sample?: string;
++  _instrument?: string;
+ 
+   constructor(name: string) {
+-    if (name) this._name = name;
+-    else {
+-      throw new Error('A tick definition must have a name.')
+-    }
++    if (!name) throw new Error('A tick definition must have a name.');
++    this._name = name;
+     this._interval = 0.5;
+     this._playAtTime0 = true;
+     this._oscType = 'sine';
+@@ -29,12 +33,14 @@ export class Tick {
+   }
+ 
+   interval(t: number) {
+-    if (t > 0) {
+-      this._interval = t;
+-    } else {
+-      throw new TypeError('A tick interval must be greater than 0.');
+-    }
++    if (t > 0) this._interval = t;
++    else throw new TypeError('A tick interval must be greater than 0.');
++    return this;
++  }
+ 
++  band(t: number) {
++    if (t > 0) this._band = t;
++    else throw new TypeError('A tick band must be greater than 0.');
+     return this;
+   }
+ 
+@@ -44,53 +50,69 @@ export class Tick {
+   }
+ 
+   oscType(t: OscType) {
++    if (!OscTypes.includes(t)) throw new TypeError(`Unsupported oscillator type: ${t}`);
+     this._oscType = t;
+     return this;
+   }
+ 
+   pitch(t: number) {
+-    if (t > 0) {
+-      this._pitch = t;
+-    } else {
+-      throw new TypeError('A tick pitch must be greater than 0.');
+-    }
++    if (t > 0) this._pitch = t;
++    else throw new TypeError('A tick pitch must be greater than 0.');
+     return this;
+   }
+ 
+   loudness(t: number) {
+-    if (t >= 0 && t <= 1) {
+-      this._loudness = t;
+-    } else {
+-      throw new TypeError('A tick loudness must be between 0 and 1.');
+-    }
++    if (t >= 0 && t <= 1) this._loudness = t;
++    else throw new TypeError('A tick loudness must be between 0 and 1.');
++    return this;
++  }
++
++  description(d: string) {
++    this._description = d;
++    return this;
++  }
+ 
++  sample(s: string) {
++    this._sample = s;
++    return this;
++  }
++
++  instrument(s: string) {
++    this._instrument = s;
+     return this;
+   }
+ 
+   get(): TickObject {
+-    return {
++    const o: TickObject = {
+       name: this._name,
+       interval: this._interval,
+       playAtTime0: this._playAtTime0,
+       oscType: this._oscType,
+       pitch: this._pitch,
+       loudness: this._loudness
+-    }
++    };
++    if (this._band !== undefined) o.band = this._band;
++    if (this._description !== undefined) o.description = this._description;
++    if (this._sample !== undefined) o.sample = this._sample;
++    if (this._instrument !== undefined) o.instrument = this._instrument;
++    return o;
+   }
+ 
+   clone(): Tick {
+-    let _c = new Tick(this._name);
+-    _c.interval(this._interval);
+-    _c.pitch(this._pitch);
+-    _c.oscType(this._oscType);
+-    _c.pitch(this._pitch);
+-    _c.loudness(this._loudness);
++    const _c = new Tick(this._name);
++    _c._interval = this._interval;
++    _c._band = this._band;
++    _c._playAtTime0 = this._playAtTime0;
++    _c._oscType = this._oscType;
++    _c._pitch = this._pitch;
++    _c._loudness = this._loudness;
++    _c._description = this._description;
++    _c._sample = this._sample;
++    _c._instrument = this._instrument;
+     return _c;
+   }
+ }
+ 
+-
+-
+ export class TickList {
+   tick: Tick[];
+   constructor() {
+@@ -107,9 +129,8 @@ export class TickList {
+   }
+ 
+   clone(): TickList {
+-    let _c = new TickList();
++    const _c = new TickList();
+     _c.tick = this.tick.map((d) => d.clone());
+-
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-tone.ts b/src/classes/erie-tone.ts
+index 13dbb72..6e8955c 100644
+--- a/src/classes/erie-tone.ts
++++ b/src/classes/erie-tone.ts
+@@ -7,19 +7,22 @@ import {
+ import { WaveTone } from "./erie-wave";
+ import { ToneObject } from "../types";
+ 
+-
+ export class Tone {
+   _type: string;
+   _continued: boolean;
+-  _filter: any[];
++  _filter: string[];
++  // fields from ToneSpec that were previously unreachable from the class API
++  _hasBaseTone?: boolean;
++  _sustain?: boolean;
++  _baseToneAsTick?: boolean | string;
++  _tickInterval?: number;
+ 
+-  constructor(type?: string, c?: boolean) {
++  constructor(type?: string | SampledTone | SynthTone | WaveTone, c?: boolean) {
+     this._type = 'default';
+-    if (type) this.set(type);
+     this._continued = false;
+-    if (c !== undefined) this.continued(c);
+-
+     this._filter = [];
++    if (type) this.set(type);
++    if (c !== undefined) this.continued(c);
+   }
+ 
+   set(t: SampledTone | SynthTone | WaveTone | string) {
+@@ -28,6 +31,7 @@ export class Tone {
+     } else {
+       this._type = t._name;
+     }
++    return this;
+   }
+ 
+   type(t: string) {
+@@ -42,24 +46,61 @@ export class Tone {
+ 
+   addFilter(t: string | string[]) {
+     if (isInstanceOf(t, String)) {
+-      this._filter.push(t);
++      this._filter.push(t as string);
+     } else if (isArrayOf(t, String)) {
+-      this._filter.push(...t);
++      this._filter.push(...(t as string[]));
++    } else {
++      throw new TypeError("A tone filter must be a String or an Array of Strings.");
+     }
+     return this;
+   }
+ 
++  removeFilter(name: string) {
++    this._filter = this._filter.filter((f) => f !== name);
++    return this;
++  }
++
++  hasBaseTone(v: boolean) {
++    this._hasBaseTone = v;
++    return this;
++  }
++
++  sustain(v: boolean) {
++    this._sustain = v;
++    return this;
++  }
++
++  baseToneAsTick(v: boolean | string) {
++    this._baseToneAsTick = v;
++    return this;
++  }
++
++  tickInterval(v: number) {
++    if (!(typeof v === 'number' && v > 0)) throw new TypeError("Tone 'tickInterval' must be greater than 0.");
++    this._tickInterval = v;
++    return this;
++  }
++
+   get(): ToneObject {
+-    return {
++    const o: ToneObject = {
+       type: this._type,
+       continued: this._continued,
+       filter: [...this._filter]
+     };
++    if (this._hasBaseTone !== undefined) o.hasBaseTone = this._hasBaseTone;
++    if (this._sustain !== undefined) o.sustain = this._sustain;
++    if (this._baseToneAsTick !== undefined) o.baseToneAsTick = this._baseToneAsTick;
++    if (this._tickInterval !== undefined) o.tickInterval = this._tickInterval;
++    return o;
+   }
+ 
+   clone(): Tone {
+-    let _c = new Tone(this._type, this._continued);
+-    _c.addFilter(this._filter);
++    const _c = new Tone(this._type, this._continued);
++    _c._filter = [...this._filter];
++    _c._hasBaseTone = this._hasBaseTone;
++    _c._sustain = this._sustain;
++    _c._baseToneAsTick = this._baseToneAsTick;
++    _c._tickInterval = this._tickInterval;
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-transform-aggregate.ts b/src/classes/erie-transform-aggregate.ts
+index a35164e..eb470c9 100644
+--- a/src/classes/erie-transform-aggregate.ts
++++ b/src/classes/erie-transform-aggregate.ts
+@@ -2,30 +2,33 @@ import {
+   AggOpType,
+   AggregateItem,
+   AggregateObject,
++  GroupbyType,
+   DoubleOps,
+   QUANTILE,
+   SingleOps,
+   ZeroOPs
+ } from "../types";
+ import { deepcopy } from "../util";
++import { parseGroupby } from "./erie-util";
+ 
+ export class Aggregate {
+   aggregate: AggregateItem[];
+-  _groupby: string[];
++  _groupby: GroupbyType;
+ 
+   constructor() {
+     this.aggregate = [];
+     this._groupby = [];
+   }
+ 
+-  add(op: AggOpType, field: string | string[], as: string, p?: any) {
++  add(op: AggOpType, field?: string | string[], as?: string, p?: number) {
+     if (ZeroOPs.includes(op)) {
+-      if (field?.constructor.name !== 'String') {
++      // zero-field ops (e.g., count) only need an output name.
++      // Accept both add('count', 'n') (legacy) and add('count', undefined, 'n').
++      const name = as ?? field;
++      if (typeof name !== 'string') {
+         throw new Error('"as" is not provided.')
+       }
+-      this.aggregate.push({
+-        op, as: <string>field
+-      });
++      this.aggregate.push({ op, as: name });
+     } else if (SingleOps.includes(op)) {
+       if (field === undefined || field?.constructor.name !== 'String') {
+         throw new Error('"field" is not properly provided.')
+@@ -37,6 +40,8 @@ export class Aggregate {
+         if (p === undefined) {
+           console.warn('p is not provided, so is set as 0.5.')
+           p = 0.5;
++        } else if (!(p >= 0 && p <= 1)) {
++          throw new RangeError('"p" for a quantile aggregate must be between 0 and 1.');
+         }
+         this.aggregate.push({
+           op, field, as, p
+@@ -50,7 +55,7 @@ export class Aggregate {
+       if (field === undefined ||
+         field?.constructor.name !== 'Array' ||
+         field?.length != 2 ||
+-        !(<Array<any>>field).every(f => f?.constructor.name !== 'String')) {
++        !(<Array<any>>field).every(f => typeof f === 'string')) {
+         throw new Error('"field" is not properly provided.')
+       }
+       if (as === undefined || as?.constructor.name !== 'String') {
+@@ -66,17 +71,13 @@ export class Aggregate {
+     return this;
+   }
+ 
+-  groupby(...args: any) {
++  groupby(...args: any[]) {
+     // this function resets groupby
+-    if (args.length == 1 &&
+-      args[0].constructor.name === 'Array' &&
+-      args[0].every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args[0]];
+-    } else if (args.length >= 1 &&
+-      args.every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args];
++    const g = parseGroupby(args);
++    if (g === undefined) {
++      throw new TypeError("Aggregate 'groupby' must be field name(s) or 'auto'.");
+     }
+-
++    this._groupby = g;
+     return this;
+   }
+ 
+diff --git a/src/classes/erie-transform-bin.ts b/src/classes/erie-transform-bin.ts
+index bf2b577..068119c 100644
+--- a/src/classes/erie-transform-bin.ts
++++ b/src/classes/erie-transform-bin.ts
+@@ -34,22 +34,26 @@ export class Bin {
+   }
+ 
+   maxbins(v: number) {
+-    if (Math.round(v) == v) {
++    if (Number.isInteger(v) && v > 0) {
+       this._maxbins = v;
+     } else {
+-      throw new TypeError("Bin 'maxbins' should be an integer.");
++      throw new TypeError("Bin 'maxbins' should be a positive integer.");
+     }
+ 
+     return this;
+   }
+ 
+   step(v: number) {
++    if (!(typeof v === 'number' && v > 0)) throw new TypeError("Bin 'step' should be a positive number.");
+     this._step = v;
+     return this;
+   }
+ 
+   exact(v: number[]) {
+-    this._exact = v;
++    if (!(Array.isArray(v) && v.length >= 2 && v.every((d) => typeof d === 'number'))) {
++      throw new TypeError("Bin 'exact' should be an Array of at least two Numbers.");
++    }
++    this._exact = [...v].sort((a, b) => a - b);
+ 
+     return this;
+   }
+diff --git a/src/classes/erie-transform-boxplot.ts b/src/classes/erie-transform-boxplot.ts
+index 66537bf..ee86476 100644
+--- a/src/classes/erie-transform-boxplot.ts
++++ b/src/classes/erie-transform-boxplot.ts
+@@ -1,16 +1,15 @@
+-import { BoxplotSpec } from "../types";
+-import { deepcopy } from "../util";
++import { BoxplotSpec, GroupbyType } from "../types";
++import { copyGroupby, parseGroupby } from "./erie-util";
+ 
+ export class Boxplot {
+   _boxplot: string;
+-  _extent?: number | 'min-max'
++  _extent?: number | 'min-max';
+   _invalid?: 'filter' | undefined;
+-
+-  _groupby?: string[];
++  _groupby?: GroupbyType;
+ 
+   constructor(c: string, extent?: number | 'min-max', invalid?: 'filter' | undefined) {
+     this._boxplot = c;
+-    this._extent = extent;
++    if (extent !== undefined) this.extent(extent);
+     this._invalid = invalid;
+   }
+ 
+@@ -20,7 +19,11 @@ export class Boxplot {
+   }
+ 
+   extent(t: number | 'min-max') {
+-    this._extent = t;
++    if (t === 'min-max' || (typeof t === 'number' && t >= 0)) {
++      this._extent = t;
++    } else {
++      throw new TypeError("Boxplot 'extent' must be a non-negative number or 'min-max'.");
++    }
+     return this;
+   }
+ 
+@@ -29,17 +32,10 @@ export class Boxplot {
+     return this;
+   }
+ 
+-  groupby(...args: any) {
+-    // this function resets groupby
+-    if (args.length == 1 &&
+-      args[0].constructor.name === 'Array' &&
+-      args[0].every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args[0]];
+-    } else if (args.length >= 1 &&
+-      args.every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args];
+-    }
+-
++  groupby(...args: any[]) {
++    const g = parseGroupby(args);
++    if (g === undefined) throw new TypeError("Boxplot 'groupby' must be field name(s) or 'auto'.");
++    this._groupby = g;
+     return this;
+   }
+ 
+@@ -48,13 +44,13 @@ export class Boxplot {
+       boxplot: this._boxplot,
+       extent: this._extent,
+       invalid: this._invalid,
+-      groupby: deepcopy(this._groupby)
++      groupby: copyGroupby(this._groupby)
+     };
+   }
+ 
+   clone(): Boxplot {
+-    let _c = new Boxplot(this._boxplot, this._extent, this._invalid);
+-    _c._groupby = this._groupby;
++    const _c = new Boxplot(this._boxplot, this._extent, this._invalid);
++    _c._groupby = copyGroupby(this._groupby);
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-transform-calculate.ts b/src/classes/erie-transform-calculate.ts
+index 18d5953..6c02eb0 100644
+--- a/src/classes/erie-transform-calculate.ts
++++ b/src/classes/erie-transform-calculate.ts
+@@ -1,8 +1,10 @@
+-import { CalculateObject } from "../types";
++import { CalculateObject, GroupbyType } from "../types";
++import { copyGroupby, parseGroupby } from "./erie-util";
+ 
+ export class Calculate {
+   _calculate: string;
+   _as: string;
++  _groupby?: GroupbyType;
+ 
+   constructor(c: string, a: string) {
+     this._calculate = c;
+@@ -11,7 +13,6 @@ export class Calculate {
+ 
+   calculate(c: string) {
+     this._calculate = c;
+-
+     return this;
+   }
+ 
+@@ -20,15 +21,23 @@ export class Calculate {
+     return this;
+   }
+ 
++  /** CalculateSpec.groupby — resets any previous grouping. */
++  groupby(...args: any[]) {
++    const g = parseGroupby(args);
++    if (g === undefined) throw new TypeError("Calculate 'groupby' must be field name(s) or 'auto'.");
++    this._groupby = g;
++    return this;
++  }
++
+   get(): CalculateObject {
+-    return {
+-      calculate: this._calculate,
+-      as: this._as
+-    };
++    const o: CalculateObject = { calculate: this._calculate, as: this._as };
++    if (this._groupby !== undefined) o.groupby = copyGroupby(this._groupby);
++    return o;
+   }
+ 
+   clone(): Calculate {
+-    let _c = new Calculate(this._calculate, this._as);
++    const _c = new Calculate(this._calculate, this._as);
++    _c._groupby = copyGroupby(this._groupby);
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-transform-density.ts b/src/classes/erie-transform-density.ts
+index 32da2ae..98e1d6c 100644
+--- a/src/classes/erie-transform-density.ts
++++ b/src/classes/erie-transform-density.ts
+@@ -1,4 +1,5 @@
+ import { DensityObject } from "../types";
++import { parseGroupby } from "./erie-util";
+ 
+ export class Density {
+   _density: string;
+@@ -30,7 +31,7 @@ export class Density {
+   }
+ 
+   extent(a: number[]) {
+-    if (a.length == 2) {
++    if (Array.isArray(a) && a.length == 2 && a.every((d) => typeof d === 'number') && a[0] <= a[1]) {
+       this._extent = [...a];
+     } else {
+       throw new TypeError("Density 'extent' should be an Array of two Numbers.");
+@@ -38,8 +39,12 @@ export class Density {
+ 
+     return this;
+   }
+-  groupby(g: string[]) {
+-    this._groupby = [...g];
++  groupby(...args: any[]) {
++    const g = parseGroupby(args);
++    if (g === undefined || g === 'auto') {
++      throw new TypeError("Density 'groupby' must be field name(s).");
++    }
++    this._groupby = g;
+     return this;
+   }
+ 
+diff --git a/src/classes/erie-transform-diffing.ts b/src/classes/erie-transform-diffing.ts
+index 2211d39..a9725a5 100644
+--- a/src/classes/erie-transform-diffing.ts
++++ b/src/classes/erie-transform-diffing.ts
+@@ -1,27 +1,31 @@
+-import { DiffingSpec } from "../types";
+-import { deepcopy } from "../util";
++import { DiffingSpec, GroupbyType } from "../types";
++import { copyGroupby, parseGroupby } from "./erie-util";
+ 
+ export class Diffing {
+   _diffing: string[];
+-  _carryOver?: boolean;
+-  _keepFirstAsZero?: boolean;
++  _carryOver: boolean;
++  _keepFirstAsZero: boolean;
+   _as?: string[];
+-  _groupby?: string[];
++  _groupby?: GroupbyType;
+ 
+-  constructor(c: string[], carryOver?: boolean, keepFirstAsZero?: boolean,  a?: string[]) {
+-    this._diffing = c;
+-    if (a) this._as = a;
++  constructor(c: string[], carryOver?: boolean, keepFirstAsZero?: boolean, a?: string[]) {
++    this._diffing = [...c];
+     this._carryOver = carryOver ?? true;
+     this._keepFirstAsZero = keepFirstAsZero ?? true;
++    if (a) this.as(a);
+   }
+ 
+   diffing(c: string[]) {
+-    this._diffing = c;
++    this._diffing = [...c];
+     return this;
+   }
+ 
++  /** `as` must name one output field per diffed field. */
+   as(c: string[]) {
+-    this._as = c;
++    if (!Array.isArray(c) || c.length !== this._diffing.length) {
++      throw new TypeError("Diffing 'as' must have the same length as 'diffing'.");
++    }
++    this._as = [...c];
+     return this;
+   }
+ 
+@@ -35,33 +39,26 @@ export class Diffing {
+     return this;
+   }
+ 
+-  groupby(...args: any) {
+-    // this function resets groupby
+-    if (args.length == 1 &&
+-      args[0].constructor.name === 'Array' &&
+-      args[0].every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args[0]];
+-    } else if (args.length >= 1 &&
+-      args.every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args];
+-    }
+-
++  groupby(...args: any[]) {
++    const g = parseGroupby(args);
++    if (g === undefined) throw new TypeError("Diffing 'groupby' must be field name(s) or 'auto'.");
++    this._groupby = g;
+     return this;
+   }
+ 
+   get(): DiffingSpec {
+     return {
+-      diffing: deepcopy(this._diffing),
+-      as: deepcopy(this._as),
++      diffing: [...this._diffing],
++      as: this._as ? [...this._as] : undefined,
+       carryOver: this._carryOver,
+       keepFirstAsZero: this._keepFirstAsZero,
+-      groupby: deepcopy(this._groupby)
++      groupby: copyGroupby(this._groupby)
+     };
+   }
+ 
+   clone(): Diffing {
+-    let _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
+-    _c._groupby = this._groupby;
++    const _c = new Diffing(this._diffing, this._carryOver, this._keepFirstAsZero, this._as);
++    _c._groupby = copyGroupby(this._groupby);
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-transform-fold.ts b/src/classes/erie-transform-fold.ts
+index 5cc68a1..4c6b9dd 100644
+--- a/src/classes/erie-transform-fold.ts
++++ b/src/classes/erie-transform-fold.ts
+@@ -1,5 +1,4 @@
+ import { FoldObject } from "../types";
+-import { deepcopy } from "../util";
+ 
+ export class Fold {
+   _fold: string[];
+@@ -8,7 +7,7 @@ export class Fold {
+   _as: [string, string];
+ 
+   constructor(f: string[], b: string) {
+-    this._fold = f;
++    this._fold = [...f];
+     this._by = b;
+     this._exclude = false;
+     this._as = ['key', 'value'];
+@@ -29,29 +28,28 @@ export class Fold {
+     return this;
+   }
+ 
+-  as(a: string[]) {
+-    if (a.length == 2) {
++  as(a: [string, string] | string[]) {
++    if (Array.isArray(a) && a.length === 2 && a.every((d) => typeof d === 'string')) {
+       this._as = [a[0], a[1]];
+     } else {
+-      throw new TypeError("Fold 'fold' should be an Array of two Strings.");
++      throw new TypeError("Fold 'as' should be an Array of two Strings.");
+     }
+-
+     return this;
+   }
+ 
+   get(): FoldObject {
+     return {
+-      fold: this._fold,
++      fold: [...this._fold],
+       by: this._by,
+       exclude: this._exclude,
+-      as: this._as
++      as: [this._as[0], this._as[1]]
+     };
+   }
+ 
+   clone(): Fold {
+-    let _c = new Fold(this._fold, this._by);
++    const _c = new Fold(this._fold, this._by);
+     _c._exclude = this._exclude;
+-    if (this._as) _c._as = deepcopy(this._as)
++    _c._as = [this._as[0], this._as[1]];
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-transform-quantile.ts b/src/classes/erie-transform-quantile.ts
+index 578af6a..e208062 100644
+--- a/src/classes/erie-transform-quantile.ts
++++ b/src/classes/erie-transform-quantile.ts
+@@ -1,21 +1,21 @@
+-import { DiffingSpec, QuantileSpec } from "../types";
+-import { deepcopy } from "../util";
++import { GroupbyType, QuantileSpec } from "../types";
++import { copyGroupby, parseGroupby } from "./erie-util";
+ 
+ export class Quantile {
+   _quantile: string;
+   _n?: number;
+   _step?: number;
+   _as?: [string, string];
+-  _groupby?: string[];
++  _groupby?: GroupbyType;
+ 
+   constructor(c: string, n?: number, step?: number, as?: [string, string]) {
+     this._quantile = c;
+-    this._n = n;
+-    this._step = (step && step > 0 && step < 1) ? step : undefined;
+-    if (this._n == undefined && this._step == undefined) {
+-      console.error("Must specify n or step. ")
++    if (n !== undefined) this.n(n);
++    if (step !== undefined) this.step(step);
++    if (this._n === undefined && this._step === undefined) {
++      console.warn("Quantile: neither 'n' nor 'step' is specified.");
+     }
+-    if (as && as.length == this._quantile.length) this._as = as;
++    if (as) this.as(as);
+   }
+ 
+   quantile(c: string) {
+@@ -23,57 +23,54 @@ export class Quantile {
+     return this;
+   }
+ 
++  /** QuantileSpec.as is a [probability, value] pair. */
+   as(c: [string, string]) {
+-    if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == this._quantile.length) {
+-      this._as = c;
++    if (Array.isArray(c) && c.length === 2 && c.every((d) => typeof d === 'string')) {
++      this._as = [c[0], c[1]];
+     } else {
+-      console.error("Wrong length/type for qunatile 'as'.")
++      throw new TypeError("Quantile 'as' must be an Array of two Strings.");
+     }
+-
+     return this;
+   }
+ 
+   n(t: number) {
+-    this._n = t;
++    if (Number.isInteger(t) && t > 0) {
++      this._n = t;
++    } else {
++      throw new TypeError("Quantile 'n' must be a positive integer.");
++    }
+     return this;
+   }
+ 
+   step(t: number) {
+-    if (t > 0 && t < 1) {
++    if (typeof t === 'number' && t > 0 && t < 1) {
+       this._step = t;
+     } else {
+-      console.error("Step value must be between 0 and 1 (exclusive).")
++      throw new TypeError("Quantile 'step' must be between 0 and 1 (exclusive).");
+     }
+     return this;
+   }
+ 
+-  groupby(...args: any) {
+-    // this function resets groupby
+-    if (args.length == 1 &&
+-      args[0].constructor.name === 'Array' &&
+-      args[0].every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args[0]];
+-    } else if (args.length >= 1 &&
+-      args.every((a: any) => a.constructor.name === 'String')) {
+-      this._groupby = [...args];
+-    }
+-
++  groupby(...args: any[]) {
++    const g = parseGroupby(args);
++    if (g === undefined) throw new TypeError("Quantile 'groupby' must be field name(s) or 'auto'.");
++    this._groupby = g;
+     return this;
+   }
+ 
+   get(): QuantileSpec {
+     return {
+       quantile: this._quantile,
+-      as: deepcopy(this._as),
++      as: this._as ? [this._as[0], this._as[1]] : undefined,
+       n: this._n,
+       step: this._step,
+-      groupby: deepcopy(this._groupby)
++      groupby: copyGroupby(this._groupby)
+     };
+   }
+ 
+   clone(): Quantile {
+-    let _c = new Quantile(this._quantile, this._n, this._step, this._as);
+-    _c._groupby = this._groupby;
++    const _c = new Quantile(this._quantile, this._n, this._step, this._as);
++    _c._groupby = copyGroupby(this._groupby);
+     return _c;
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/classes/erie-util.ts b/src/classes/erie-util.ts
+index 1a085b1..a529e32 100644
+--- a/src/classes/erie-util.ts
++++ b/src/classes/erie-util.ts
+@@ -1,5 +1,12 @@
++import { GroupbyAuto, GroupbyType } from "../types";
++
+ export function isInstanceOf(o: any, c: any): boolean {
+-  return o?.constructor == c;
++  if (o === null || o === undefined) return false;
++  // primitives: compare constructors (String, Number, Boolean)
++  if (typeof o !== 'object' && typeof o !== 'function') return o.constructor === c;
++  // plain-object check should accept null-prototype objects as well
++  if (c === Object) return Object.getPrototypeOf(o) === Object.prototype || Object.getPrototypeOf(o) === null;
++  return o instanceof c;
+ }
+ 
+ export function isInstanceOfByName(o: any, c: string): boolean {
+@@ -7,13 +14,33 @@ export function isInstanceOfByName(o: any, c: string): boolean {
+ }
+ 
+ export function isArrayOf(o: any, c: any): boolean {
+-  if (isInstanceOf(o, Array)) {
+-    if (isInstanceOf(c, Array)) {
+-      return o.every((d: any) => c.includes(d.constructor));
+-    } else {
+-      return o.every((d: any) => isInstanceOf(d, c));
+-    }
+-  } else {
+-    return false;
++  if (!Array.isArray(o)) return false;
++  if (Array.isArray(c)) return o.every((d: any) => c.some((cc: any) => isInstanceOf(d, cc)));
++  return o.every((d: any) => isInstanceOf(d, c));
++}
++
++/**
++ * Shared argument parser for `groupby(...)` across transform classes.
++ * Accepts: groupby('a', 'b'), groupby(['a', 'b']), groupby('auto').
++ * Returns undefined for invalid input so callers can decide how to fail.
++ */
++export function parseGroupby(args: any[]): GroupbyType | undefined {
++  if (args.length === 1 && args[0] === GroupbyAuto) return GroupbyAuto;
++  if (args.length === 1 && isArrayOf(args[0], String)) return [...args[0]];
++  if (args.length >= 1 && args.every((a) => typeof a === 'string')) return [...args];
++  return undefined;
++}
++
++export function copyGroupby(g?: GroupbyType): GroupbyType | undefined {
++  if (g === undefined) return undefined;
++  return Array.isArray(g) ? [...g] : g;
++}
++
++/** Remove keys whose value is `undefined` or `null` (shallow). */
++export function compact<T extends object>(o: T): T {
++  const out: any = {};
++  for (const [k, v] of Object.entries(o)) {
++    if (v !== undefined && v !== null) out[k] = v;
+   }
+-}
+\ No newline at end of file
++  return out;
++}
+diff --git a/src/classes/erie-wave.ts b/src/classes/erie-wave.ts
+index 331fb52..d1d2b8c 100644
+--- a/src/classes/erie-wave.ts
++++ b/src/classes/erie-wave.ts
+@@ -13,7 +13,7 @@ export class WaveTone {
+   constructor(name: string, defs?: WaveItem) {
+     this._name = name;
+     if (!name) {
+-      throw new Error('A sampled tone must have a name.')
++      throw new Error('A wave tone must have a name.')
+     }
+     this._disableNormalization = false;
+     this._real = [];
+@@ -29,22 +29,26 @@ export class WaveTone {
+   }
+ 
+   real(r: number[]) {
+-    this._real = r;
++    this._real = [...r];
+ 
+     return this;
+   }
+ 
+   imag(a: number[]) {
+-    this._imag = a;
++    this._imag = [...a];
+     return this;
+   }
+ 
+   wave(w: WaveItem) {
+-    if (w.real && w.imag) {
++    if (Array.isArray(w.real) && Array.isArray(w.imag)) {
++      if (w.real.length !== w.imag.length || w.real.length < 2) {
++        // createPeriodicWave throws IndexSizeError otherwise
++        throw new RangeError('"real" and "imag" must have the same length (>= 2).');
++      }
+       this.real(w.real);
+       this.imag(w.imag);
+     } else {
+-      throw new TypeError('The definition a periodic wave must consist of "real" (sine terms) and "imag" (cosine terms) properties.');
++      throw new TypeError('The definition a periodic wave must consist of "real" (cosine terms) and "imag" (sine terms) properties.');
+     }
+ 
+     return this;
+diff --git a/src/classes/index.ts b/src/classes/index.ts
+index c5907dd..45aadcf 100644
+--- a/src/classes/index.ts
++++ b/src/classes/index.ts
+@@ -3,7 +3,9 @@ export * from "./erie-channel";
+ export * from "./erie-channels";
+ export * from "./erie-config";
+ export * from "./erie-data";
++export * from "./erie-notify";
+ export * from "./erie-overlay";
++export * from "./erie-playback";
+ export * from "./erie-sampling";
+ export * from "./erie-sequence";
+ export * from "./erie-stream";
+@@ -12,10 +14,13 @@ export * from "./erie-tick";
+ export * from "./erie-tone";
+ export * from "./erie-transform-aggregate";
+ export * from "./erie-transform-bin";
++export * from "./erie-transform-boxplot";
+ export * from "./erie-transform-calculate";
+ export * from "./erie-transform-density";
++export * from "./erie-transform-diffing";
+ export * from "./erie-transform-filter";
+ export * from "./erie-transform-fold";
++export * from "./erie-transform-quantile";
+ export * from "./erie-transform";
+ export * from "./erie-util";
+-export * from "./erie-wave";
+\ No newline at end of file
++export * from "./erie-wave";
+diff --git a/src/types/api/channel.ts b/src/types/api/channel.ts
+index 21a399b..01c8bfe 100644
+--- a/src/types/api/channel.ts
++++ b/src/types/api/channel.ts
+@@ -4,7 +4,10 @@ import {
+   EncodingType,
+   FormatType,
+   RampType,
+-  ScaleType
++  ScaleType,
++  SortValues,
++  timeLevelValues,
++  timeUnitDomainDefs
+ } from "../object";
+ import { InlineBinType } from "../spec";
+ import { TickObject } from "./tick";
+@@ -13,7 +16,7 @@ import { TickObject } from "./tick";
+ export interface ChannelObject {
+   defined: boolean,
+   channel: string | undefined,
+-  field?: string | undefined,
++  field?: string | string[] | undefined,
+   type?: EncodingType | undefined,
+   ramp?: RampType | undefined,
+   aggregate?: AggOpType | undefined,
+@@ -25,5 +28,12 @@ export interface ChannelObject {
+   formatType?: FormatType | undefined,
+   speech?: boolean | undefined,
+   tick?: TickObject | string,
+-  roundToNote?: boolean
++  roundToNote?: boolean,
++  p?: number,
++  by?: string | string[],
++  sort?: SortValues,
++  timeUnit?: keyof typeof timeUnitDomainDefs,
++  timeUnitName?: string | string[] | number[],
++  timeLevel?: timeLevelValues,
++  sustain?: boolean
+ }
+\ No newline at end of file
+diff --git a/src/types/api/data.ts b/src/types/api/data.ts
+index 7e33d41..332535d 100644
+--- a/src/types/api/data.ts
++++ b/src/types/api/data.ts
+@@ -1,4 +1,4 @@
+-import { Datum } from "types/spec";
++import { Datum } from "../spec";
+ 
+ export interface DataObject {
+   type: string;
+diff --git a/src/types/api/stream.ts b/src/types/api/stream.ts
+index dc0e077..6042899 100644
+--- a/src/types/api/stream.ts
++++ b/src/types/api/stream.ts
+@@ -1,3 +1,4 @@
++import { NotifySpec, PlaybackSpec } from "../spec";
+ import { ConfigInterface } from "./config";
+ import { DataObject, DatasetObject } from "./data";
+ import { ChannelObject } from "./channel";
+@@ -14,6 +15,8 @@ export interface StreamObject {
+   name?: string;
+   title?: string;
+   description?: string;
++  skipTitle?: boolean;
++  skipDescription?: boolean;
+   data: DataObject;
+   datasets?: DatasetObject[];
+   transform?: TransformList;
+@@ -27,12 +30,19 @@ export interface StreamObject {
+   wave?: WaveObject[];
+ 
+   config?: ConfigInterface;
++
++  // streaming-only
++  playback?: PlaybackSpec;
++  notify?: NotifySpec;
+ }
+ 
+ export interface OverlayObject {
+   name?: string;
+   title?: string;
+   description?: string;
++  skipTitle?: boolean;
++  skipDescription?: boolean;
++  skipLength?: boolean;
+   data: DataObject;
+   datasets?: DatasetObject[];
+   transform?: TransformList;
+@@ -51,6 +61,9 @@ export interface SequenceObject {
+   name?: string;
+   title?: string;
+   description?: string;
++  skipTitle?: boolean;
++  skipDescription?: boolean;
++  skipLength?: boolean;
+   data: DataObject;
+   datasets?: DatasetObject[];
+   transform?: TransformList;
+diff --git a/src/types/api/tick.ts b/src/types/api/tick.ts
+index bead9e7..f7b8184 100644
+--- a/src/types/api/tick.ts
++++ b/src/types/api/tick.ts
+@@ -6,7 +6,9 @@ export interface TickObject {
+   band?: number,
+   playAtTime0?: boolean,
+   oscType?: OscType,
+-  pitch?: number
++  pitch?: number,
++  sample?: string,
++  instrument?: string,
+   loudness?: number,
+   description?: string
+ }
+diff --git a/src/types/object/time.ts b/src/types/object/time.ts
+index 8be5952..ee2553f 100644
+--- a/src/types/object/time.ts
++++ b/src/types/object/time.ts
+@@ -1,8 +1,8 @@
+ export const timeUnitDomainDefs = {
+-  monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
++  monthNumber: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+   monthNumber1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+   monthShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+-  monthLong: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
++  monthLong: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+   dayNumber: [0, 1, 2, 3, 4, 5, 6],
+   dayNumber1: [1, 2, 3, 4, 5, 6, 7],
+   dayNumberFromMon: [6, 0, 1, 2, 3, 4, 5],
+diff --git a/src/types/spec/transform/index.ts b/src/types/spec/transform/index.ts
+index 24d3bb0..7bea41f 100644
+--- a/src/types/spec/transform/index.ts
++++ b/src/types/spec/transform/index.ts
+@@ -7,4 +7,4 @@ export * from "./fold";
+ export * from "./boxplot";
+ export * from "./quantile";
+ export * from "./transform";
+-export * from "./diffing";
+\ No newline at end of file
++export * from "./diffing";export * from "./groupby";
+diff --git a/src/util/audio-graph-util.ts b/src/util/audio-graph-util.ts
+index a297081..5c6715a 100644
+--- a/src/util/audio-graph-util.ts
++++ b/src/util/audio-graph-util.ts
+@@ -3,6 +3,8 @@ export function unique(arr: any[]) {
+ }
+ 
+ export function deepcopy<T extends any>(i: T): T {
++  // JSON.stringify(undefined) returns undefined, which JSON.parse rejects
++  if (i === undefined) return i;
+   return JSON.parse(JSON.stringify(i));
+ }
+ 
+diff --git a/test/classes/channel.test.ts b/test/classes/channel.test.ts
+new file mode 100644
+index 0000000..68ce724
+--- /dev/null
++++ b/test/classes/channel.test.ts
+@@ -0,0 +1,216 @@
++import { describe, it, expect, vi, beforeEach } from "vitest";
++import {
++  Channel, PitchChannel, TimeChannel, TapSpeedChannel, RepeatChannel,
++  LoudnessChannel, PanChannel, DetuneChannel, Tick
++} from "../../src/classes";
++
++beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); });
++
++describe("Channel basics", () => {
++  it("field() marks the channel as defined", () => {
++    const c = new PitchChannel();
++    expect(c.defined).toBe(false);
++    c.field("price", "quantitative");
++    expect(c.defined).toBe(true);
++    expect(c.get()).toMatchObject({ field: "price", type: "quantitative", channel: "pitch" });
++  });
++
++  it("setters are chainable (ramp/format/formatType/removeCondition/resetCondition)", () => {
++    const c = new PitchChannel("x");
++    expect(c.ramp("exponential")).toBe(c);
++    expect(c.format(".2f")).toBe(c);
++    expect(c.formatType("number")).toBe(c);
++    expect(c.removeCondition(0)).toBe(c);
++    expect(c.resetCondition()).toBe(c);
++  });
++
++  it("ramp(boolean) maps to linear/abrupt", () => {
++    expect(new PitchChannel().ramp(false)._ramp).toBe("abrupt");
++    expect(new PitchChannel().ramp(true)._ramp).toBe("linear");
++  });
++
++  it("format and formatType are serialized (regression: dropped from get())", () => {
++    const c = new PitchChannel("d").format("%Y", "time");
++    expect(c.toSpec()).toMatchObject({ format: "%Y", formatType: "time" });
++  });
++
++  it("value() switches the channel to static and drops field/scale", () => {
++    const c = new LoudnessChannel("x", "quantitative").scale("domain", [0, 1]).value(0.5);
++    expect(c.toSpec()).toEqual({ type: "static", value: 0.5, ramp: "linear" });
++  });
++
++  it("value() validates per channel", () => {
++    expect(() => new PanChannel().value(2)).toThrow(TypeError);
++    expect(() => new DetuneChannel().value(-1300)).toThrow(TypeError);
++  });
++});
++
++describe("PitchChannel validator", () => {
++  it.each(["C4", "G4", "A#3", "Bb2", "g5"])("accepts note name %s", (n) => {
++    expect(new PitchChannel().validator(n)).toBe(true);
++  });
++  it.each(["H4", "C", "C10", 4000, -1])("rejects %s", (n) => {
++    expect(new PitchChannel().validator(n)).toBe(false);
++  });
++});
++
++describe("aggregate()", () => {
++  it("count drops the field", () => {
++    const c = new PitchChannel("x").aggregate("count");
++    expect(c._field).toBeUndefined();
++    expect(c._type).toBe("quantitative");
++  });
++  it("quantile defaults p to 0.5 and validates it", () => {
++    expect(new PitchChannel("x").aggregate("quantile")._p).toBe(0.5);
++    expect(() => new PitchChannel("x").aggregate("quantile", 2)).toThrow(RangeError);
++  });
++  it("two-field ops are rejected", () => {
++    expect(() => new PitchChannel("x").aggregate("corr" as any)).toThrow(TypeError);
++  });
++  it("unknown ops are rejected instead of silently ignored", () => {
++    expect(() => new PitchChannel("x").aggregate("nope" as any)).toThrow(TypeError);
++  });
++});
++
++describe("bin()", () => {
++  it.each([
++    [[true], true],
++    [[false], false],
++    [[[0, 5, 10]], { exact: [0, 5, 10] }],
++    [[20, true], { maxbins: 20, nice: true }],
++    [[undefined, false, 5], { nice: false, step: 5 }],
++  ])("bin(%j) -> %j", (args, expected) => {
++    expect(new PitchChannel("x").bin(...(args as any[]))._bin).toEqual(expected);
++  });
++  it("rejects bad arguments", () => {
++    expect(() => new PitchChannel("x").bin("10")).toThrow(TypeError);
++  });
++});
++
++describe("scale()", () => {
++  it("range and times are mutually exclusive", () => {
++    const c = new PitchChannel("x").scale("range", [200, 800]).scale("times", 2);
++    expect(c._scale.range).toBeUndefined();
++    expect(c._scale.times).toBe(2);
++  });
++  it("validates range values with the channel validator", () => {
++    expect(() => new PanChannel("x").scale("range", [-2, 2])).toThrow(TypeError);
++  });
++  it("singleTappingPosition is stored under its own key (regression: wrote to timing)", () => {
++    const c = new TapSpeedChannel("x").scale("singleTappingPosition", "middle");
++    expect(c._scale).toEqual({ singleTappingPosition: "middle" });
++  });
++  it("supports the remaining ScaleType keys (type/domainMin/rangeMax/...)", () => {
++    const c = new PitchChannel("x").scale("type", "log").scale("domainMin", 1).scale("rangeMax", 1000);
++    expect(c._scale).toMatchObject({ type: "log", domainMin: 1, rangeMax: 1000 });
++  });
++  it("time-only keys are rejected on other channels", () => {
++    expect(() => new PitchChannel("x").scale("length", 5)).toThrow();
++    expect(new TimeChannel("x").scale("length", 5)._scale.length).toBe(5);
++  });
++});
++
++describe("conditions", () => {
++  it("addConditions keeps falsy values like 0 (regression)", () => {
++    const c = new LoudnessChannel().addConditions([{ test: "datum.a > 1", value: 0 }]);
++    expect(c.getConditions()).toEqual([{ test: "datum.a > 1", value: 0 }]);
++  });
++  it("getConditions returns a copy", () => {
++    const c = new LoudnessChannel().addCondition("datum.a > 1", 1);
++    c.getConditions()![0].value = 0.2;
++    expect(c.getConditions()![0].value).toBe(1);
++  });
++  it("rejects invalid tests", () => {
++    expect(() => new LoudnessChannel().addCondition(42 as any, 1)).toThrow();
++  });
++});
++
++describe("time channel tick()", () => {
++  it("oscType is stored under oscType (regression: wrote to playAtTime0)", () => {
++    const c = new TimeChannel("t").tick("oscType", "square");
++    expect(c._tick).toEqual({ oscType: "square" });
++  });
++  it("supports band", () => {
++    expect(new TimeChannel("t").tick("band", 0.1)._tick).toEqual({ band: 0.1 });
++  });
++  it("accepts a Tick object by reference", () => {
++    expect(new TimeChannel("t").tick(new Tick("beat"))._tick).toEqual({ name: "beat" });
++  });
++  it("throws on non-time channels with an accurate message", () => {
++    expect(() => new PitchChannel("x").tick("interval", 1)).toThrow(/time channel/);
++  });
++  it("throws on invalid values instead of ignoring them", () => {
++    expect(() => new TimeChannel("t").tick("loudness", 3)).toThrow(TypeError);
++  });
++});
++
++describe("repeat channel", () => {
++  it("accepts an array field in the constructor (regression: _channel set too late)", () => {
++    expect(new RepeatChannel(["a", "b"])._field).toEqual(["a", "b"]);
++  });
++  it("speech() only works on repeat", () => {
++    expect(new RepeatChannel("a").speech(true).get().speech).toBe(true);
++    expect(() => new PitchChannel("a").speech(true)).toThrow();
++  });
++});
++
++describe("ChannelSpec parity setters", () => {
++  it("by/sort/timeUnit/timeLevel/sustain round-trip through toSpec()", () => {
++    const c = new TimeChannel("date", "temporal")
++      .by(["g"]).sort("descending").timeUnit("monthShort").timeLevel("month").sustain(true);
++    expect(c.toSpec()).toMatchObject({
++      by: ["g"], sort: "descending", timeUnit: "monthShort", timeLevel: "month", sustain: true
++    });
++  });
++  it("timeUnit rejects unknown units", () => {
++    expect(() => new TimeChannel("d").timeUnit("fortnight" as any)).toThrow(TypeError);
++  });
++});
++
++describe("set() and clone()", () => {
++  it("set() copies state without clobbering methods (regression)", () => {
++    const target = new PitchChannel();
++    target.set(new PitchChannel("price", "quantitative").scale("domain", [0, 10]));
++    expect(typeof target.field).toBe("function");
++    expect(target._field).toBe("price");
++    expect(target._scale.domain).toEqual([0, 10]);
++    expect(target._channel).toBe("pitch");
++  });
++
++  it("clone() keeps the concrete subclass and its validator", () => {
++    const c = new PanChannel("x").clone();
++    expect(c).toBeInstanceOf(PanChannel);
++    expect(() => c.value(5)).toThrow(TypeError);
++  });
++
++  it("clone() is deep", () => {
++    const a = new PitchChannel("x").scale("domain", [0, 1]);
++    const b = a.clone();
++    b._scale.domain!.push(2);
++    expect(a._scale.domain).toEqual([0, 1]);
++  });
++
++  it("toSpec() strips bookkeeping keys and empty scale", () => {
++    const spec = new PitchChannel("x", "quantitative").toSpec();
++    expect(spec).not.toHaveProperty("defined");
++    expect(spec).not.toHaveProperty("channel");
++    expect(spec).not.toHaveProperty("scale");
++  });
++});
++
++it("base Channel works for custom channels", () => {
++  const c = new Channel("x", "nominal", "myCustom");
++  expect(c.get().channel).toBe("myCustom");
++});
++
++import { timeUnitDomainDefs } from "../../src/types";
++describe("timeUnitDomainDefs", () => {
++  it("monthNumber has 12 entries (regression: had 11)", () => {
++    expect(timeUnitDomainDefs.monthNumber).toHaveLength(12);
++    expect(timeUnitDomainDefs.monthNumber1).toHaveLength(12);
++  });
++  it("monthLong uses long names (regression: duplicated monthShort)", () => {
++    expect(timeUnitDomainDefs.monthLong[0]).toBe("January");
++    expect(timeUnitDomainDefs.monthLong).not.toEqual(timeUnitDomainDefs.monthShort);
++  });
++});
+diff --git a/test/classes/composition.test.ts b/test/classes/composition.test.ts
+new file mode 100644
+index 0000000..0891835
+--- /dev/null
++++ b/test/classes/composition.test.ts
+@@ -0,0 +1,189 @@
++import { describe, it, expect, vi, beforeEach } from "vitest";
++import {
++  Stream, Overlay, Sequence, Dataset, Tick, SynthTone, Bin, Notify
++} from "../../src/classes";
++import * as Erie from "../../src";
++import { normalizeSpecification } from "../../src/normalize";
++
++beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); });
++
++const rows = [{ a: 1, b: 2 }, { a: 2, b: 5 }, { a: 3, b: 4 }];
++
++function basic(name = "s") {
++  const s = new Stream().name(name);
++  s.data.values(rows);
++  s.encoding.time.field("a", "ordinal");
++  s.encoding.pitch.field("b", "quantitative");
++  return s;
++}
++
++describe("exports", () => {
++  it.each(["Notify", "Playback", "Boxplot", "Quantile", "Diffing"])("%s is exported from the package root", (k) => {
++    expect(k in Erie).toBe(true);
++  });
++});
++
++describe("Stream", () => {
++  it("clone keeps undefined channels so the clone stays editable (regression)", () => {
++    const c = basic().clone();
++    expect(() => c.encoding.loudness.value(0.5)).not.toThrow();
++  });
++  it("clone keeps ticks (regression)", () => {
++    const s = basic();
++    s.tick!.add(new Tick("beat"));
++    expect(s.clone().tick!.get()).toHaveLength(1);
++  });
++  it("clone deep-copies notify", () => {
++    const s = basic();
++    s.notify!.next = new Notify().speech("next");
++    const c = s.clone();
++    c.notify!.next.speech("changed");
++    expect(s.notify!.next.get()).toMatchObject({ speech: "next" });
++  });
++  it("clone is independent of the original", () => {
++    const s = basic();
++    const c = s.clone();
++    c.encoding.pitch.field("a");
++    c.data.url("x.csv");
++    expect(s.encoding.pitch._field).toBe("b");
++    expect(s.data.type).toBe("values");
++  });
++  it("toSpec emits the declarative spec shape", () => {
++    expect(basic().title("T").toSpec()).toMatchObject({
++      name: "s",
++      title: "T",
++      data: { values: rows },
++      tone: { type: "default" },
++      encoding: {
++        time: { field: "a", type: "ordinal" },
++        pitch: { field: "b", type: "quantitative" }
++      }
++    });
++  });
++  it("toSpec only emits defined channels, without bookkeeping keys", () => {
++    const enc = basic().toSpec().encoding;
++    expect(Object.keys(enc).sort()).toEqual(["pitch", "time"]);
++    expect(enc.pitch).not.toHaveProperty("defined");
++  });
++  it("toSpec omits empty resource lists", () => {
++    const spec: any = basic().toSpec();
++    for (const k of ["tick", "synth", "sampling", "wave", "transform", "datasets"]) expect(spec).not.toHaveProperty(k);
++  });
++  it("toSpec throws when data is unset", () => {
++    expect(() => new Stream().toSpec()).toThrow(/data/);
++  });
++  it("playback/notify are emitted only for streaming streams", () => {
++    const s = basic();
++    s.notify!.next = new Notify().speech("next");
++    expect(s.toSpec()).not.toHaveProperty("playback");
++    s.data.streaming(rows);
++    const spec: any = s.toSpec();
++    expect(spec.data).toEqual({ stream: true, test: { values: rows } });
++    expect(spec.playback).toMatchObject({ init_by: "manual" });
++    expect(spec.notify).toEqual({ next: { speech: "next", loudness: 1 } });
++  });
++  it("addChannel registers a custom channel", () => {
++    const s = basic().addChannel("myFx", new Erie.Channel("b", "quantitative"));
++    expect(s.toSpec().encoding.myFx).toMatchObject({ field: "b" });
++  });
++});
++
++describe("Overlay / Sequence", () => {
++  it("Sequence.clone returns a Sequence (regression: returned undefined)", () => {
++    const seq = new Sequence(basic("a"), basic("b"));
++    const c = seq.clone();
++    expect(c).toBeInstanceOf(Sequence);
++    expect(c.sequence).toHaveLength(2);
++  });
++  it("constructors accept name + varargs or name + array", () => {
++    expect(new Overlay("o", basic("a"), basic("b")).overlay).toHaveLength(2);
++    expect(new Sequence("q", [basic("a"), new Overlay(basic("b"))])._name).toBe("q");
++  });
++  it("constructors reject non-stream arguments", () => {
++    expect(() => new Overlay({} as any)).toThrow(TypeError);
++    expect(() => new Sequence("q", 5 as any)).toThrow(TypeError);
++  });
++  it("adding stores a clone (later edits to the source don't leak)", () => {
++    const s = basic();
++    const o = new Overlay(s);
++    s.encoding.pitch.field("a");
++    expect(o.stream(0).encoding.pitch._field).toBe("b");
++  });
++  it("hoists shared resources and dedupes them by name", () => {
++    const a = basic("a"), b = basic("b");
++    a.tick!.add(new Tick("beat"));
++    b.tick!.add(new Tick("beat").interval(1));
++    a.synth!.add(new SynthTone("fm"));
++    a.datasets!.add(new Dataset("shared").values(rows));
++    b.datasets!.add(new Dataset("shared").values(rows));
++    const o = new Overlay(a, b);
++    expect(o.tick!.get()).toEqual([expect.objectContaining({ name: "beat", interval: 1 })]);
++    expect(o.synth!.get()).toHaveLength(1);
++    expect(o.datasets!.datasets).toHaveLength(1);
++    expect(o.stream(0).tick).toBeUndefined();
++  });
++  it("Overlay.clone keeps ticks", () => {
++    const a = basic();
++    a.tick!.add(new Tick("beat"));
++    expect(new Overlay(a).clone().tick!.get()).toHaveLength(1);
++  });
++  it("Overlay.toSpec requires data or datasets", () => {
++    expect(() => new Overlay(basic()).toSpec()).toThrow(/data or datasets/);
++  });
++  it("Sequence.toSpec nests overlays as InSeqOverlayStreamSpec", () => {
++    const seq = new Sequence(basic("a"), new Overlay(basic("b"), basic("c")));
++    seq.data!.values(rows);
++    const spec: any = seq.toSpec();
++    expect(spec.sequence[0]).toMatchObject({ name: "a" });
++    expect(spec.sequence[1].overlay).toHaveLength(2);
++  });
++  it("skip flags are serialized", () => {
++    const o = new Overlay(basic()).skipTitle(true).skipLength(true);
++    o.data!.values(rows);
++    expect(o.toSpec()).toMatchObject({ skipTitle: true, skipLength: true });
++  });
++  it("nested unit streams only carry config overrides", () => {
++    const s = basic();
++    s.config!.set("speechRate", 2);
++    const seq = new Sequence(s, basic("plain"));
++    seq.data!.values(rows);
++    const spec: any = seq.toSpec();
++    expect(spec.sequence[0].config).toEqual({ speechRate: 2 });
++    expect(spec.sequence[1]).not.toHaveProperty("config");
++  });
++});
++
++describe("integration: class API -> normalizeSpecification", () => {
++  it("get() output loses the data (documents the original bug)", async () => {
++    const n = await normalizeSpecification(basic().get() as any);
++    expect(Object.keys(n.datasets)).toHaveLength(0);
++  });
++
++  it("Stream.toSpec() keeps the data", async () => {
++    const n = await normalizeSpecification(basic().toSpec() as any);
++    const ds = Object.values(n.datasets) as any[];
++    expect(ds).toHaveLength(1);
++    expect(ds[0].values).toEqual(rows);
++  });
++
++  it("Stream.toSpec() with a transform normalizes", async () => {
++    const s = basic();
++    s.transform!.add(new Bin("b"));
++    await expect(normalizeSpecification(s.toSpec() as any)).resolves.toBeDefined();
++  });
++
++  it("Overlay.toSpec() with datasets normalizes without a 'null' dataset", async () => {
++    const a = basic("a"), b = basic("b");
++    a.data.set("d1"); b.data.set("d1");
++    a.datasets!.add(new Dataset("d1").values(rows));
++    const n = await normalizeSpecification(new Overlay(a, b).toSpec() as any);
++    expect(Object.keys(n.datasets)).not.toContain("null");
++    expect(Object.keys(n.datasets)).toContain("d1");
++  });
++
++  it("Sequence.toSpec() normalizes", async () => {
++    const seq = new Sequence(basic("a"), basic("b"));
++    const n = await normalizeSpecification(seq.toSpec() as any);
++    expect(n.normalized.length).toBeGreaterThan(0);
++  });
++});
+diff --git a/test/classes/data.test.ts b/test/classes/data.test.ts
+new file mode 100644
+index 0000000..9860a16
+--- /dev/null
++++ b/test/classes/data.test.ts
+@@ -0,0 +1,102 @@
++import { describe, it, expect, vi } from "vitest";
++import { Data, Dataset, Datasets } from "../../src/classes";
++
++const rows = [{ a: 1, b: 2 }, { a: 2, b: 3 }];
++
++describe("Data", () => {
++  it("values() stores a deep copy and sets type 'values'", () => {
++    const src = rows.map((r) => ({ ...r }));
++    const d = new Data().values(src);
++    src[0].a = 999;
++    expect(d.type).toBe("values");
++    expect(d.get().values?.[0].a).toBe(1);
++  });
++
++  it("url() sets type 'url' (regression: used to be 'values')", () => {
++    const d = new Data().url("data/x.csv");
++    expect(d.type).toBe("url");
++    expect(d.get().url).toBe("data/x.csv");
++  });
++
++  it("url survives clone()", () => {
++    const c = new Data().url("data/x.csv").clone();
++    expect(c.get().url).toBe("data/x.csv");
++  });
++
++  it("set(dataset) keeps the dataset name (regression: name was nulled)", () => {
++    const d = new Data().set(new Dataset("cars"));
++    expect(d.type).toBe("name");
++    expect(d.get().name).toBe("cars");
++  });
++
++  it("set(string) references a dataset by name", () => {
++    expect(new Data().set("cars").toSpec()).toEqual({ name: "cars" });
++  });
++
++  it("switching sources clears the previous one", () => {
++    const d = new Data().values(rows).url("x.csv");
++    expect(d.get().values).toBeNull();
++    expect(d.toSpec()).toEqual({ url: "x.csv" });
++  });
++
++  it("rejects non-tidy data", () => {
++    expect(() => new Data().values([1, 2] as any)).toThrow(TypeError);
++  });
++
++  it("accepts null-prototype rows", () => {
++    const r = Object.assign(Object.create(null), { a: 1 });
++    expect(() => new Data().values([r])).not.toThrow();
++  });
++
++  describe("streaming()", () => {
++    it("uses inline test values", () => {
++      expect(new Data().streaming(rows).toSpec()).toEqual({ stream: true, test: { values: rows } });
++    });
++    it("uses a test url", () => {
++      expect(new Data().streaming("t.json").toSpec()).toEqual({ stream: true, test: { url: "t.json" } });
++    });
++    it("falls back to previously set values", () => {
++      expect(new Data().values(rows).streaming().toSpec()).toEqual({ stream: true, test: { values: rows } });
++    });
++    it("works with no test data", () => {
++      expect(new Data().streaming().toSpec()).toEqual({ stream: true });
++    });
++  });
++
++  it("toSpec() never emits null keys or the internal type tag", () => {
++    const spec = new Data().values(rows).toSpec()!;
++    expect(Object.keys(spec)).toEqual(["values"]);
++  });
++
++  it("toSpec() is undefined when unset", () => {
++    expect(new Data().toSpec()).toBeUndefined();
++  });
++});
++
++describe("Dataset / Datasets", () => {
++  it("Dataset.values()/url() produce DatasetSpecItem", () => {
++    expect(new Dataset("a").values(rows).toSpec()).toEqual({ name: "a", values: rows });
++    expect(new Dataset("b").url("b.csv").toSpec()).toEqual({ name: "b", url: "b.csv" });
++  });
++
++  it("legacy Dataset.set('values', ...) still works", () => {
++    expect(new Dataset("a").set("values", rows).toSpec()).toEqual({ name: "a", values: rows });
++  });
++
++  it("an empty Dataset cannot be serialized", () => {
++    expect(() => new Dataset("a").toSpec()).toThrow(/no values or url/);
++  });
++
++  it("Datasets.get(name) returns undefined for unknown names instead of throwing", () => {
++    expect(new Datasets().get("nope")).toBeUndefined();
++  });
++
++  it("Datasets.add() stores a copy and replaces same-named entries", () => {
++    const ds = new Dataset("a").values(rows);
++    const list = new Datasets().add(ds);
++    ds.name("renamed");
++    list.add(new Dataset("a").url("a.csv"));
++    expect(list.datasets).toHaveLength(1);
++    expect(list.toSpec()).toEqual([{ name: "a", url: "a.csv" }]);
++  });
++});
+diff --git a/test/classes/resources.test.ts b/test/classes/resources.test.ts
+new file mode 100644
+index 0000000..dce0d65
+--- /dev/null
++++ b/test/classes/resources.test.ts
+@@ -0,0 +1,168 @@
++import { describe, it, expect, vi, beforeEach } from "vitest";
++import {
++  Tick, TickList, SampledTone, Sampling, SynthTone, WaveTone, Tone, Notify, intNotify, Playback, Config
++} from "../../src/classes";
++
++beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); vi.spyOn(console, "error").mockImplementation(() => {}); });
++
++describe("Tick", () => {
++  it("requires a name", () => { expect(() => new Tick("")).toThrow(); });
++  it("clone() copies every field (regression: lost playAtTime0)", () => {
++    const t = new Tick("t").interval(1).playAtTime0(false).oscType("square").pitch(300).loudness(0.2).band(0.1);
++    expect(t.clone().get()).toEqual(t.get());
++  });
++  it("supports TickSpec extras: band/description/sample/instrument", () => {
++    expect(new Tick("t").band(0.2).description("beat").sample("k.mp3").instrument("drum").get())
++      .toMatchObject({ band: 0.2, description: "beat", sample: "k.mp3", instrument: "drum" });
++  });
++  it.each([
++    ["interval", 0], ["pitch", -1], ["loudness", 1.5], ["band", 0],
++  ])("%s(%s) throws", (k, v) => { expect(() => (new Tick("t") as any)[k](v)).toThrow(TypeError); });
++  it("rejects unknown oscillator types", () => { expect(() => new Tick("t").oscType("noise" as any)).toThrow(TypeError); });
++  it("TickList.clone is deep", () => {
++    const l = new TickList().add(new Tick("a"));
++    const c = l.clone();
++    c.tick[0].pitch(999);
++    expect(l.get()[0].pitch).toBe(150);
++  });
++});
++
++describe("SampledTone", () => {
++  it("keeps every octave key (regression: only the last survived)", () => {
++    expect(new SampledTone("piano", { C3: "c3.mp3", C4: "c4.mp3" }).get().sample).toEqual({ C3: "c3.mp3", C4: "c4.mp3" });
++  });
++  it("supports { mono } (regression: always rejected)", () => {
++    expect(new SampledTone("bell", { mono: "bell.mp3" }).get().sample).toEqual({ mono: "bell.mp3" });
++  });
++  it("rejects mixing mono with octave keys", () => {
++    expect(() => new SampledTone("x", { mono: "a", C4: "b" } as any)).toThrow(TypeError);
++  });
++  it.each([{}, { D4: "x" }, { C8: "x" }])("rejects %j", (s) => {
++    expect(() => new SampledTone("x", s as any)).toThrow(TypeError);
++  });
++  it("Sampling.clone is deep", () => {
++    const s = new Sampling().add(new SampledTone("p", { C4: "a" }));
++    const c = s.clone();
++    c.sampling[0].setName("q");
++    expect(s.get()[0].name).toBe("p");
++  });
++});
++
++describe("SynthTone", () => {
++  it("attackTime(0) is allowed (default value)", () => { expect(new SynthTone("s").attackTime(0).get().attackTime).toBe(0); });
++  it("exposes carrierVolume/sustain/decayTime setters from SynthSpec", () => {
++    expect(new SynthTone("s").carrierVolume(0.5).sustain(0.3).decayTime(0.2).get())
++      .toMatchObject({ carrierVolume: 0.5, sustain: 0.3, decayTime: 0.2 });
++  });
++  it("validates ranges", () => {
++    expect(() => new SynthTone("s").sustain(2)).toThrow(TypeError);
++    expect(() => new SynthTone("s").carrierDetune(1300)).toThrow(TypeError);
++    expect(() => new SynthTone("s").modulatorPitch(-1)).toThrow(/pitch/);
++  });
++  it("rejects unknown synth types", () => { expect(() => new SynthTone("s").type("XM" as any)).toThrow(TypeError); });
++  it("clone round-trips", () => {
++    const s = new SynthTone("s").type("AM").harmonicity(2).carrierPitch(330);
++    expect(s.clone().get()).toEqual(s.get());
++  });
++});
++
++describe("WaveTone", () => {
++  it("real/imag must be same length >= 2", () => {
++    expect(() => new WaveTone("w", { real: [0, 1], imag: [0] } as any)).toThrow(RangeError);
++    expect(new WaveTone("w", { real: [0, 1], imag: [0, 0] } as any).get()).toMatchObject({ real: [0, 1], imag: [0, 0] });
++  });
++  it("copies input arrays", () => {
++    const r = [0, 1];
++    const w = new WaveTone("w").real(r);
++    r.push(5);
++    expect(w.get().real).toEqual([0, 1]);
++  });
++});
++
++describe("Tone", () => {
++  it("accepts an instrument object", () => { expect(new Tone(new SynthTone("fm1")).get().type).toBe("fm1"); });
++  it("set() is chainable", () => { const t = new Tone(); expect(t.set("piano")).toBe(t); });
++  it("serializes ToneSpec extras only when set", () => {
++    expect(new Tone("piano").get()).toEqual({ type: "piano", continued: false, filter: [] });
++    expect(new Tone().hasBaseTone(true).sustain(true).baseToneAsTick("beat").tickInterval(0.5).get())
++      .toMatchObject({ hasBaseTone: true, sustain: true, baseToneAsTick: "beat", tickInterval: 0.5 });
++  });
++  it("addFilter accepts string and string[], rejects others", () => {
++    expect(new Tone().addFilter("a").addFilter(["b", "c"]).get().filter).toEqual(["a", "b", "c"]);
++    expect(() => new Tone().addFilter(1 as any)).toThrow(TypeError);
++  });
++  it("clone doesn't share filters", () => {
++    const t = new Tone().addFilter("a");
++    t.clone().addFilter("b");
++    expect(t.get().filter).toEqual(["a"]);
++  });
++});
++
++describe("Notify", () => {
++  it("speech notifications serialize without undefined keys", () => {
++    expect(new Notify().speech("hi").speechRate(1.2).pause(0.5).get())
++      .toEqual({ speech: "hi", loudness: 1, speechRate: 1.2, pause: 0.5 });
++  });
++  it("speech type without text returns true (use default speech)", () => {
++    expect(new Notify("speech").get()).toBe(true);
++  });
++  it("sampling notifications use `sample`, not `chime` (regression)", () => {
++    const g = new Notify("sampling").sample("ding.mp3").detune(-100).get() as any;
++    expect(g).toEqual({ sample: "ding.mp3", loudness: 1, detune: -100 });
++    expect(g).not.toHaveProperty("chime");
++  });
++  it("unset notify returns undefined", () => { expect(new Notify().get()).toBeUndefined(); });
++  it("intNotify covers every NotifyType", () => {
++    expect(Object.keys(intNotify()).sort()).toEqual(
++      ["afterPlay", "afterPlayback", "beforePlay", "beforePlayback", "incoming", "next"]
++    );
++  });
++  it("chime() is ignored for non-chime notifications", () => {
++    expect(new Notify("speech").chime("anything").get()).toBe(true);
++  });
++});
++
++describe("Playback", () => {
++  it("condition() sets the condition, not the unit (regression)", () => {
++    const g = new Playback().condition("datum.v > 10").get();
++    expect(g.condition).toBe("datum.v > 10");
++    expect(g.init_by).toBe("conditional");
++    expect(g.unit).toBe("instance");
++  });
++  it("switching away from conditional clears the condition", () => {
++    expect(new Playback().condition("x").init_by("manual").get().condition).toBeUndefined();
++  });
++  it("rejects bad limit/speed", () => {
++    const p = new Playback().limit(0).speed(-1).get();
++    expect(p.limit).toBe(3);
++    expect(p.speed).toBe(1.5);
++  });
++  it("clone round-trips", () => {
++    const p = new Playback().unit("datum").condition("x").limit(5).speed(2).instrument("piano");
++    expect(p.clone().get()).toEqual(p.get());
++  });
++});
++
++describe("Config", () => {
++  it("validates known keys", () => {
++    expect(() => new Config().set("speechRate", 0)).toThrow(TypeError);
++    expect(() => new Config().set("skipTitle", "yes")).toThrow(TypeError);
++  });
++  it("accepts ScaleConsistencyRecord (ConfigSpec)", () => {
++    expect(new Config().set("overlayScaleConsistency", { pitch: true, time: false }).get().overlayScaleConsistency)
++      .toEqual({ pitch: true, time: false });
++  });
++  it("validates timeUnit", () => {
++    expect(new Config().set("timeUnit", { unit: "beat", tempo: 120 }).get().timeUnit).toEqual({ unit: "beat", tempo: 120 });
++    expect(() => new Config().set("timeUnit", { unit: "minute" })).toThrow(TypeError);
++  });
++  it("is isolated from caller mutation and clones independently", () => {
++    const rec = { pitch: true };
++    const c = new Config().set("overlayScaleConsistency", rec);
++    rec.pitch = false;
++    const d = c.clone().set("speechRate", 2);
++    expect(c.get().overlayScaleConsistency).toEqual({ pitch: true });
++    expect(c.get().speechRate).toBe(1.75);
++    expect(d.get().speechRate).toBe(2);
++  });
++});
+diff --git a/test/classes/transforms.test.ts b/test/classes/transforms.test.ts
+new file mode 100644
+index 0000000..c02d7a3
+--- /dev/null
++++ b/test/classes/transforms.test.ts
+@@ -0,0 +1,158 @@
++import { describe, it, expect, vi, beforeEach } from "vitest";
++import {
++  Aggregate, Bin, Boxplot, Calculate, Density, Diffing, Filter, Fold, Quantile, Transform
++} from "../../src/classes";
++
++beforeEach(() => { vi.spyOn(console, "warn").mockImplementation(() => {}); });
++
++describe("groupby (shared across transforms)", () => {
++  const makers = {
++    Aggregate: () => new Aggregate(),
++    Boxplot: () => new Boxplot("v"),
++    Calculate: () => new Calculate("datum.a * 2", "a2"),
++    Diffing: () => new Diffing(["v"]),
++    Quantile: () => new Quantile("v", 4),
++  };
++  for (const [name, make] of Object.entries(makers)) {
++    describe(name, () => {
++      it("accepts varargs", () => { expect((make() as any).groupby("a", "b").get().groupby).toEqual(["a", "b"]); });
++      it("accepts an array", () => { expect((make() as any).groupby(["a"]).get().groupby).toEqual(["a"]); });
++      it("accepts 'auto' as GroupbyType (regression: became ['auto'])", () => {
++        expect((make() as any).groupby("auto").get().groupby).toBe("auto");
++      });
++      it("rejects invalid input", () => { expect(() => (make() as any).groupby(1)).toThrow(TypeError); });
++      it("clone() does not share the groupby array", () => {
++        const a = (make() as any).groupby(["a"]);
++        const b = a.clone();
++        b._groupby.push("z");
++        expect(a.get().groupby).toEqual(["a"]);
++      });
++    });
++  }
++  it("Density only accepts field names (spec: string[])", () => {
++    expect(new Density("v").groupby("g").get().groupby).toEqual(["g"]);
++    expect(() => new Density("v").groupby("auto")).toThrow(TypeError);
++  });
++});
++
++describe("Aggregate", () => {
++  it("single-field ops", () => {
++    expect(new Aggregate().add("mean", "v", "m").get().aggregate).toEqual([{ op: "mean", field: "v", as: "m" }]);
++  });
++  it("count accepts legacy add('count', 'n') and add('count', undefined, 'n')", () => {
++    expect(new Aggregate().add("count", "n").get().aggregate).toEqual([{ op: "count", as: "n" }]);
++    expect(new Aggregate().add("count", undefined, "n").get().aggregate).toEqual([{ op: "count", as: "n" }]);
++  });
++  it("two-field ops accept two string fields (regression: inverted check)", () => {
++    expect(new Aggregate().add("corr", ["a", "b"], "r").get().aggregate).toEqual([{ op: "corr", field: ["a", "b"], as: "r" }]);
++  });
++  it("two-field ops reject bad fields", () => {
++    expect(() => new Aggregate().add("corr", ["a"], "r")).toThrow();
++    expect(() => new Aggregate().add("corr", ["a", 1 as any], "r")).toThrow();
++  });
++  it("quantile p defaults to 0.5 and is range-checked", () => {
++    expect(new Aggregate().add("quantile", "v", "q").get().aggregate[0].p).toBe(0.5);
++    expect(() => new Aggregate().add("quantile", "v", "q", 1.5)).toThrow(RangeError);
++  });
++  it("unsupported op throws", () => {
++    expect(() => new Aggregate().add("nope" as any, "v", "x")).toThrow(/Unsupported/);
++  });
++  it("get() returns copies", () => {
++    const a = new Aggregate().add("sum", "v", "s");
++    a.get().aggregate.push({ op: "max", as: "x" } as any);
++    expect(a.get().aggregate).toHaveLength(1);
++  });
++});
++
++describe("Bin", () => {
++  it("defaults", () => {
++    expect(new Bin("v").get()).toMatchObject({ bin: "v", as: "v__bin", end: "v__bin_end", nice: true, maxbins: 10 });
++  });
++  it.each([0, -3, 2.5])("maxbins(%s) throws", (n) => { expect(() => new Bin("v").maxbins(n)).toThrow(TypeError); });
++  it("step must be positive", () => { expect(() => new Bin("v").step(0)).toThrow(TypeError); });
++  it("exact() sorts and copies", () => {
++    const e = [10, 0, 5];
++    const b = new Bin("v").exact(e);
++    e.push(99);
++    expect(b.get().exact).toEqual([0, 5, 10]);
++  });
++  it("exact() needs at least two numbers", () => { expect(() => new Bin("v").exact([1])).toThrow(TypeError); });
++});
++
++describe("Quantile", () => {
++  it("as() accepts any two strings (regression: compared to field-name length)", () => {
++    expect(new Quantile("price", 4).as(["prob", "value"]).get().as).toEqual(["prob", "value"]);
++  });
++  it("as() rejects wrong length", () => { expect(() => new Quantile("v", 4).as(["a"] as any)).toThrow(TypeError); });
++  it("step must be in (0, 1)", () => {
++    expect(new Quantile("v", undefined, 0.25).get().step).toBe(0.25);
++    expect(() => new Quantile("v").step(1)).toThrow(TypeError);
++  });
++  it("n must be a positive integer", () => { expect(() => new Quantile("v", 2.5)).toThrow(TypeError); });
++  it("warns when neither n nor step is given", () => {
++    const w = vi.spyOn(console, "warn");
++    new Quantile("v");
++    expect(w).toHaveBeenCalled();
++  });
++});
++
++describe("Boxplot", () => {
++  it("extent accepts numbers and 'min-max'", () => {
++    expect(new Boxplot("v", 1.5).get().extent).toBe(1.5);
++    expect(new Boxplot("v").extent("min-max").get().extent).toBe("min-max");
++    expect(() => new Boxplot("v").extent(-1)).toThrow(TypeError);
++  });
++});
++
++describe("Diffing", () => {
++  it("defaults carryOver and keepFirstAsZero to true", () => {
++    expect(new Diffing(["a"]).get()).toMatchObject({ carryOver: true, keepFirstAsZero: true });
++  });
++  it("as must match diffing length", () => {
++    expect(new Diffing(["a", "b"]).as(["da", "db"]).get().as).toEqual(["da", "db"]);
++    expect(() => new Diffing(["a", "b"]).as(["da"])).toThrow(TypeError);
++  });
++  it("constructor copies input arrays", () => {
++    const f = ["a"];
++    const d = new Diffing(f);
++    f.push("b");
++    expect(d.get().diffing).toEqual(["a"]);
++  });
++});
++
++describe("Fold", () => {
++  it("as() error message names 'as' (regression: said 'fold')", () => {
++    expect(() => new Fold(["a"], "k").as(["x"])).toThrow(/'as'/);
++  });
++  it("clone is independent", () => {
++    const a = new Fold(["a", "b"], "k");
++    const b = a.clone().fold(["c"]);
++    expect(a.get().fold).toEqual(["a", "b"]);
++    expect(b.get().fold).toEqual(["c"]);
++  });
++});
++
++describe("Calculate", () => {
++  it("omits groupby when unset, includes it when set (CalculateSpec.groupby)", () => {
++    expect(new Calculate("datum.a", "b").get()).toEqual({ calculate: "datum.a", as: "b" });
++    expect(new Calculate("datum.a", "b").groupby("g").get().groupby).toEqual(["g"]);
++  });
++});
++
++describe("Density", () => {
++  it("extent must be an ordered pair", () => {
++    expect(() => new Density("v").extent([5, 1])).toThrow(TypeError);
++    expect(new Density("v").extent([1, 5]).get().extent).toEqual([1, 5]);
++  });
++});
++
++describe("Transform list", () => {
++  it("serializes items in order and deep-clones", () => {
++    const t = new Transform().add(new Filter("datum.a > 1")).add(new Bin("a"));
++    const c = t.clone();
++    (c.transform[0] as Filter).filter("datum.a > 2");
++    expect(t.get()[0]).toEqual({ filter: "datum.a > 1" });
++    expect(c.get()[0]).toEqual({ filter: "datum.a > 2" });
++    expect(t.get()).toHaveLength(2);
++  });
++});

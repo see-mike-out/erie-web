@@ -127,7 +127,7 @@ export const
   MIN_DUR = 0, MAX_DUR = 20, DEF_DUR = 0.5,
   MIN_POST_REVERB = 0, MAX_POST_REVERB = 4,
   MIN_TAP_COUNT = 0, MAX_TAP_COUNT = 25,
-  MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 5, MAX_LIMIT_TAP_SPEED = 7,
+  MIN_TAP_SPEED = 0, MAX_TAP_SPEED = 7, MAX_LIMIT_TAP_SPEED = 7,
   DEF_SPEECH_RATE = 1.75;
 
 export const ChannelThresholds = {
@@ -163,7 +163,7 @@ export const ChannelCaps = {
   [DUR_chn]: { max: Infinity, min: MIN_DUR },
   [POST_REVERB_chn]: { max: Infinity, min: 0 },
   [TAPCNT_chn]: { max: Infinity, min: 0 },
-  [TAPSPD_chn]: { max: MAX_LIMIT_TAP_SPEED, min: MIN_TAP_SPEED }
+  [TAPSPD_chn]: { max: Infinity, min: MIN_TAP_SPEED }
 };
 
 /*----- CHANNEL-SPECIFIC -----*/

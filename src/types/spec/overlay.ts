@@ -10,6 +10,8 @@ import {
   WaveSpec
 } from "./tone"
 import { SynthSpec } from "./synth"
+import { ConfigSpec } from "./config"
+import { Notify } from "classes/erie-notify"
 
 export type OverlayStreamSpec1 = {
   title?: string,
@@ -24,7 +26,9 @@ export type OverlayStreamSpec1 = {
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
-  wave?: WaveSpec[]
+  wave?: WaveSpec[],
+  config?: ConfigSpec
+  notify?: { [key: string]: Notify }
 }
 
 export type OverlayStreamSpec2 = {
@@ -40,7 +44,9 @@ export type OverlayStreamSpec2 = {
   tick?: TickSpec[],
   sampling?: SampledToneSpec[],
   synth?: SynthSpec[],
-  wave?: WaveSpec[]
+  wave?: WaveSpec[],
+  config?: ConfigSpec
+  notify?: { [key: string]: Notify }
 }
 
 export type OverlayStreamSpec = OverlayStreamSpec1 | OverlayStreamSpec2;

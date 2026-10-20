@@ -8,5 +8,7 @@ export interface TickObject {
   oscType?: OscType,
   pitch?: number
   loudness?: number,
-  description?: string
+  description?: string,
+  sample?: string,
+  instrument?: string,
 }

@@ -11,6 +11,7 @@ import {
 let ErieGlobalSynth: SpeechSynthesis;
 
 export async function WebSpeechGenerator(
+  player_id: string,
   sound: AudioGraphSpeechItem | AudioGraphQueueItemText,
   config: ConfigInterface,
   onstart: Function,
@@ -19,17 +20,21 @@ export async function WebSpeechGenerator(
 ): Promise<void> {
   if (!ErieGlobalSynth) ErieGlobalSynth = window.speechSynthesis;
   var utterance = new SpeechSynthesisUtterance(sound.speech);
-  if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
-  else if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate;
+  if (sound?.speechRate !== undefined) utterance.rate = sound?.speechRate
+  else if (config?.speechRate !== undefined) utterance.rate = config?.speechRate;
   if (sound?.pitch !== undefined) utterance.pitch = sound.pitch;
   if (sound?.loudness !== undefined) utterance.volume = sound.loudness;
   if (sound?.language) utterance.lang = (bcp47language.includes(sound.language) ? sound.language : (typeof document !== undefined ? document : {}).documentElement?.lang) as string;
-  else utterance.lang = ((typeof document !== undefined ? document : {}).documentElement?.lang) as string;
+  else utterance.lang = ((typeof document !== "undefined" ? document : {}).documentElement?.lang) as string;
   onstart();
-  ErieGlobalSynth.speak(utterance);
-  setErieGlobalControl({ type: SpeechType, player: ErieGlobalSynth });
+  utterance.onerror = () => {
+    onend();
+    if (resolve) resolve();
+  };
   utterance.onend = () => {
     onend();
     if (resolve) resolve();
   };
+  ErieGlobalSynth.speak(utterance);
+  setErieGlobalControl(player_id, { type: SpeechType, player: ErieGlobalSynth });
 }

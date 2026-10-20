@@ -27,17 +27,18 @@ import { playSingleSpeech } from './audio-graph-player-single-speech';
 
 
 export async function playAbsoluteSpeeches(
+  player_id: string,
   ctx: AudioContext | OfflineAudioContext,
   queue: Glyphs2,
   config: ConfigInterface,
   ttsFetchFunction: any,
   bufferPrimitve?: AudioPrimitiveBuffer) {
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
-  setErieGlobalControl({ type: ToneType, player: ctx });
+  setErieGlobalControl(player_id, { type: ToneType, player: ctx });
   // gain == loudness
   const gain = ctx.createGain();
   gain.connect(ctx.destination);
@@ -58,7 +59,7 @@ export async function playAbsoluteSpeeches(
     // set and play sounds
     let prev;
     for (let sound of q) {
-      if (isErieGlobalState(Stopped)) {
+      if (isErieGlobalState(player_id, Stopped)) {
         resolve();
         break;
       }
@@ -73,10 +74,10 @@ export async function playAbsoluteSpeeches(
       // after stopping (need to define before stopping!)
       // this part actually plays the sound
       inst.onended = () => {
-        if (config?.falseTiming && isErieGlobalControlType(SpeechType)) {
-          closeErieGlobalControl()
+        if (config?.falseTiming && isErieGlobalControlType(player_id, SpeechType)) {
+          closeErieGlobalControl(player_id)
         }
-        playSingleSpeech(sound as AudioGraphQueueItemText, config, bufferPrimitve, ttsFetchFunction);
+        playSingleSpeech(player_id, sound as AudioGraphQueueItemText, config, bufferPrimitve, ttsFetchFunction);
         if (sound.isLast) {
           resolve();
         }

@@ -33,7 +33,7 @@ export class Fold {
     if (a.length == 2) {
       this._as = [a[0], a[1]];
     } else {
-      throw new TypeError("Fold 'fold' should be an Array of two Strings.");
+      throw new TypeError("Fold 'as' should be an Array of two Strings.");
     }
 
     return this;

@@ -1,4 +1,4 @@
-import { PlaybackSpec, PlaybackTypes, PlaybackUnits } from "../types";
+import { PlaybackAuto, PlaybackConditional, PlaybackManual, PlaybackSpec, PlaybackTypes, PlaybackUnits } from "../types";
 
 export class Playback {
   _init_by: typeof PlaybackTypes[number];
@@ -18,6 +18,9 @@ export class Playback {
   init_by(i: string) {
     if (PlaybackTypes.includes(i)) {
       this._init_by = i;
+      if (i === PlaybackManual || i === PlaybackAuto) {
+        this._condition = undefined;
+      }
     } else {
       console.error("Unsupported playback initiation type.");
     }
@@ -38,7 +41,9 @@ export class Playback {
 
   condition(i: string) {
     if (typeof i === 'string') {
-      this._unit = i;
+      this._condition = i;
+      this._init_by = PlaybackConditional;
+      console.warn("This will change the playback to conditional.")
     } else {
       console.error("A playback condition must be a string.");
     }
@@ -46,8 +51,10 @@ export class Playback {
   }
 
   limit(i: number) {
-    if (typeof i === 'number') {
+    if (typeof i === 'number' && i >= 0) {
       this._limit = i;
+    } else if (typeof i === 'number' && i < 0) {
+      console.error("Playback limit must be a positive number.");
     } else {
       console.error("Playback limit must be a number.");
     }
@@ -55,8 +62,10 @@ export class Playback {
   }
 
   speed(i: number) {
-    if (typeof i === 'number') {
+    if (typeof i === 'number' && i >= 0) {
       this._speed = i;
+    } else if (typeof i === 'number' && i < 0) {
+      console.error("Speed must be a positive number.");
     } else {
       console.error("Playback speed must be a number.");
     }

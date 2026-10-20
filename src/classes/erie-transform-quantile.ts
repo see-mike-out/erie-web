@@ -1,19 +1,20 @@
-import { DiffingSpec, QuantileSpec } from "../types";
+import { QuantileSpec } from "../types";
 import { deepcopy } from "../util";
+import { parseGroupby } from "./erie-util";
 
 export class Quantile {
   _quantile: string;
   _n?: number;
   _step?: number;
   _as?: [string, string];
-  _groupby?: string[];
+  _groupby?: string[] | "auto";
 
   constructor(c: string, n?: number, step?: number, as?: [string, string]) {
     this._quantile = c;
-    this._n = n;
-    this._step = (step && step > 0 && step < 1) ? step : undefined;
+    if (n !== undefined) this.n(n);
+    if (step !== undefined && step > 0 && step < 1) this.step(step);
     if (this._n == undefined && this._step == undefined) {
-      console.error("Must specify n or step. ")
+      throw new TypeError("Must specify n or step. ")
     }
     if (as && as.length == this._quantile.length) this._as = as;
   }
@@ -24,40 +25,35 @@ export class Quantile {
   }
 
   as(c: [string, string]) {
-    if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == this._quantile.length) {
+    if (c instanceof Array && c.every(d => typeof d == 'string') && c.length == 2) {
       this._as = c;
     } else {
-      console.error("Wrong length/type for qunatile 'as'.")
+      throw new TypeError("Wrong length/type for qunatile 'as'.")
     }
 
     return this;
   }
 
   n(t: number) {
+    if (t <= 0 || !Number.isInteger(t)) {
+      throw new TypeError("N value must be positive integer.")
+    }
     this._n = t;
     return this;
   }
 
   step(t: number) {
-    if (t > 0 && t < 1) {
+    if (0 < t && t < 1) {
       this._step = t;
     } else {
-      console.error("Step value must be between 0 and 1 (exclusive).")
+      throw new RangeError("Step value must be between 0 and 1 (exclusive).")
     }
     return this;
   }
 
   groupby(...args: any) {
     // this function resets groupby
-    if (args.length == 1 &&
-      args[0].constructor.name === 'Array' &&
-      args[0].every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args[0]];
-    } else if (args.length >= 1 &&
-      args.every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args];
-    }
-
+    this._groupby = parseGroupby(...args);
     return this;
   }
 
@@ -73,7 +69,7 @@ export class Quantile {
 
   clone(): Quantile {
     let _c = new Quantile(this._quantile, this._n, this._step, this._as);
-    _c._groupby = this._groupby;
+    _c._groupby = deepcopy(this._groupby);
     return _c;
   }
 }

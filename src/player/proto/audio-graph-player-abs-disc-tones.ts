@@ -36,6 +36,7 @@ import {
 import { AudioPrimitiveBuffer } from '../../pulse';
 
 export async function playAbsoluteDiscreteTones(
+  player_id: string,
   ctx: AudioContext,
   queue: Glyphs2,
   config: ConfigInterface,
@@ -46,11 +47,11 @@ export async function playAbsoluteDiscreteTones(
   bufferPrimitve: AudioPrimitiveBuffer | undefined
 ) {
   // clear previous state
-  setErieGlobalState(undefined);
+  setErieGlobalState(player_id, undefined);
 
   // playing a series of discrete tones with an aboslute schedule
   // set audio context controls
-  setErieGlobalControl({ type: ToneType, player: ctx });
+  setErieGlobalControl(player_id, { type: ToneType, player: ctx });
 
   // sort queue to mark the last node for sequence end check
   let q0: Glyph[] = queue.toSorted(glyphSorterByStart);
@@ -77,7 +78,7 @@ export async function playAbsoluteDiscreteTones(
     let ct = config?.context_time !== undefined ? config.context_time : setCurrentTime(ctx);
     // set and play sounds
     for (let sound of q) {
-      if (isErieGlobalState(Stopped)) {
+      if (isErieGlobalState(player_id, Stopped)) {
         // resolve();
         break;
       }
@@ -87,12 +88,13 @@ export async function playAbsoluteDiscreteTones(
 
       // after stopping (need to define before stopping!)
       inst.onended = async () => {
-        if (config?.falseTiming && isErieGlobalControlType(SpeechType)) {
-          (window.ErieGlobalControl as GlobalControlSpeech)?.player?.cancel();
+        if (config?.falseTiming && isErieGlobalControlType(player_id, SpeechType)) {
+          (window.ErieGlobalControl?.[player_id] as GlobalControlSpeech)?.player?.cancel();
         }
-        await playSingleTone(ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
+        await playSingleTone(player_id, ctx, sound, config, instSamples, synthDefs, waveDefs, filters, bufferPrimitve);
         if (sound.isLast) {
           sendToneFinishEvent({ sid });
+          timingCtx.close();
           resolve();
         }
       };

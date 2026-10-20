@@ -7,57 +7,58 @@ import {
   SingleOps,
   ZeroOPs
 } from "../types";
-import { deepcopy } from "../util";
+import { deepcopy, dropUndefined } from "../util";
+import { parseGroupby } from "./erie-util";
 
 export class Aggregate {
   aggregate: AggregateItem[];
-  _groupby: string[];
+  _groupby: string[] | "auto";
 
   constructor() {
     this.aggregate = [];
     this._groupby = [];
   }
 
-  add(op: AggOpType, field: string | string[], as: string, p?: any) {
+  add(op: AggOpType, field?: string | string[], $as?: string, p?: any) {
     if (ZeroOPs.includes(op)) {
-      if (field?.constructor.name !== 'String') {
-        throw new Error('"as" is not provided.')
-      }
+      let _as = <string>field ?? $as ?? op;
       this.aggregate.push({
-        op, as: <string>field
+        op, as: _as
       });
     } else if (SingleOps.includes(op)) {
       if (field === undefined || field?.constructor.name !== 'String') {
-        throw new Error('"field" is not properly provided.')
+        throw new TypeError('"field" is not properly provided.')
       }
-      if (as === undefined || as?.constructor.name !== 'String') {
-        throw new Error('"as" is not properly provided.')
+      if ($as === undefined || $as?.constructor.name !== 'String') {
+        throw new TypeError('"as" is not properly provided.')
       }
       if (op === QUANTILE) {
         if (p === undefined) {
           console.warn('p is not provided, so is set as 0.5.')
           p = 0.5;
+        } else if (p < 0 || p > 1) {
+          throw new RangeError(`The quantile parameter (p) must be within [0, 1]. Current: ${p}.`)
         }
         this.aggregate.push({
-          op, field, as, p
+          op, field, as: $as, p
         });
       } else {
         this.aggregate.push({
-          op, field, as
+          op, field, as: $as
         });
       }
     } else if (DoubleOps.includes(op)) {
       if (field === undefined ||
         field?.constructor.name !== 'Array' ||
         field?.length != 2 ||
-        !(<Array<any>>field).every(f => f?.constructor.name !== 'String')) {
+        !(<Array<any>>field).every(f => f?.constructor.name == 'String')) {
         throw new Error('"field" is not properly provided.')
       }
-      if (as === undefined || as?.constructor.name !== 'String') {
+      if ($as === undefined || $as?.constructor.name !== 'String') {
         throw new Error('"as" is not properly provided.')
       }
       this.aggregate.push({
-        op, field: [...field], as
+        op, field: [...field], as: $as
       });
     } else {
       throw new Error(`Unsupported operation type: ${op}`);
@@ -68,23 +69,15 @@ export class Aggregate {
 
   groupby(...args: any) {
     // this function resets groupby
-    if (args.length == 1 &&
-      args[0].constructor.name === 'Array' &&
-      args[0].every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args[0]];
-    } else if (args.length >= 1 &&
-      args.every((a: any) => a.constructor.name === 'String')) {
-      this._groupby = [...args];
-    }
-
+    this._groupby = parseGroupby(...args);
     return this;
   }
 
   get(): AggregateObject {
-    return {
-      aggregate: deepcopy(this.aggregate),
+    return dropUndefined({
+      aggregate: deepcopy(this.aggregate.map(d => dropUndefined(d))),
       groupby: deepcopy(this._groupby)
-    };
+    });
   }
 
   clone(): Aggregate {

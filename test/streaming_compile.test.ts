@@ -1,7 +1,6 @@
 // sum.test.js
-import { expect, test } from 'vitest'
+import { test } from 'vitest'
 import { compileAudioGraph, StreamingSpec } from '../src';
-import { normalizeSpecification } from '../src/normalize';
 
 test('compile streaming spec', async () => {
   let test_spec: StreamingSpec = {

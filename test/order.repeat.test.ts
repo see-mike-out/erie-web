@@ -1,6 +1,5 @@
 import { test } from "vitest";
-import { OrderSpec, TopLevelSpec } from "../src";
-import { normalizeOrderSpec, normalizeSpecification } from "../src/normalize";
+import { OrderSpec, TopLevelSpec, normalizeOrderSpec, normalizeSpecification, genRid } from "../src";
 
 let order_spec: OrderSpec = [
   {
@@ -130,7 +129,7 @@ const spec: TopLevelSpec = {
 
 
 test('normalize streaming spec with rep', async () => {
-  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(spec);
+  let { normalized, datasets, tick, scaleDefinitions, sequenceConfig, synths, samplings, waves } = await normalizeSpecification(genRid(), spec);
   let ordering_normalized = normalizeOrderSpec(order_spec, normalized);
   //console.log("Normalized", ordering_normalized)
   // console.log(JSON.stringify(normalized, null, 2))

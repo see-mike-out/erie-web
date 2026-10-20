@@ -9,6 +9,7 @@ export class SpeechStream {
   id: string;
   stream: AudioGraphSpeech;
   config: ConfigInterface;
+  player_id!: string;
 
   constructor(id: string, stream: AudioGraphSpeech) {
     this.id = id;
@@ -22,6 +23,10 @@ export class SpeechStream {
 
   make_scale_text() {
     return [];
+  }
+
+  setPlayerId(id: string) {
+    this.player_id = id;
   }
 
   async prerender(): Promise<PreGraphSpeech> {

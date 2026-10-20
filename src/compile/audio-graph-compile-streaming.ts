@@ -22,7 +22,7 @@ import {
   makeParamFilter,
   toHashedObject
 } from "../util";
-import { compileSingleLayerAuidoGraph } from "./audio-graph-queue-compile";
+import { compileSingleLayerAudioGraph } from "./audio-graph-queue-compile";
 import {
   DefaultHistoryLimit,
   DefaultPlaybackLimit,
@@ -36,6 +36,7 @@ import {
 } from "./audio-graph-update-scale";
 
 export async function compileStreamingStream(
+  player_id: string,
   audio_spec: StreamingSpec,
   normalized: NormalizedStreamItem[],
   tick: HashedObject<TickNormed>,
@@ -108,7 +109,7 @@ export async function compileStreamingStream(
     delete stream.stream.encoding.repeat;
     sequence.setRepeat(repeat);
   }
-  let slag = await compileSingleLayerAuidoGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales)
+  let slag = await compileSingleLayerAudioGraph(stream.stream, [], { is_streaming: true, has_base_tone }, tick, scales)
   if (slag?.stream) sequence.setStream(slag?.stream as UnitStream);
   if (slag?.transformer) sequence.setTransformer(slag?.transformer, stream.stream.transform?.some((t) => 'diffing' in t) ?? false);
   if (slag?.streaming_encoder) sequence.setEncoder(slag?.streaming_encoder);
@@ -148,37 +149,43 @@ export async function compileStreamingStream(
   if (stream.stream.title) sequence.setTitle(stream.stream.title);
   if (stream.stream.description) sequence.setDescription(stream.stream.description);
 
+  sequence.setPlayerId(player_id);
+
   return sequence;
 }
 
 function checkStreamingSpec(spec: NormalizedStreamItem) {
+  let problems: string[] = [];
   if ('overlay' in spec) {
-    console.error('A streaming audio graph cannot have overlaid streams.')
+    problems.push('A streaming audio graph cannot have overlaid streams.')
   }
   if ('stream' in spec) {
     let is_continued = spec.stream.tone.continued ?? false,
       has_base_tone = spec.stream.tone.hasBaseTone ?? false,
       base_tone_as_tick = spec.stream.tone.baseToneAsTick ?? false;
     if (!is_continued && has_base_tone && !base_tone_as_tick) {
-      console.error('A streaming audio graph with a non-tick base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
+      problems.push('A streaming audio graph with a non-tick base tone must have a continuous tone. For abrupt sound changes, set "ramp" as "abrupt" per channel.');
     }
     if (is_continued && (TAPCNT_chn in spec.stream.encoding || TAPSPD_chn in spec.stream.encoding)) {
-      console.error('A continuous streaming audio graph cannot have a tapping channel.');
+      problems.push('A continuous streaming audio graph cannot have a tapping channel.');
     }
     for (const channel of Object.keys(spec.stream.encoding)) {
       const encoding = spec.stream.encoding[channel];
       if (!('value' in encoding)) {
         if (!('type' in encoding)) {
-          console.error(`A streaming audio graph must have a "typed" encoding channel. See ${channel} channel.`);
+          problems.push(`A streaming audio graph must have a "typed" encoding channel. See ${channel} channel.`);
         }
         if (!('scale' in encoding)) {
-          console.error(`A streaming audio graph must have a "well-scaled" encoding channel. See ${channel} channel.`);
+          problems.push(`A streaming audio graph must have a "well-scaled" encoding channel. See ${channel} channel.`);
         } else if ('scale' in encoding && encoding.scale !== undefined) {
           if (!('domain' in encoding.scale)) {
-            console.error(`A streaming audio graph must specify the domain for each encoding channel. See ${channel} channel.`);
+            problems.push(`A streaming audio graph must specify the domain for each encoding channel. See ${channel} channel.`);
           }
         }
       }
     }
+  }
+  if (problems.length > 0) {
+    throw new Error(problems.join("\n"));
   }
 }

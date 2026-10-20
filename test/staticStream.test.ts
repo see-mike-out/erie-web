@@ -1,7 +1,5 @@
 import { describe, test, expect } from "vitest";
-import type { OverlayStreamSpec, StreamingSpec, TopLevelSpec, UnitStreamSpec } from "../src/types/spec";
-import { isSingleStream, normalizeSpecification } from "../src/normalize";
-import { DatasetSpecItemNormed } from "types";
+import { genRid, normalizeSpecification, type OverlayStreamSpec, type StreamingSpec, type TopLevelSpec, type UnitStreamSpec } from "../src";
 
 describe("Static Stream Normalization", () => {
   test("Case 1: Single sonification stream normalizes correctly", async () => {
@@ -24,7 +22,7 @@ describe("Static Stream Normalization", () => {
       }
     };
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
     if ('stream' in normalized[0]) {
       expect(normalized.length).toBe(1);
@@ -52,7 +50,7 @@ describe("Static Stream Normalization", () => {
       }
     };
 
-    const { normalized, datasets } = await normalizeSpecification(spec);
+    const { normalized, datasets } = await normalizeSpecification(genRid(), spec);
     expect(normalized.length > 0 && 'stream' in normalized[0]).toBe(true);
 
     if ('stream' in normalized[0]) {
@@ -93,7 +91,7 @@ describe("Static Stream Normalization", () => {
       ]
     };
 
-    const { normalized, datasets } = await normalizeSpecification(spec);
+    const { normalized, datasets } = await normalizeSpecification(genRid(), spec);
     expect(normalized.length > 0 && 'overlay' in normalized[0]).toBe(true);
 
     if ('overlay' in normalized[0]) {
@@ -125,7 +123,7 @@ describe("Static Stream Normalization", () => {
       sequence: [unitStream, unitStream]
     };
 
-    const { normalized } = await normalizeSpecification(spec);
+    const { normalized } = await normalizeSpecification(genRid(), spec);
     console.log(normalized)
     expect(normalized.length == 3 && 'intro' in normalized[0]).toBe(true);
     expect(normalized.length == 3 && 'stream' in normalized[1]).toBe(true);

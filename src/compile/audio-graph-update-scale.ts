@@ -293,7 +293,8 @@ export async function makeScales(
     if (scaleDef.values === undefined && scaleDef.data === undefined && scaleDef.value === undefined) {
       console.error("Value not assigned", scaleDef);
     } else {
-      let s = getAudioScales(channel, o, scaleDef.values, beat, scaleDef.data, config.is_streaming);
+      let locale = config.locale;
+      let s = getAudioScales(channel, o, scaleDef.values, beat, scaleDef.data, config.is_streaming, locale);
       if (s) scaleFunctions[scaleId] = s;
       else {
         console.error("Couldn't get the scale function", channel, o, scaleDef.values, beat, scaleDef.data);

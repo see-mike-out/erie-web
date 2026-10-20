@@ -25,8 +25,6 @@ import {
   RoleName,
   RoleScaleOverview,
   RoleScaleDescription,
-  PAN_X_chn,
-  PAN_chn,
   RoleLength,
   SpeechNotifyItemSpec,
   ToneType,
@@ -37,7 +35,6 @@ import {
   DescriptionMarkupQueueTextItem,
 } from '../types';
 import {
-  toOrdinalNumbers,
   deepcopy
 } from '../util';
 import { OverlayStream } from './audio-graph-overlay-stream';
@@ -58,7 +55,8 @@ export class SequenceStream {
   introStream?: SpeechStream;
   queue!: AudioGraphQueue | void;
   scaleQueue!: AudioGraphQueue;
-  ordering!: OrderSpecNormed
+  ordering!: OrderSpecNormed;
+  player_id!: string;
 
   constructor() {
     this.streams = [];
@@ -111,6 +109,13 @@ export class SequenceStream {
     this.ordering = ordering;
   }
 
+  setPlayerId(id: string) {
+    this.player_id = id;
+    this.streams.forEach((s) => {
+      s.setPlayerId(id);
+    })
+  }
+
   async prerender() {
     // only based on the order
     if (!this.ordering) {
@@ -118,7 +123,7 @@ export class SequenceStream {
     }
 
     // initialize
-    this.queue = new AudioGraphQueue();
+    this.queue = new AudioGraphQueue(this.player_id);
     this.queue.setSampling(this.samplings);
     this.queue.setSynths(this.synths);
     this.queue.setWaves(this.waves);
@@ -150,7 +155,6 @@ export class SequenceStream {
           for (const repeatOrderIteam of orderItem.repeat) {
             if (repeatOrderIteam.type === OrderingTypeMarkup) {
               if (repeatOrderIteam.specifier.role === RoleRepeatTitle) {
-                // todo
                 // @ts-ignore
                 let scale: ParsedScaleFunction = () => { };
                 scale.properties = { channel: '', encodingType: 'static', title: stream.name, index: ri };
@@ -166,7 +170,6 @@ export class SequenceStream {
                 }, this.config);
               }
             } else if (repeatOrderIteam.type === OrderingTypeSound) {
-              // todo
               if (repeatOrderIteam.notify?.beforePlay || repeatOrderIteam.notify?.beforePlay === undefined) {
                 if (repeatOrderIteam.notify === undefined || repeatOrderIteam.notify?.beforePlay === undefined || repeatOrderIteam.notify.beforePlay === true) {
                   chiime_used = true;
@@ -297,7 +300,6 @@ export class SequenceStream {
             }
           } else if (orderItem.specifier.role === RoleScaleDescription) {
             if (stream && orderItem.specifier.channel) {
-              // todo: provide custom markup? here? or when updating scales? maybe here... is
               let scaleDesc = stream.make_scale_text(orderItem.specifier.channel).filter((d) => d);
               if (scaleDesc[0].description) {
                 for (const descItem of scaleDesc[0].description) {
@@ -417,7 +419,7 @@ export class SequenceStream {
   // needs test
   async prerenderScale(channel: string, i: number) {
     let scaleQueue = (this.make_scale_text(channel, i) || []).map((d) => d.description).flat();
-    this.scaleQueue = new AudioGraphQueue();
+    this.scaleQueue = new AudioGraphQueue(this.player_id);
     this.scaleQueue.addMulti(scaleQueue, { ...this.config, tick: null });
     return this.scaleQueue;
   }

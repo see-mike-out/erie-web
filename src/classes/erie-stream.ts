@@ -42,7 +42,11 @@ import {
   REPEAT_chn,
   MODULATION_chn,
   HARMONICITY_chn,
-  DETUNE_chn
+  DETUNE_chn,
+  SingleStreamSpec,
+  UnitStreamSpec,
+  DataSpec,
+  StreamingDataSpec
 } from "../types";
 import { TickList } from "./erie-tick";
 import { Channel } from "./erie-channel";
@@ -50,11 +54,15 @@ import { StreamObject } from "../types/api/stream";
 import { DatasetObject } from "../types/api/data";
 import { intNotify, Notify } from "./erie-notify";
 import { Playback } from "./erie-playback";
+import { deepcopy, dropUndefined } from "../util";
+import { clearResources } from "./erie-util";
 
 export class Stream {
   _name?: string;
   _title?: string;
   _description?: string;
+  _skipTitle?: boolean;
+  _skipDescription?: boolean;
   data: Data;
   datasets?: Datasets;
   transform?: Transform;
@@ -110,9 +118,23 @@ export class Stream {
     return this;
   }
 
+  skipTitle(b: boolean) {
+    this._skipTitle = b;
+    return this;
+  }
+
   description(n: string) {
     this._description = n;
     return this;
+  }
+
+  skipDescription(b: boolean) {
+    this._skipDescription = b;
+    return this;
+  }
+
+  private isStreaming() {
+    return this.data.type === 'streaming';
   }
 
   get(): StreamObject {
@@ -129,7 +151,11 @@ export class Stream {
       wave: this.wave?.get(),
       tone: this.tone?.get(),
       encoding: {},
-      config: this.config?.get()
+      config: this.config?.get(),
+      notify: Object.keys(this.notify ?? {}).reduce((acc, curr) => {
+        if (this.notify?.[curr]) acc[curr] = deepcopy(this.notify?.[curr]);
+        return acc;
+      }, {} as { [key: string]: Notify })
     }
     Object.keys(this.encoding).forEach((chn) => {
       if (this.encoding[chn].defined) {
@@ -138,6 +164,56 @@ export class Stream {
     });
 
     return g;
+  }
+
+  addChannel(
+    channel_name: string,
+    channel: Channel
+  ) {
+    this.encoding[channel_name] = channel;
+    return this;
+  }
+
+  toSpec(is_part_of?: boolean): SingleStreamSpec | UnitStreamSpec {
+    const data = this.data.toSpec(is_part_of);
+    if (data === undefined) throw new Error("Stream data is not set.");
+    const o: any = {
+      title: this._title,
+      description: this._description,
+      name: this._name,
+      skipTitle: this._skipTitle,
+      skipDescription: this._skipDescription,
+      data: data as DataSpec | StreamingDataSpec,
+      datasets: this.datasets?.toSpec(),
+      transform: this.transform?.get(),
+      tone: this.tone.get(),
+      tick: this.tick?.get(),
+      synth: this.synth?.get(),
+      sampling: this.sampling?.get(),
+      wave: this.wave?.get(),
+      config: this.config?.get()
+    };
+    if (Object.keys(o.config).length == 0) {
+      delete o.config;
+    }
+    o.encoding = {};
+    Object.keys(this.encoding).forEach((chn) => {
+      if (this.encoding[chn].defined) {
+        o.encoding[chn] = this.encoding[chn].toSpec();
+      }
+    });
+    if (this.isStreaming()) {
+      o.playback = this.playback?.get();
+    }
+    o.notify = {};
+    if (this.notify) {
+      Object.keys(this.notify).forEach((key) => {
+        if (this.notify?.[key]) {
+          o.notify[key] = this.notify[key].get();
+        }
+      });
+    }
+    return dropUndefined(clearResources(o));
   }
 
   clone(): Stream {
@@ -154,16 +230,15 @@ export class Stream {
     _c.tone = this.tone.clone();
     _c.playback = this.playback?.clone();
     _c.notify = Object.keys(this.notify ?? {}).reduce((acc, curr) => {
-      if (this.notify?.[curr]) acc[curr] = this.notify?.[curr];
+      if (this.notify?.[curr]) acc[curr] = this.notify?.[curr].clone();
       return acc;
-    }, {} as { [key: string]: Notify })
+    }, {} as { [key: string]: Notify });
     _c.encoding = {};
     Object.keys(this.encoding).forEach((chn) => {
-      if (this.encoding[chn].defined) {
-        _c.encoding[chn] = this.encoding[chn].clone();
-      }
+      _c.encoding[chn] = this.encoding[chn].clone();
     });
     _c.config = this.config?.clone();
+    _c.tick = this.tick?.clone();
 
     return _c;
   }

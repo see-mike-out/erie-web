@@ -58,31 +58,31 @@ export async function rampContinuousTone(
       // initialize the envelope
       inst.envelope.gain.cancelScheduledValues(st);
       // before attack
-      rampBy('setValueAtTime', inst.envelope.gain, 0, st)
+      rampBy('setValueAtTime', inst.envelope.gain, 0, st, undefined, ct)
       // attack + sustain
-      rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, st + (inst.attackTime ?? 0))
+      rampBy('linearRampToValueAtTime', inst.envelope.gain, 1, st + (inst.attackTime ?? 0), undefined,  ct)
       if (inst.decayTime) {
         // sustain + decay
-        rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain ?? 1, st + inst.adTime)
+        rampBy('linearRampToValueAtTime', inst.envelope.gain, inst.sustain ?? 1, st + inst.adTime,  undefined, ct)
       }
     }
 
     // detune
     if (sound.detune && 'detune' in inst && inst.detune) {
-      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st);
+      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.detune, inst.detune, sound.detune || 0, st, undefined,  ct);
     }
     // loudness/gain
     if (sound.loudness !== undefined) {
-      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st);
+      rampBy(sound.isFirst ? 'setValueAtTime' : rampers.loudness, gain.gain, sound.loudness, st, undefined,  ct);
     }
     // panner node
     // DONE - Check stereo vs 3d
     if (isStereo && sound.panX !== undefined && panner instanceof StereoPannerNode) {
-      rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35);
+      rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.pan, sound.panX, st, 0.35, ct);
     } else if (!isStereo && panner instanceof PannerNode) {
-      if (sound.panX !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35);
-      if (sound.panY !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35);
-      if (sound.panZ !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35);
+      if (sound.panX !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionX, sound.panX, st, 0.35, ct);
+      if (sound.panY !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionY, sound.panY, st, 0.35, ct);
+      if (sound.panZ !== undefined) rampBy(sound.isFirst ? 'setTargetAtTime' : rampers.pan, panner.positionZ, sound.panZ, st, 0.35, ct);
     }
 
     if (sound.isFirst) {
