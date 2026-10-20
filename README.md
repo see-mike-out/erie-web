@@ -92,7 +92,7 @@ Software
 }
 ```
 
-Paper (will be updated)
+Paper
 
 ```
 @inproceedings{kim:2024erie
