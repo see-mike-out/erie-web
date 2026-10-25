@@ -5600,23 +5600,26 @@ function isErieGlobalState(player_id, state) {
     }
 }
 function setPlayerEvents(queue, config) {
+    let player_id = queue.player_id;
     if (typeof window !== 'undefined') {
         const stop = function (event) {
             if ('key' in event && event.key == 'x') {
-                setErieGlobalState(queue.player_id, Stopped);
+                setErieGlobalState(player_id, Stopped);
                 queue.state = Stopped;
-                closeErieGlobalControl(queue.player_id);
+                closeErieGlobalControl(player_id);
                 notifyStop(config);
             }
         };
         if (isBrowserWindowPossible()) {
             window.addEventListener('keypress', stop);
             if (!window.ErieGlobalPlayerEvents)
-                window.ErieGlobalPlayerEvents = { [queue.player_id]: new Map() };
-            window.ErieGlobalPlayerEvents[queue.player_id].set('stop-event', stop);
+                window.ErieGlobalPlayerEvents = { [player_id]: new Map() };
+            if (!window.ErieGlobalPlayerEvents[player_id])
+                window.ErieGlobalPlayerEvents[player_id] = new Map();
+            window.ErieGlobalPlayerEvents[player_id].set('stop-event', stop);
         }
         else {
-            Globals.ErieGlobalPlayerEvents[queue.player_id].set('stop-event', stop);
+            Globals.ErieGlobalPlayerEvents[player_id].set('stop-event', stop);
         }
     }
 }
