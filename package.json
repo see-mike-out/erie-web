@@ -1,9 +1,9 @@
 {
   "name": "erie-web",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A declarative grammar for data sonification for web",
   "main": "dist/index.js",
-  "module": "src/index.ts",
+  "module": "build/erie-web-esm.js",
   "types": "dist/src/index.d.ts",
   "unpkg": "build/erie-web.min.js",
   "jsdelivr": "build/erie-web.min.js",
