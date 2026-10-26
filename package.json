@@ -12,7 +12,7 @@
   },
   "exports": {
     "node": "./build/erie-web-node.js",
-    "default": "./build/erie-web.js"
+    "default": "./build/erie-web-esm.js"
   },
   "scripts": {
     "test": "vitest",
