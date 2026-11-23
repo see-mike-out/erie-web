@@ -63,8 +63,8 @@ export const DefaultHistoryLimit = 100,
   DefaultPlaybackLimit = 3,
   DefaultPlaybackSpeed = 1.5,
   DefaultNoitfyOptions: NotifySpec = {
-    beforePlayback: { speech: 'Old data', language: 'en-US', speechRate: 1 },
-    afterPlayback: { speech: 'End of old data', language: 'en-US', speechRate: 1 },
+    beforePlayback: { speech: 'Past data', language: 'en-US', speechRate: 1 },
+    afterPlayback: { speech: 'End of past data', language: 'en-US', speechRate: 1 },
     incoming: { speech: 'Incoming', language: 'en-US', speechRate: 1 },
     beforePlay: { speech: 'New data', language: 'en-US', speechRate: 1 },
     afterPlay: { speech: 'End of new data', language: 'en-US', speechRate: 1 },
@@ -373,6 +373,7 @@ export class StreamingStream {
     bufferPrimitve?: AudioPrimitiveBuffer,
     ttsFetchFunction?: any
   ) {
+    this.setEmitAt('init');
     if (this.is_destroyed) {
       console.error("This stream is destroyed. Start this stream again.");
       return;
@@ -389,14 +390,17 @@ export class StreamingStream {
     }
     this.status = Playing;
 
+
+    this.setEmitAt('status-prepared');
     await this.notify('incoming', bufferPrimitve, ttsFetchFunction);
 
-    let play_hitory: boolean = true;
-    if (!this.option.playback || this.option.playback?.init_by == 'manual') play_hitory = false;
-    if (playback_query) play_hitory = true;
+    let play_history: boolean = true;
+    if (play_history) this.setEmitAt('history-get');
+    if (!this.option.playback || this.option.playback?.init_by == 'manual') play_history = false;
+    if (playback_query) play_history = true;
 
     let playback_history!: Datum[]
-    if (play_hitory) {
+    if (play_history) {
       if (this.option.playback && !test) {
         let condition = this.option.playback?.condition ?? ((_: any) => true);
         if (condition(this.current)) playback_history = this.queryHistory(playback_query?.unit, playback_query?.limit);
@@ -404,23 +408,31 @@ export class StreamingStream {
       if (!test && playback_history && playback_history.length > 0) {
         if (this.is_diffed && (playback_query?.limit ?? this.option.playback?.limit ?? DefaultPlaybackLimit) == 1) {
           // pass
+          this.setEmitAt('history-get-none');
         } else {
           // play history
           playback_history.reverse(); // reversing because history queue stores from latest to oldest
+          this.setEmitAt('history-get-done');
           await this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
           let inQueue = 0;
+          this.setEmitAt('history-play-start');
           for (let item of playback_history) {
+            this.setEmitAt('history-prepare-' + inQueue + '-start');
             let transformed = this.transformer(item, inQueue > 0 ? playback_history[inQueue - 1] : [])
+            this.setEmitAt('history-prepare-' + inQueue + '-done');
             if (transformed.length > 0) {
               if (inQueue > 0) {
                 await this.notify('next', bufferPrimitve, ttsFetchFunction);
               }
-              this.setEmitAt('history-' + inQueue);
+              this.setEmitAt('history-play-' + inQueue + '-start');
               await this._play(this.sorter(transformed), this.option.playback?.speed ?? DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction, this.option.playback?.instrument);
+              this.setEmitAt('history-play-' + inQueue + "-done");
               inQueue++;
             }
           }
+          this.setEmitAt('history-play-done');
           await this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+          this.setEmitAt('history-done');
         }
       }
     }
@@ -429,27 +441,34 @@ export class StreamingStream {
     let inQueue = 0;
     //@ts-ignore
     if (this.status == Stopped) return;
+    this.setEmitAt("current-play-start");
     while (this.playQueue.length > 0) {
       let curr = this.playQueue.shift();
       if (curr) {
         if (inQueue > 0) {
           await this.notify('next', bufferPrimitve, ttsFetchFunction);
         }
-        let transformed = this.transformer(curr.data, play_hitory && playback_history.length > 0 ? playback_history[0] : []);
+        this.setEmitAt((!test ? 'current-prepare-' + inQueue : 'test-prepare-' + inQueue) + '-start');
+        let transformed = this.transformer(curr.data, play_history && playback_history.length > 0 ? playback_history[0] : []);
         this.current = this.sorter(transformed);
+        this.setEmitAt((!test ? 'current-prepare-' + inQueue : 'test-prepare-' + inQueue) + '-done');
         console.log(this.current)
-        this.setEmitAt(!test ? 'current-' + inQueue : 'test-' + inQueue)
+        this.setEmitAt((!test ? 'current-play-' + inQueue : 'test-play-' + inQueue) + '-start');
         await this._play(this.current, 1, bufferPrimitve, ttsFetchFunction);
+        this.setEmitAt((!test ? 'current-play-' + inQueue : 'test-play-' + inQueue) + '-done');
         // add to history
         if (!test) {
+          this.setEmitAt('current-save-' + inQueue + '-start');
           this.addToHistory(curr.data, curr.time);
+          this.setEmitAt('current-save-' + inQueue + '-done');
         }
       }
       inQueue++;
     }
+    this.setEmitAt("current-play-done");
     await this.notify('afterPlay', bufferPrimitve, ttsFetchFunction);
     this.status = Stopped;
-    this.setEmitAt(null);
+    this.setEmitAt("done");
     this.unmuteBaseTick();
   }
 

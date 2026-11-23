@@ -9007,12 +9007,14 @@
     }
     function getTransformers(spec) {
         let forced_dimensions = get_forced_dimensions(spec);
+        console.log(":>>>", forced_dimensions);
         return (_dt, dt_old) => {
             let transforms = [...(spec.common_transform || []), ...(spec.transform || [])];
             let dt = deepcopy(_dt);
             if (dt_old && transforms.some(t => { var _a; return ('diffing' in t) && ((_a = t.carryOver) !== null && _a !== void 0 ? _a : true); })) {
                 dt.splice(0, 0, ...deepcopy(dt_old));
             }
+            console.log(">>", transforms, dt);
             return transformData(dt, transforms, unique(forced_dimensions));
         };
     }
@@ -12107,8 +12109,8 @@
     }
 
     const DefaultHistoryLimit = 100, DefaultHistoryQuery = PlaybackUnitInstance, DefaultPlaybackLimit = 3, DefaultPlaybackSpeed = 1.5, DefaultNoitfyOptions = {
-        beforePlayback: { speech: 'Old data', language: 'en-US', speechRate: 1 },
-        afterPlayback: { speech: 'End of old data', language: 'en-US', speechRate: 1 },
+        beforePlayback: { speech: 'Past data', language: 'en-US', speechRate: 1 },
+        afterPlayback: { speech: 'End of past data', language: 'en-US', speechRate: 1 },
         incoming: { speech: 'Incoming', language: 'en-US', speechRate: 1 },
         beforePlay: { speech: 'New data', language: 'en-US', speechRate: 1 },
         afterPlay: { speech: 'End of new data', language: 'en-US', speechRate: 1 },
