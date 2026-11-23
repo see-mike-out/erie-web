@@ -8434,62 +8434,62 @@ function getRollUps(aggregates) {
     for (const agg of aggregates) {
         let name_as = agg.as, field = agg.field, method = agg.op;
         if ((method === "mean" || method === "average") && typeof field === 'string') {
-            rollups[name_as] = `op.median('${field}')`;
+            rollups[name_as] = `op.mean(d['${field}'])`;
         }
         else if (method === "valid" && typeof field === 'string') {
-            rollups[name_as] = `op.valid('${field}')`;
+            rollups[name_as] = `op.valid(d['${field}'])`;
         }
         else if (method === "invalid" && typeof field === 'string') {
-            rollups[name_as] = `op.invalid('${field}')`;
+            rollups[name_as] = `op.invalid(d['${field}'])`;
         }
         else if (method === "max" && typeof field === 'string') {
-            rollups[name_as] = `op.max('${field}')`;
+            rollups[name_as] = `op.max(d['${field}'])`;
         }
         else if (method === "min" && typeof field === 'string') {
-            rollups[name_as] = `op.min('${field}')`;
+            rollups[name_as] = `op.min(d['${field}'])`;
         }
         else if (method === "distinct" && typeof field === 'string') {
-            rollups[name_as] = `op.distinct('${field}')`;
+            rollups[name_as] = `op.distinct(d['${field}'])`;
         }
         else if (method === "sum" && typeof field === 'string') {
-            rollups[name_as] = `op.sum('${field}')`;
+            rollups[name_as] = `op.sum(d['${field}'])`;
         }
         else if (method === "product" && typeof field === 'string') {
-            rollups[name_as] = `op.product('${field}')`;
+            rollups[name_as] = `op.product(d['${field}'])`;
         }
         else if (method === "mode" && typeof field === 'string') {
-            rollups[name_as] = `op.mode('${field}')`;
+            rollups[name_as] = `op.mode(d['${field}'])`;
         }
         else if (method === "median" && typeof field === 'string') {
-            rollups[name_as] = `op.median('${field}')`;
+            rollups[name_as] = `op.median(d['${field}'])`;
         }
         else if (method === "quantile" && typeof field === 'string') {
             let p = (_a = agg.p) !== null && _a !== void 0 ? _a : 0.5;
             rollups[name_as] = `op.quantile('${field}'], ${p})`;
         }
         else if (method === "stdev" && typeof field === 'string') {
-            rollups[name_as] = `op.stdev('${field}')`;
+            rollups[name_as] = `op.stdev(d['${field}'])`;
         }
         else if (method === "stdevp" && typeof field === 'string') {
-            rollups[name_as] = `op.stdevp('${field}')`;
+            rollups[name_as] = `op.stdevp(d['${field}'])`;
         }
         else if (method === "variance" && typeof field === 'string') {
-            rollups[name_as] = `op.variance('${field}')`;
+            rollups[name_as] = `op.variance(d['${field}'])`;
         }
         else if (method === "variancep" && typeof field === 'string') {
-            rollups[name_as] = `op.variancep('${field}')`;
+            rollups[name_as] = `op.variancep(d['${field}'])`;
         }
         else if (method === "count") {
             rollups[name_as] = `op.count()`;
         }
         else if (method === "corr" && field instanceof Array) {
-            rollups[name_as] = `op.corr('${field[0]}'], '${field[1]}')`;
+            rollups[name_as] = `op.corr(d['${field[0]}'], d['${field[1]}'])`;
         }
         else if (method === "covariance" && field instanceof Array) {
-            rollups[name_as] = `op.covariance('${field[0]}'], '${field[1]}')`;
+            rollups[name_as] = `op.covariance(d['${field[0]}'], d['${field[1]}'])`;
         }
         else if (method === "covariancep" && field instanceof Array) {
-            rollups[name_as] = `op.covariancep('${field[0]}'], '${field[1]}')`;
+            rollups[name_as] = `op.covariancep(d['${field[0]}'], d['${field[1]}'])`;
         }
     }
     return rollups;
@@ -9011,14 +9011,12 @@ function applyTransforms(data, spec) {
 }
 function getTransformers(spec) {
     let forced_dimensions = get_forced_dimensions(spec);
-    console.log(":>>>", forced_dimensions);
     return (_dt, dt_old) => {
         let transforms = [...(spec.common_transform || []), ...(spec.transform || [])];
         let dt = deepcopy(_dt);
         if (dt_old && transforms.some(t => { var _a; return ('diffing' in t) && ((_a = t.carryOver) !== null && _a !== void 0 ? _a : true); })) {
             dt.splice(0, 0, ...deepcopy(dt_old));
         }
-        console.log(">>", transforms, dt);
         return transformData(dt, transforms, unique(forced_dimensions));
     };
 }
@@ -12352,6 +12350,7 @@ class StreamingStream {
     play(d, test, playback_query, bufferPrimitve, ttsFetchFunction) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _d, _e, _f, _g, _h, _j, _k;
+            this.setEmitAt('init');
             if (this.is_destroyed) {
                 console.error("This stream is destroyed. Start this stream again.");
                 return;
@@ -12366,38 +12365,51 @@ class StreamingStream {
                 return;
             }
             this.status = Playing;
+            this.setEmitAt('status-prepared');
             yield this.notify('incoming', bufferPrimitve, ttsFetchFunction);
-            let play_hitory = true;
+            let play_history = true;
+            if (play_history)
+                this.setEmitAt('history-get');
             if (!this.option.playback || ((_a = this.option.playback) === null || _a === void 0 ? void 0 : _a.init_by) == 'manual')
-                play_hitory = false;
+                play_history = false;
             if (playback_query)
-                play_hitory = true;
+                play_history = true;
             let playback_history;
-            if (play_hitory) {
+            if (play_history) {
                 if (this.option.playback && !test) {
                     let condition = (_d = (_b = this.option.playback) === null || _b === void 0 ? void 0 : _b.condition) !== null && _d !== void 0 ? _d : ((_) => true);
                     if (condition(this.current))
                         playback_history = this.queryHistory(playback_query === null || playback_query === void 0 ? void 0 : playback_query.unit, playback_query === null || playback_query === void 0 ? void 0 : playback_query.limit);
                 }
                 if (!test && playback_history && playback_history.length > 0) {
-                    if (this.is_diffed && ((_g = (_e = playback_query === null || playback_query === void 0 ? void 0 : playback_query.limit) !== null && _e !== void 0 ? _e : (_f = this.option.playback) === null || _f === void 0 ? void 0 : _f.limit) !== null && _g !== void 0 ? _g : DefaultPlaybackLimit) == 1) ;
+                    if (this.is_diffed && ((_g = (_e = playback_query === null || playback_query === void 0 ? void 0 : playback_query.limit) !== null && _e !== void 0 ? _e : (_f = this.option.playback) === null || _f === void 0 ? void 0 : _f.limit) !== null && _g !== void 0 ? _g : DefaultPlaybackLimit) == 1) {
+                        // pass
+                        this.setEmitAt('history-get-none');
+                    }
                     else {
                         // play history
                         playback_history.reverse(); // reversing because history queue stores from latest to oldest
+                        this.setEmitAt('history-get-done');
                         yield this.notify('beforePlayback', bufferPrimitve, ttsFetchFunction);
                         let inQueue = 0;
+                        this.setEmitAt('history-play-start');
                         for (let item of playback_history) {
+                            this.setEmitAt('history-prepare-' + inQueue + '-start');
                             let transformed = this.transformer(item, inQueue > 0 ? playback_history[inQueue - 1] : []);
+                            this.setEmitAt('history-prepare-' + inQueue + '-done');
                             if (transformed.length > 0) {
                                 if (inQueue > 0) {
                                     yield this.notify('next', bufferPrimitve, ttsFetchFunction);
                                 }
-                                this.setEmitAt('history-' + inQueue);
+                                this.setEmitAt('history-play-' + inQueue + '-start');
                                 yield this._play(this.sorter(transformed), (_j = (_h = this.option.playback) === null || _h === void 0 ? void 0 : _h.speed) !== null && _j !== void 0 ? _j : DefaultPlaybackSpeed, bufferPrimitve, ttsFetchFunction, (_k = this.option.playback) === null || _k === void 0 ? void 0 : _k.instrument);
+                                this.setEmitAt('history-play-' + inQueue + "-done");
                                 inQueue++;
                             }
                         }
+                        this.setEmitAt('history-play-done');
                         yield this.notify('afterPlayback', bufferPrimitve, ttsFetchFunction);
+                        this.setEmitAt('history-done');
                     }
                 }
             }
@@ -12407,27 +12419,34 @@ class StreamingStream {
             //@ts-ignore
             if (this.status == Stopped)
                 return;
+            this.setEmitAt("current-play-start");
             while (this.playQueue.length > 0) {
                 let curr = this.playQueue.shift();
                 if (curr) {
                     if (inQueue > 0) {
                         yield this.notify('next', bufferPrimitve, ttsFetchFunction);
                     }
-                    let transformed = this.transformer(curr.data, play_hitory && playback_history.length > 0 ? playback_history[0] : []);
+                    this.setEmitAt((!test ? 'current-prepare-' + inQueue : 'test-prepare-' + inQueue) + '-start');
+                    let transformed = this.transformer(curr.data, play_history && playback_history.length > 0 ? playback_history[0] : []);
                     this.current = this.sorter(transformed);
+                    this.setEmitAt((!test ? 'current-prepare-' + inQueue : 'test-prepare-' + inQueue) + '-done');
                     console.log(this.current);
-                    this.setEmitAt(!test ? 'current-' + inQueue : 'test-' + inQueue);
+                    this.setEmitAt((!test ? 'current-play-' + inQueue : 'test-play-' + inQueue) + '-start');
                     yield this._play(this.current, 1, bufferPrimitve, ttsFetchFunction);
+                    this.setEmitAt((!test ? 'current-play-' + inQueue : 'test-play-' + inQueue) + '-done');
                     // add to history
                     if (!test) {
+                        this.setEmitAt('current-save-' + inQueue + '-start');
                         this.addToHistory(curr.data, curr.time);
+                        this.setEmitAt('current-save-' + inQueue + '-done');
                     }
                 }
                 inQueue++;
             }
+            this.setEmitAt("current-play-done");
             yield this.notify('afterPlay', bufferPrimitve, ttsFetchFunction);
             this.status = Stopped;
-            this.setEmitAt(null);
+            this.setEmitAt("done");
             this.unmuteBaseTick();
         });
     }
